@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<classpath>
-	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/OpenCV-3.1.0"/>
-	<classpathentry kind="lib" path="C:/Users/Cory/wpilib/java/current/lib/NetworkTables.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Cory/wpilib/java/current/lib/cscore.jar"/>
-	<classpathentry kind="output" path="bin"/>
-</classpath>

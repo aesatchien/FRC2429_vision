@@ -92,7 +92,7 @@ public static void main(String[] args) {
     addresses[0] = "10." + (int)(team / 100) + "." + (int)(team % 100) + ".2";
     addresses[1] = "roboRIO-" + team + "-FRC.local";  //mDNS address of the roboRIO
     addresses[2] = "roboRIO-" + team + "-FRC.lan";
-    addresses[3] = "192.168.1.30";  //at home - change this to grab whatever you need
+    addresses[3] = "192.168.1.29";  //at home - change this to grab whatever you need
     addresses[4] = "172.22.11.2";  //apparently the roboRIO USB
     
     //2018 way - are these both necessary?

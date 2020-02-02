@@ -22,20 +22,19 @@ import edu.wpi.cscore.MjpegServer;
 import edu.wpi.cscore.UsbCamera;
 import edu.wpi.cscore.VideoSource;
 import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.cscore.HttpCamera;
-import edu.wpi.cscore.HttpCamera.HttpCameraKind;
 import edu.wpi.first.networktables.EntryListenerFlags;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.vision.VisionPipeline;
 import edu.wpi.first.vision.VisionThread;
-import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+
+import edu.wpi.cscore.HttpCamera;  // CJH Addition
+import edu.wpi.first.networktables.NetworkTableEntry;  // CJH Addition
+import edu.wpi.cscore.HttpCamera.HttpCameraKind; // CJH Addition
 
 import org.opencv.core.Mat;
 import grip.GripPipelineQ;
 import edu.wpi.cscore.CvSource;
 import edu.wpi.cscore.VideoMode;
-
 
 /*
    JSON format:
@@ -80,12 +79,15 @@ import edu.wpi.cscore.VideoMode;
    }
  */
 
-public final class Main {
 
-  //CJH Stuff - 2019 03 19
+public final class Main {
+  //****************  START CJH ADDITION  *************
+  //CJH Stuff - 2020 02 01
   static NetworkTableEntry targetsEntry;
   static NetworkTableEntry distanceEntry;
-
+  static NetworkTableEntry rotationEntry;
+  static NetworkTableEntry strafeEntry;
+  //****************  END CJH ADDITION  *************
   private static String configFile = "/boot/frc.json";
   
 
@@ -248,6 +250,7 @@ public final class Main {
     CameraServer inst = CameraServer.getInstance();
     UsbCamera camera = new UsbCamera(config.name, config.path);
     MjpegServer server = inst.startAutomaticCapture(camera);
+
     Gson gson = new GsonBuilder().create();
 
     camera.setConfigJson(gson.toJson(config.config));
@@ -314,31 +317,34 @@ public final class Main {
     if (!readConfig()) {
       return;
     }
-
+	//****************  START CJH ADDITION  *************
     // This creates a CvSource to use. This will take in a Mat image that has had OpenCV operations
     // FPS of the MjpegServer is set here 
     int xResolution = 320;
     int yResolution = 256;
     int processedPort = 1182;
-    System.out.println("Starting processed stream on " + processedPort);
-    CvSource imageSource = new CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, xResolution, yResolution, 10);
+
+    CvSource imageSource = new CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, xResolution, yResolution, 20);
     MjpegServer cvStream = new MjpegServer("CV Image Stream", processedPort);
     //cvStream.getProperty("compression").set(3);
     cvStream.setSource(imageSource);
     CameraServer inst2 = CameraServer.getInstance();
     inst2.addCamera(imageSource);
-    //Shuffleboard.getTab("SmartDashBoard").add(inst2);
 
     //added this on 3/29/2019 to see if it would then show up in the NT - and it does!  Now I need to customize it.
-    final HttpCamera camera = new HttpCamera("Genius Processed", "http://10.24.29.12:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer);
+	System.out.println("*** Starting 2429 BallCam Processed stream on " + processedPort);
+    final HttpCamera camera = new HttpCamera("BallCam Processed", "http://10.24.29.12:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer);
     CameraServer.getInstance().addCamera(camera);
     //myShuffleboardTab.add(camera);
-
-    // start NetworkTables
+	
+	// start NetworkTables
     NetworkTableInstance ntinst = NetworkTableInstance.getDefault();
-    targetsEntry = ntinst.getEntry("targets");
+	targetsEntry = ntinst.getEntry("targets");
     distanceEntry = ntinst.getEntry("distance");
-
+	rotationEntry = ntinst.getEntry("rotation");
+	strafeEntry = ntinst.getEntry("strafe");
+	//****************  END CJH ADDITION  *************
+	
     if (server) {
       System.out.println("Setting up NetworkTables server");
       ntinst.startServer();
@@ -346,7 +352,6 @@ public final class Main {
       System.out.println("Setting up NetworkTables client for team " + team);
       ntinst.startClientTeam(team);
     }
-    
 
     // start cameras
     for (CameraConfig config : cameraConfigs) {
@@ -358,6 +363,7 @@ public final class Main {
       startSwitchedCamera(config);
     }
 
+// ************** CJH CUSTOM PIPELINE  ***********
     // start image processing on camera 0 if present
     if (cameras.size() >= 1) {
       VisionThread visionThread = new VisionThread(cameras.get(0),
@@ -365,15 +371,19 @@ public final class Main {
         // do something with pipeline results
         int size = pipeline.filterContoursOutput().size();
         double distance = pipeline.getDistance();
+		double rotation = pipeline.getRotation();
+		double strafe = pipeline.getStrafe();
         targetsEntry.setNumber(size);
         distanceEntry.setNumber(Math.round(100*distance)/100.0);
+		rotationEntry.setNumber(Math.round(100*rotation)/100.0);
+		strafeEntry.setNumber(Math.round(100*strafe)/100.0);
         ntinst.flush();
         imageSource.putFrame(pipeline.gripImage());
-        
-
       });
+// ************** END CJH CUSTOM PIPELINE  ***********
+
       /* something like this for GRIP:
-      VisionThread visionThread = new VisionThread(cameras.get(0),S
+      VisionThread visionThread = new VisionThread(cameras.get(0),
               new GripPipeline(), pipeline -> {
         ...
       });
@@ -388,8 +398,6 @@ public final class Main {
       } catch (InterruptedException ex) {
         return;
       }
-      
     }
-    
   }
 }

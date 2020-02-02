@@ -88,7 +88,6 @@ public final class Main {
 
   private static String configFile = "/boot/frc.json";
   
-
   @SuppressWarnings("MemberName")
   public static class CameraConfig {
     public String name;
@@ -369,9 +368,8 @@ public final class Main {
         distanceEntry.setNumber(Math.round(100*distance)/100.0);
         ntinst.flush();
         imageSource.putFrame(pipeline.gripImage());
-        
-
       });
+	  
       /* something like this for GRIP:
       VisionThread visionThread = new VisionThread(cameras.get(0),S
               new GripPipeline(), pipeline -> {

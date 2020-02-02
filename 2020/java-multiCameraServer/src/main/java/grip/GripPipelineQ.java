@@ -5,10 +5,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.HashMap;
 import java.util.Iterator;
+import org.opencv.core.MatOfPoint;
 
 import edu.wpi.first.vision.VisionPipeline;
 
@@ -33,7 +36,41 @@ public class GripPipelineQ implements VisionPipeline {
 	private Mat hsvThresholdOutput = new Mat();
 	private ArrayList<MatOfPoint> findContoursOutput = new ArrayList<MatOfPoint>();
 	private ArrayList<MatOfPoint> filterContoursOutput = new ArrayList<MatOfPoint>();
+	static int xResolution = 320;
+	static int yResolution = 240;
+	static int cameraShift = 0;
+	static double cameraFov = 55;
+	static double fovRadians = (Math.PI/180.0)*(cameraFov);
 	double distance = 0;
+	double distanceToTarget = 0;
+	double rotation = 0;
+	double rotationOffset = 0;
+	double strafeToTarget = 0;
+	boolean bBallCam = true;
+	//Set up the overlay
+	Point infoTextLocation= new Point((int)(0.035*xResolution),12);
+    Point targetTextLocation= new Point((int)(0.7*xResolution),13);
+    Point targetDistTextLocation= new Point((int)(0.03*xResolution),yResolution-20);
+    Point targetAreaTextLocation= new Point((int)(0.02*xResolution),27);
+    //
+
+    Scalar infoTextColor= new Scalar(0,255,255);
+    Scalar targetTextColor= new Scalar(255,255,0);
+    Scalar targetWarningColor= new Scalar(20,20,255);
+    Scalar targetColor = new Scalar (255, 0, 0);
+	
+    double actualTargetWidth = 7.0;
+    double actualTargetHeight = 7.0; 
+
+	//stuff I shouldn't have to reinitialize each time
+	double imageTargetWidth =0;
+	double imageTargetHeight =0;
+	double imageOffsetFromZero =0;
+	double areaRatio =0;
+	
+	double aspectRatio = (double)yResolution/(double)xResolution;
+	int counter = 0;
+	
 	static {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 	}
@@ -43,12 +80,20 @@ public class GripPipelineQ implements VisionPipeline {
 	 */
 	@Override	public void process(Mat source0) {
 		long  startTime=System.nanoTime();
-		
+		double targetAreas [] = {0.0,0.0};
+		//double testAreas [] = {0.0,0.0};
+		  double targetX [] = {0.0,0.0};
+		  double targetY [] = {0.0,0.0};
+		  double centroidY [] = {0.0,0.0};
+		  double targetHeights [] = {0.0,0.0};
+		  double targetWidths [] = {0.0,0.0};
+		  double targetAspectRatio [] = {0.0,0.0};
+		  double targetBleedover [] = {0.0,0.0};
 		// Step HSV_Threshold0:
 		Mat hsvThresholdInput = source0;
-		double[] hsvThresholdHue = {71.2230215827338, 110.88737201365188};
-		double[] hsvThresholdSaturation = {73.38129496402877, 255.0};
-		double[] hsvThresholdValue = {123.83093525179855, 255.0};
+		double[] hsvThresholdHue = {18.0, 66.0};  
+		double[] hsvThresholdSaturation = {10, 255.0};
+		double[] hsvThresholdValue = {80.0, 255.0};
 		hsvThreshold(hsvThresholdInput, hsvThresholdHue, hsvThresholdSaturation, hsvThresholdValue, hsvThresholdOutput);
 
 		// Step Find_Contours0:
@@ -58,102 +103,144 @@ public class GripPipelineQ implements VisionPipeline {
 
 		// Step Filter_Contours0:
 		ArrayList<MatOfPoint> filterContoursContours = findContoursOutput;
-		double filterContoursMinArea = 7.5;
+		double filterContoursMinArea = 100;
 		double filterContoursMinPerimeter = 0;
-		double filterContoursMinWidth = 4.0;
+		double filterContoursMinWidth = 15;
 		double filterContoursMaxWidth = 1000;
-		double filterContoursMinHeight = 16.0;
+		double filterContoursMinHeight = 15;
 		double filterContoursMaxHeight = 1000;
 		double[] filterContoursSolidity = {0.0, 100.0};
-		double filterContoursMaxVertices = 100.0;
+		double filterContoursMaxVertices = 10000.0;
 		double filterContoursMinVertices = 0;
-		double filterContoursMinRatio = 0.2;
-		double filterContoursMaxRatio = 1.0;
+		double filterContoursMinRatio = 0.75;
+		double filterContoursMaxRatio = 1.33;
 		filterContours(filterContoursContours, filterContoursMinArea, filterContoursMinPerimeter, filterContoursMinWidth, filterContoursMaxWidth, filterContoursMinHeight, filterContoursMaxHeight, filterContoursSolidity, filterContoursMaxVertices, filterContoursMinVertices, filterContoursMinRatio, filterContoursMaxRatio, filterContoursOutput);
 
 
 		//Step put some stuff on source0
-		int xResolution = 320;
-		int yResolution = 256;
-		int cameraShift = 0;
-		distance = 0;
-		Point infoTextLocation= new Point((int)(0.035*xResolution),12);
-		Scalar infoTextColor= new Scalar(0,255,255);
-		Scalar targetWarningColor= new Scalar(20,20,255);
-		Scalar white = new Scalar(255,255,255);		
 		int targetCount = filterContoursOutput.size();
 		int minTargets = 1;
-		ArrayList<MatOfPoint> mainTargets = new ArrayList<MatOfPoint>();
-		if (targetCount > 1) {
+		
+		if (targetCount > 0) {
+			//Sort based on area.  Remember the ordering, the first time i did this i got the biggest one last and that's opposite of what I want
+			Collections.sort(filterContoursOutput, new Comparator<MatOfPoint>() {
+				  @Override public int compare(final MatOfPoint o1, final MatOfPoint o2) {
+				    if (Imgproc.contourArea(o1) < Imgproc.contourArea(o2)) {
+				      return 1;
+				    } else if (Imgproc.contourArea(o1) > Imgproc.contourArea(o2)) {
+				      return -1;
+				    }  
+				    return 0;
+				  }
+				});			
+			
+			ArrayList<MatOfPoint> mainTargets = new ArrayList<MatOfPoint>();
+			//Just grab the biggest one
 			mainTargets.add(filterContoursOutput.get(0));
-			mainTargets.add(filterContoursOutput.get(1));
-			/***********************************************/
-			//Do all the post calculations
-			int count=0;
-			int frameCount = filterContoursOutput.size();
-			List<MatOfPoint> hulls  = new ArrayList<MatOfPoint>();
-			Iterator<MatOfPoint> each = mainTargets.iterator();
-			double targetAreas [] = {0.0,0.0};
-			double targetAspectRatio [] = {0.0,0.0};
-			double targetX [] = {0.0,0.0};
-			double targetY [] = {0.0,0.0};
-			double centroidY [] = {0.0,0.0};
-			double targetHeights [] = {0.0,0.0};
-			double targetWidths [] = {0.0,0.0};
-			double targetBleedover [] = {0.0,0.0};
-			Scalar targetColor = new Scalar (0, 255, 255);
-			while (each.hasNext()) {
-				MatOfPoint wrapper = each.next();
-				Moments moments = Imgproc.moments(wrapper);
-				
-				Point centroid = new Point();
-				centroid.x = -cameraShift + (moments.get_m10() / moments.get_m00());
-				centroid.y = moments.get_m01() / moments.get_m00();
-				Rect rectangle = Imgproc.boundingRect(wrapper);
-				
-				//Countour area is not robust to poking it with your finger
-				//double area = Imgproc.contourArea(wrapper);
-				//Convex Hull or Rectangle area is robust to poking it with your finger 
-				final MatOfInt hull = new MatOfInt();
-				Imgproc.convexHull(wrapper, hull);
-				MatOfPoint mopHull = new MatOfPoint();
-				mopHull.create((int) hull.size().height, 1, CvType.CV_32SC2);
-				for (int j = 0; j < hull.size().height; j++) {
-					int index = (int)hull.get(j, 0)[0];
-					double[] point = new double[] { wrapper.get(index, 0)[0], wrapper.get(index, 0)[1]};
-					mopHull.put(j, 0, point);
-				}
-				double area = Imgproc.contourArea(mopHull);
-				//areas are a percentage of total image area
-				targetAreas[count]= 100.0*area/(xResolution*yResolution);
-				targetAspectRatio[count] = (double) rectangle.height / (double) rectangle.width;
-				//X and Y are scaled from -1 to 1 in each direction, so distances in these coordinates
-				//need to be divided by two to get percentages
-				targetX[count]=(-1.0+ 2.0*centroid.x/(double)xResolution);
-				targetY[count]=(-1.0+ 2.0*centroid.y/(double)yResolution);
-				centroidY[count]=centroid.y;
-				
-				//The farther away you get, the worse the heights are
-				targetBleedover[count]= rectangle.area()/area;
-				//The height of the rectangle is in percentage of the y resolution
-				targetHeights[count] = (rectangle.height)/((double)yResolution);
-				targetWidths[count] = (rectangle.width);
-				
-				//Draw the rectangles, they are good to guide the eye
-				Imgproc.rectangle(source0, rectangle.tl(), rectangle.br(), targetColor, 1);
-				hulls.add(count,mopHull);
-				count++;
+
+/*			
+		/***********************************************/
+		//Do all the post calculations
+
+	    int count=0;
+		int frameCount = filterContoursOutput.size();
+		//List<MatOfPoint> hulls  = new ArrayList<MatOfPoint>();
+	    Iterator<MatOfPoint> each = mainTargets.iterator();
+	    while (each.hasNext()) {
+	        MatOfPoint wrapper = each.next();
+	        Moments moments = Imgproc.moments(wrapper);
+	        
+	        Point centroid = new Point();
+			centroid.x = (int)(-cameraShift + (moments.get_m10() / moments.get_m00()));
+			centroid.y = (int)(moments.get_m01() / moments.get_m00());
+			Rect rectangle = Imgproc.boundingRect(wrapper);
+			
+			//Countour area is not robust to poking it with your finger
+			//double area = Imgproc.contourArea(wrapper);
+			//Convex Hull or Rectangle area is robust to poking it with your finger 
+/*			final MatOfInt hull = new MatOfInt();
+			Imgproc.convexHull(wrapper, hull);
+			MatOfPoint mopHull = new MatOfPoint();
+			mopHull.create((int) hull.size().height, 1, CvType.CV_32SC2);
+			for (int j = 0; j < hull.size().height; j++) {
+				int index = (int)hull.get(j, 0)[0];
+				double[] point = new double[] { wrapper.get(index, 0)[0], wrapper.get(index, 0)[1]};
+				mopHull.put(j, 0, point);
 			}
-			//Imgproc.putText(source0, String.format("X: %2.3f X2:%2.3f",targetX[0], targetX[1]+1-1), new Point((int)(0.035*xResolution),150) ,1, 0.9, white, 1);
-			//Imgproc.putText(source0, String.format("Y: %2.3f Y2:%2.3f",targetY[0], targetY[1]+1-1), new Point((int)(0.55*xResolution),130) ,1, 0.9, white, 1);
-			//Imgproc.putText(source0, String.format("DX: %2.3f DY:%2.3f",targetX[0]-targetX[1], targetY[0]-targetY[1]), new Point((int)(0.55*xResolution),230) ,1, 0.9, targetWarningColor, 1);
-			// Easy to fit the distace as ~ 1/target seperation
-			distance = -0.2+ 10.8/Math.abs(targetX[0]-targetX[1]);
-		}
-		//Black box for top background
-		Imgproc.rectangle(source0, new Point(0,0), new Point(xResolution,0.06*yResolution), new Scalar(0,0,0), -1);
-		Imgproc.line(source0, new Point((int)(0.4*xResolution),0.07*yResolution), new Point((int)(0.4*xResolution),0.9*yResolution), targetWarningColor, 1);
-		Imgproc.line(source0, new Point((int)(0.6*xResolution),0.07*yResolution), new Point((int)(0.6*xResolution),0.9*yResolution), targetWarningColor, 1);
+			double area = Imgproc.contourArea(mopHull);
+			//areas are a percentage of total image area
+			targetAreas[count]= 100.0*area/(xResolution*yResolution);
+*/
+			double area = rectangle.area();
+			targetAreas[count] = 100.0*area/(xResolution*yResolution);
+			targetAspectRatio[count] = (double) rectangle.height / (double) rectangle.width;
+			//X and Y are scaled from -1 to 1 in each direction, so distances in these coordinates
+			//need to be divided by two to get percentages
+			targetX[count]=(-1.0+ 2.0*centroid.x/xResolution);
+			targetY[count]=(-1.0+ 2.0*centroid.y/yResolution);
+			centroidY[count]=centroid.y;
+			
+			//The farther away you get, the worse the heights are
+			targetBleedover[count]= rectangle.area()/area;
+			//The height of the rectangle is in percentage of the y resolution
+			//targetHeights[count] = (rectangle.height)/((double)yResolution);
+			targetHeights[count] = (rectangle.height)/((double)yResolution);
+			targetWidths[count] = (rectangle.width)/((double)xResolution);
+			
+			//Draw the rectangles, they are good to guide the eye
+			Imgproc.rectangle(source0, rectangle.tl(), rectangle.br(), targetColor, 2);
+			//hulls.add(count,mopHull);
+			count++;
+	    }
+	    
+	    //Look in here for all the final calculations
+		/***********************************************/
+	 // Set aside a top bar for information
+	 Imgproc.rectangle(source0, new Point(0,0), new Point(xResolution,0.12*yResolution), new Scalar(0,0,0), -1);  
+   	 
+   	 //This one is actually in scaled coordinates and gives you the distance of the midpoint from zero
+   	 //Which is also the fraction of FOV/2 you are off center
+   	 imageOffsetFromZero = (targetX[1]+targetX[0])/2.0;
+     //I feel like i should average this but the lag is too high
+   	 //areaRatio = targetAreas[0]/targetAreas[1];
+	    	    
+	    if (bBallCam){
+	    	imageTargetHeight = targetHeights[0];  
+	    	imageTargetWidth = targetWidths[0];
+	    	distanceToTarget = actualTargetWidth / (2.0 * Math.tan(imageTargetWidth*fovRadians/2.0));
+	     	rotationOffset=targetX[0] *cameraFov/2.0;
+	     	strafeToTarget = Math.tan((Math.PI/180.0)*rotationOffset)*distanceToTarget;
+	    	
+	     	Imgproc.putText(source0, "Dist: " + String.format("%3.0f", distanceToTarget)  + 
+			" Str: " +String.format("%2.0f", strafeToTarget) + 
+			" H: " + String.format("%2.0f",yResolution*targetHeights[0]) +
+			" AR: " +String.format("%1.1f",1.0/targetAspectRatio[0])+
+		    " Rot: " + String.format("%2.0f",rotationOffset),
+			targetAreaTextLocation,1 , 0.9, targetTextColor, 1);   	
+	     	
+	    	if(distanceToTarget > 10 ){
+	    		Imgproc.putText(source0, "Targeted",
+	    			targetTextLocation, 1 , 0.9, targetTextColor, 1);
+	    	}
+	    	else {
+	    		Imgproc.putText(source0, "Eaten!",
+	        			targetTextLocation, 1 , 1.0, targetWarningColor, 1);
+	    	}
+	    	
+	    	//Use some lines to steer us
+	    	Imgproc.line(source0, new Point((int)(0.3*xResolution+cameraShift),0.77*yResolution), new Point((int)(0.3*xResolution+cameraShift),0.14*yResolution), new Scalar (0,255,0), 2);
+	    	Imgproc.line(source0, new Point((int)(0.7*xResolution+cameraShift),0.77*yResolution), new Point((int)(0.7*xResolution+cameraShift),0.14*yResolution), new Scalar (0,255,0), 2);
+	   }
+	    //This is for test cam - still a work in progress to get better distances from circumference
+	    else {
+		  
+	   }
+ 		/***********************************************/
+
+        
+	}// end if on targetcount > 0
+		
+		
 		// Slow it down - limit the bandwidth a bit.  3B+ handles this pipeline very quickly
 		try
 		{
@@ -163,12 +250,11 @@ public class GripPipelineQ implements VisionPipeline {
 		{
     		Thread.currentThread().interrupt();
 		}
+		
 		long endTime = System.nanoTime();
-		Imgproc.putText(source0, String.format("FPS: %03d   Bogeys:%2d      Distance:%2.1f",(int)(Math.pow(10.0,9)/(double)(endTime-startTime)),
-				filterContoursOutput.size(), distance), infoTextLocation,1, 0.9, infoTextColor, 1);
-		if (filterContoursOutput.size()>1){
-			
-		}
+		Imgproc.putText(source0, String.format("FPS: %1.0f Bogeys:%2d",Math.pow(10.0,9)/(double)(endTime-startTime),
+	    		filterContoursOutput.size()), infoTextLocation,1, 0.9, infoTextColor, 1);
+
 		
 		finalMat=source0;
 	}
@@ -181,7 +267,16 @@ public class GripPipelineQ implements VisionPipeline {
 		return finalMat;
 	}
 	public double getDistance(){
-		return distance;
+		return distanceToTarget;
+	}
+	public double getStrafe(){
+		return strafeToTarget;
+	}
+	public double getRotation(){
+		return rotationOffset;
+	}
+	public boolean isConnected(){
+		return true;
 	}
 	public Mat hsvThresholdOutput() {
 		return hsvThresholdOutput;
@@ -274,7 +369,8 @@ public class GripPipelineQ implements VisionPipeline {
 			final double area = Imgproc.contourArea(contour);
 			if (area < minArea) continue;
 			if (Imgproc.arcLength(new MatOfPoint2f(contour.toArray()), true) < minPerimeter) continue;
-			Imgproc.convexHull(contour, hull);
+			// Get rid of solidity as a criterion - CJH
+			/*Imgproc.convexHull(contour, hull);
 			MatOfPoint mopHull = new MatOfPoint();
 			mopHull.create((int) hull.size().height, 1, CvType.CV_32SC2);
 			for (int j = 0; j < hull.size().height; j++) {
@@ -284,6 +380,7 @@ public class GripPipelineQ implements VisionPipeline {
 			}
 			final double solid = 100 * area / Imgproc.contourArea(mopHull);
 			if (solid < solidity[0] || solid > solidity[1]) continue;
+			*/
 			if (contour.rows() < minVertexCount || contour.rows() > maxVertexCount)	continue;
 			final double ratio = bb.width / (double)bb.height;
 			if (ratio < minRatio || ratio > maxRatio) continue;

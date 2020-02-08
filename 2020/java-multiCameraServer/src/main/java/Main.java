@@ -29,6 +29,7 @@ import edu.wpi.first.vision.VisionThread;
 
 import edu.wpi.cscore.HttpCamera;  // CJH Addition
 import edu.wpi.first.networktables.NetworkTableEntry;  // CJH Addition
+import edu.wpi.first.networktables.NetworkTable;	//CJH Addition
 import edu.wpi.cscore.HttpCamera.HttpCameraKind; // CJH Addition
 
 import org.opencv.core.Mat;
@@ -87,6 +88,7 @@ public final class Main {
   static NetworkTableEntry distanceEntry;
   static NetworkTableEntry rotationEntry;
   static NetworkTableEntry strafeEntry;
+  static NetworkTable ballTable;
   //****************  END CJH ADDITION  *************
   private static String configFile = "/boot/frc.json";
   
@@ -338,11 +340,13 @@ public final class Main {
     //myShuffleboardTab.add(camera);
 	
 	// start NetworkTables
+	
     NetworkTableInstance ntinst = NetworkTableInstance.getDefault();
-	targetsEntry = ntinst.getEntry("targets");
-    distanceEntry = ntinst.getEntry("distance");
-	rotationEntry = ntinst.getEntry("rotation");
-	strafeEntry = ntinst.getEntry("strafe");
+	ballTable = ntinst.getTable("BallCam");
+	targetsEntry = ballTable.getEntry("targets");
+    distanceEntry = ballTable.getEntry("distance");
+	rotationEntry = ballTable.getEntry("rotation");
+	strafeEntry = ballTable.getEntry("strafe");
 	//****************  END CJH ADDITION  *************
 	
     if (server) {
@@ -350,7 +354,8 @@ public final class Main {
       ntinst.startServer();
     } else {
       System.out.println("Setting up NetworkTables client for team " + team);
-      ntinst.startClientTeam(team);
+      //ntinst.startClientTeam(team);
+	  ntinst.startClient("192.168.1.28");  //Do this for testing at home
     }
 
     // start cameras

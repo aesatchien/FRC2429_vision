@@ -4,15 +4,18 @@ Basically added the following:
 Get the extra imports:
 import edu.wpi.cscore.HttpCamera;  // CJH Addition
 import edu.wpi.first.networktables.NetworkTableEntry;  // CJH Addition
+import edu.wpi.first.networktables.NetworkTable;	//CJH Addition
 import edu.wpi.cscore.HttpCamera.HttpCameraKind; // CJH Addition
 
 Add some NT entries:
   static NetworkTableEntry targetsEntry;
   static NetworkTableEntry distanceEntry;
   static NetworkTableEntry rotationEntry;
+  static NetworkTableEntry strafeEntry;
+  static NetworkTable ballTable;
   
 Add a second camera source from the processed mat:
- //****************  START CJH ADDITION  *************
+ /	//****************  START CJH ADDITION  *************
     // This creates a CvSource to use. This will take in a Mat image that has had OpenCV operations
     // FPS of the MjpegServer is set here 
     int xResolution = 320;
@@ -33,10 +36,13 @@ Add a second camera source from the processed mat:
     //myShuffleboardTab.add(camera);
 	
 	// start NetworkTables
+	
     NetworkTableInstance ntinst = NetworkTableInstance.getDefault();
-	targetsEntry = ntinst.getEntry("targets");
-    distanceEntry = ntinst.getEntry("distance");
-	rotationEntry = ntinst.getEntry("rotation");
+	ballTable = ntinst.getTable("BallCam");
+	targetsEntry = ballTable.getEntry("targets");
+    distanceEntry = ballTable.getEntry("distance");
+	rotationEntry = ballTable.getEntry("rotation");
+	strafeEntry = ballTable.getEntry("strafe");
 	//****************  END CJH ADDITION  *************
 	
 Add the custom pipeline:

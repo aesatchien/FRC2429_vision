@@ -354,8 +354,8 @@ public final class Main {
       ntinst.startServer();
     } else {
       System.out.println("Setting up NetworkTables client for team " + team);
-      //ntinst.startClientTeam(team);
-	  ntinst.startClient("192.168.1.28");  //Do this for testing at home
+      ntinst.startClientTeam(team);
+	  //ntinst.startClient("192.168.1.28");  //Do this for testing at home
     }
 
     // start cameras

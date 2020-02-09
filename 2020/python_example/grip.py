@@ -1,6 +1,3 @@
-# Generated 2/4/2020 CJH - simple grip pipeline, trying to figure out how to work out what comes from the pipeline - so I want to leave this pristine as grip output
-# Basically all you need to do here is to change the parameters in the __init__ to fine tune your pipeline.
-# These filters then need to go into your contour processing logic
 import cv2
 import numpy
 import math
@@ -21,28 +18,28 @@ class GripPipeline:
         self.blur_output = None
 
         self.__hsv_threshold_input = self.blur_output
-        self.__hsv_threshold_hue = [98, 122]
-        self.__hsv_threshold_saturation = [0.0, 255.0]
-        self.__hsv_threshold_value = [0.0, 255.0]
+        self.__hsv_threshold_hue = [11.33093525179856, 32.55972696245734]
+        self.__hsv_threshold_saturation = [128.41726618705036, 255.0]
+        self.__hsv_threshold_value = [100.89928057553956, 255.0]
 
         self.hsv_threshold_output = None
 
         self.__find_contours_input = self.hsv_threshold_output
-        self.__find_contours_external_only = False
+        self.__find_contours_external_only = True
 
         self.find_contours_output = None
 
         self.__filter_contours_contours = self.find_contours_output
-        self.__filter_contours_min_area = 100.0
-        self.__filter_contours_min_perimeter = 100.0
-        self.__filter_contours_min_width = 0.0
-        self.__filter_contours_max_width = 1000
-        self.__filter_contours_min_height = 0
+        self.__filter_contours_min_area = 500.0
+        self.__filter_contours_min_perimeter = 0.0
+        self.__filter_contours_min_width = 10.0
+        self.__filter_contours_max_width = 1000.0
+        self.__filter_contours_min_height = 10.0
         self.__filter_contours_max_height = 1000
-        self.__filter_contours_solidity = [0, 100]
+        self.__filter_contours_solidity = [24.280575539568343, 100.0]
         self.__filter_contours_max_vertices = 1000000
-        self.__filter_contours_min_vertices = 0.0
-        self.__filter_contours_min_ratio = 0.7
+        self.__filter_contours_min_vertices = 0
+        self.__filter_contours_min_ratio = 0.5
         self.__filter_contours_max_ratio = 1.5
 
         self.filter_contours_output = None
@@ -119,7 +116,7 @@ class GripPipeline:
         else:
             mode = cv2.RETR_LIST
         method = cv2.CHAIN_APPROX_SIMPLE
-        im2, contours, hierarchy =cv2.findContours(input, mode=mode, method=method)
+        contours, hierarchy =cv2.findContours(input, mode=mode, method=method)
         return contours
 
     @staticmethod

@@ -1,0 +1,424 @@
+{
+  "dividerPosition": 0.008018327605956471,
+  "tabPane": [
+    {
+      "title": "Main",
+      "autoPopulate": false,
+      "autoPopulatePrefix": "",
+      "widgetPane": {
+        "gridSize": 128.0,
+        "showGrid": true,
+        "hgap": 16.0,
+        "vgap": 16.0,
+        "tiles": {
+          "3,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Gyro",
+              "_title": "Gyro"
+            }
+          },
+          "0,1": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///SmartDashboard/AutoPosition",
+              "_title": "AutoPosition",
+              "min": 1.0,
+              "max": 3.0,
+              "blockIncrement": 1.0
+            }
+          },
+          "1,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///SmartDashboard/Intake Motors",
+              "_title": "SmartDashboard/Intake Motors",
+              "colorWhenTrue": "#7CFC00FF",
+              "colorWhenFalse": "#8B0000FF"
+            }
+          },
+          "2,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///SmartDashboard/Climber Motors",
+              "_title": "/SmartDashboard/Climber Motors",
+              "colorWhenTrue": "#7CFC00FF",
+              "colorWhenFalse": "#8B0000FF"
+            }
+          },
+          "3,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Command",
+              "_source0": "network_table:///SmartDashboard/Pickup Cube",
+              "_title": "/SmartDashboard/Pickup Cube"
+            }
+          },
+          "2,1": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Number Bar",
+              "_source0": "network_table:///SmartDashboard/Lifter Position",
+              "_title": "SmartDashboard/Lifter Position",
+              "min": 0.0,
+              "max": 6000.0,
+              "center": 0.0,
+              "numTickMarks": 5.0,
+              "showText": false
+            }
+          },
+          "1,1": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Number Slider",
+              "_source0": "network_table:///SmartDashboard/AutoAbort",
+              "_title": "SmartDashboard/AutoAbort",
+              "min": 0.0,
+              "max": 1.0,
+              "blockIncrement": 0.5
+            }
+          },
+          "0,3": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Command",
+              "_source0": "network_table:///SmartDashboard/Autonomous Backward",
+              "_title": "SmartDashboard/Autonomous Backward"
+            }
+          },
+          "0,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Command",
+              "_source0": "network_table:///SmartDashboard/Autonomous Forward",
+              "_title": "SmartDashboard/Autonomous Forward"
+            }
+          },
+          "3,1": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Drive Distance",
+              "_title": "SmartDashboard/Drive Distance"
+            }
+          },
+          "1,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Command",
+              "_source0": "network_table:///SmartDashboard/Autonomous Rotate",
+              "_title": "SmartDashboard/Autonomous Rotate"
+            }
+          },
+          "1,3": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Command",
+              "_source0": "network_table:///SmartDashboard/Autonomous Neg Rotate",
+              "_title": "SmartDashboard/Autonomous Neg Rotate"
+            }
+          },
+          "2,3": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Command",
+              "_source0": "network_table:///SmartDashboard/Lifter Bottom",
+              "_title": "SmartDashboard/Lifter Bottom"
+            }
+          },
+          "2,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Command",
+              "_source0": "network_table:///SmartDashboard/Lifter Top",
+              "_title": "SmartDashboard/Lifter Top"
+            }
+          },
+          "4,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Lifter Setpoint",
+              "_title": "SmartDashboard/Lifter Setpoint"
+            }
+          },
+          "0,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///SmartDashboard/CubeCam",
+              "_title": "SmartDashboard/CubeCam",
+              "colorWhenTrue": "#7CFC00FF",
+              "colorWhenFalse": "#8B0000FF"
+            }
+          },
+          "5,2": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Lifter Position",
+              "_title": "SmartDashboard/Lifter Position"
+            }
+          },
+          "5,3": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Lifter Current",
+              "_title": "SmartDashboard/Lifter Current"
+            }
+          },
+          "4,3": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///SmartDashboard/Lifter Power",
+              "_title": "SmartDashboard/Lifter Power"
+            }
+          },
+          "4,1": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///SmartDashboard/Lifter At Bottom",
+              "_title": "SmartDashboard/Lifter At Bottom",
+              "colorWhenTrue": "#7CFC00FF",
+              "colorWhenFalse": "#8B0000FF"
+            }
+          },
+          "4,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///SmartDashboard/Lifter At Top",
+              "_title": "SmartDashboard/Lifter At Top",
+              "colorWhenTrue": "#7CFC00FF",
+              "colorWhenFalse": "#8B0000FF"
+            }
+          },
+          "5,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///SmartDashboard/Lifter Moving",
+              "_title": "SmartDashboard/Lifter Moving",
+              "colorWhenTrue": "#FFFF4DFF",
+              "colorWhenFalse": "#000000FF"
+            }
+          },
+          "5,1": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Boolean Box",
+              "_source0": "network_table:///SmartDashboard/Arm Contact",
+              "_title": "SmartDashboard/Arm Contact",
+              "colorWhenTrue": "#7CFC00FF",
+              "colorWhenFalse": "#8B0000FF"
+            }
+          },
+          "3,3": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Command",
+              "_source0": "network_table:///SmartDashboard/Lifter Switch",
+              "_title": "SmartDashboard/Lifter Switch"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Live Window",
+      "autoPopulate": true,
+      "autoPopulatePrefix": "",
+      "widgetPane": {
+        "gridSize": 128.0,
+        "showGrid": true,
+        "hgap": 16.0,
+        "vgap": 16.0,
+        "tiles": {
+          "0,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///LiveWindow/Drivetrain/Gyro/Value",
+              "_title": "Drivetrain/Gyro/Value"
+            }
+          },
+          "1,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///LiveWindow/Drivetrain/Rangefinder Left/Value",
+              "_title": "Drivetrain/Rangefinder Left/Value"
+            }
+          },
+          "2,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///LiveWindow/Drivetrain/Rangefinder Right/Value",
+              "_title": "Drivetrain/Rangefinder Right/Value"
+            }
+          },
+          "3,0": {
+            "size": [
+              3,
+              2
+            ],
+            "content": {
+              "_type": "Differential Drivebase",
+              "_source0": "network_table:///LiveWindow/Drivetrain/westCoastDifferentialDrive",
+              "_title": "LiveWindow/Drivetrain/westCoastDifferentialDrive",
+              "numberOfWheels": 4,
+              "wheelDiameter": 80.0,
+              "showVectors": true
+            }
+          },
+          "0,1": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Network Table Tree",
+              "_source0": "network_table:///LiveWindow/Climber/climberMotorRight",
+              "_title": "LiveWindow/Climber/climberMotorRight"
+            }
+          },
+          "1,1": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Network Table Tree",
+              "_source0": "network_table:///LiveWindow/Climber/climberMotorLeft",
+              "_title": "LiveWindow/Climber/climberMotorLeft"
+            }
+          },
+          "6,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///LiveWindow/LiftMechanism/Talon Master/Value",
+              "_title": "LiveWindow/LiftMechanism/Talon Master/Value"
+            }
+          },
+          "7,0": {
+            "size": [
+              1,
+              1
+            ],
+            "content": {
+              "_type": "Text View",
+              "_source0": "network_table:///LiveWindow/LiftMechanism/Talon Slave/Value",
+              "_title": "LiveWindow/LiftMechanism/Talon Slave/Value"
+            }
+          },
+          "6,1": {
+            "size": [
+              2,
+              1
+            ],
+            "content": {
+              "_type": "Speed Controller",
+              "_source0": "network_table:///LiveWindow/Ungrouped/Victor[4]",
+              "_title": "LiveWindow/Ungrouped/Victor[4]",
+              "controllable": false,
+              "orientation": "HORIZONTAL"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+<xml version="1.0">
+<dashboard>
+	<static-widget class="edu.wpi.first.smartdashboard.gui.elements.CameraServerViewer">
+		<location x="204" y="239"/>
+		<width>257</width>
+		<height>194</height>
+		<property name="Camera Choice" value=""/>
+	</static-widget>
+	<widget field="Collector" type="Boolean" class="edu.wpi.first.smartdashboard.gui.elements.BooleanBox">
+		<location x="125" y="2"/>
+		<width>91</width>
+		<height>25</height>
+	</widget>
+	<widget field="Climber" type="Boolean" class="edu.wpi.first.smartdashboard.gui.elements.BooleanBox">
+		<location x="246" y="1"/>
+		<width>76</width>
+		<height>24</height>
+	</widget>
+	<widget field="Shooter" type="Boolean" class="edu.wpi.first.smartdashboard.gui.elements.BooleanBox">
+		<location x="18" y="1"/>
+		<width>79</width>
+		<height>28</height>
+	</widget>
+	<widget field="Shooter Distance" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="6" y="83"/>
+	</widget>
+	<widget field="Offset Twist: " type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="10" y="398"/>
+	</widget>
+	<widget field="Direction" type="Boolean" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="223" y="159"/>
+	</widget>
+	<widget field="Ultra Voltage" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="218" y="185"/>
+	</widget>
+	<widget field="Gyro Angle" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="224" y="57"/>
+	</widget>
+	<widget field="rPi Strafe" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="16" y="219"/>
+	</widget>
+	<widget field="rPi Rotation" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="12" y="196"/>
+	</widget>
+	<widget field="Rate" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="232" y="107"/>
+		<width>99</width>
+		<height>20</height>
+	</widget>
+	<widget field="Distance" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="235" y="85"/>
+		<width>68</width>
+	</widget>
+	<widget field="rPi Targets" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="13" y="172"/>
+	</widget>
+	<widget field="Offset Y: " type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="5" y="447"/>
+	</widget>
+	<widget field="Shooter Speed" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="10" y="37"/>
+	</widget>
+	<widget field="Shooter Rotation" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="8" y="105"/>
+	</widget>
+	<widget field="Y-Value: " type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="11" y="371"/>
+		<height>20</height>
+	</widget>
+	<widget field="X-Value: " type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="11" y="342"/>
+		<width>88</width>
+	</widget>
+	<widget field="Shooter Output Voltage" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="7" y="61"/>
+	</widget>
+	<widget field="rPi Distance" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="13" y="149"/>
+	</widget>
+	<widget field="Offset X: " type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="15" y="318"/>
+	</widget>
+	<widget field="POV Reading" type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="11" y="294"/>
+	</widget>
+	<widget field="Stopped" type="Boolean" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="226" y="133"/>
+	</widget>
+	<widget field="Twist: " type="Number" class="edu.wpi.first.smartdashboard.gui.elements.TextBox">
+		<location x="14" y="424"/>
+	</widget>
+</dashboard>
+<live-window>
+</live-window>
+</xml>

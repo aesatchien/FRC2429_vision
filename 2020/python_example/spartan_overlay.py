@@ -14,6 +14,7 @@ class SpartanOverlay(GripPipeline):
         self.targets = 0
         self.image = None
         self.start_time = 0
+        self.end_time = 0
 
     def bounding_box_sort_contours(self, method='size'):
         """Get sorted contours and bounding boxes from our list of filtered contours
@@ -59,8 +60,8 @@ class SpartanOverlay(GripPipeline):
         self.distance_to_target = 0
         self.rotation_to_target = 0
         self.strafe_to_target = 0
-        self.aspect_ration = 0
-        self.height = 0;
+        self.aspect_ratio = 0
+        self.height = 0
 
         # object parameters
         object_height = 7  # 2020 squishy yellow ball
@@ -95,7 +96,31 @@ class SpartanOverlay(GripPipeline):
 
     def overlay_text(self):
         """Write our object information to the image"""
-        pass
+        self.end_time = time.time()
+        info_text_location = (int(0.035*self.x_resolution), 12)
+        info_text_color = (0, 255, 255)
+        target_text_color = (255, 255, 0)
+        target_warning_color = (20, 20, 255)
+        target_text_location = (int(0.7 * self.x_resolution), 13)
+        target_area_text_location = (int(0.02 * self.x_resolution), 27)
+        target_dist_text_location = (0.03 * self.x_resolution, self.y_resolution - 20)
+
+        # black bar at top of image
+        cv2.rectangle(self.image, (0, 0), (self.x_resolution, int(0.12 * self.y_resolution)), (0, 0, 0), -1)
+        if len(self.filter_contours_output) > 0:  #  contours found
+            cv2.putText(self.image, f"Dist: {self.distance_to_target} Str: {self.strafe_to_target} H: TBD AR: {self.aspect_ratio} Rot: {self.rotation_to_target} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
+            if (self.distance_to_target > 10):
+                cv2.putText(self.image, "Targeted", target_text_location, 1, 0.9, target_text_color, 1);
+            else:
+                cv2.putText(self.image, "Eaten!", target_text_location, 1, 1.0, target_warning_color, 1);
+            # decorations - target lines, boxes, bullseyes, etc
+        else:  # no contours
+            # decorations - target lines, boxes, bullseyes, etc
+            pass
+
+        cv2.putText(self.image, f"FPS: {int(1.0 /(self.end_time - self.start_time))} Bogeys: {len(self.filter_contours_output)}",
+                        info_text_location, 1, 0.9, info_text_color, 1)
+
 
     def post_to_networktables(self):
         """Send object information to networktables"""
@@ -113,6 +138,7 @@ class SpartanOverlay(GripPipeline):
         super(self.__class__, self).process(image)
         # we just processed the incoming image with the parent GRIP pipeline and have our filtered contours.  now sort
         self.image = image
+        self.y_resolution, self.x_resolution, self.channels = self.image.shape
         self.bounding_box_sort_contours(method=method)
         self.overlay_bounding_boxes()
         self.get_object_attributes()
@@ -142,4 +168,4 @@ if __name__ == "__main__":
 #            break
     #cv2.waitKey(0)
 
-    print(f"Processed {count} images in {run_time} second")
+    print(f"Processed {count} images in {round(time.time()-start_time, 2)} seconds")

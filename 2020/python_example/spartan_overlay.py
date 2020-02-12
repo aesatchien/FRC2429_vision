@@ -5,12 +5,14 @@
 from grip import GripPipeline  #put your GRIP generated grip.py in the same folder
 import cv2
 import time
+import math
 
 class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
     def __init__(self):
         super().__init__()
         # can override the GRIP parameters here if we need to
+
         self.targets = 0
         self.image = None
         self.start_time = 0
@@ -56,7 +58,7 @@ class SpartanOverlay(GripPipeline):
         # if you only wanted size it would be really simple - just do key = cv.contourArea and reverse = True w/o a zip
         #self.filter_contours_output = sorted(self.filter_contours_output, key=key, reverse=reverse)[:5]
 
-    def get_object_attributes(self, camera='lifecam'):
+    def get_target_attributes(self, camera='lifecam'):
         self.distance_to_target = 0
         self.rotation_to_target = 0
         self.strafe_to_target = 0
@@ -68,17 +70,33 @@ class SpartanOverlay(GripPipeline):
         object_width = 7  # 2020 squishy yellow ball
 
         # camera specific parameters
-        cameraShift = 0  # when the cameras are flawed (center of camera bore axis not center of image)
+        self.camera_shift = 0  # when the cameras are flawed (center of camera bore axis not center of image)
         # need to do extra math if camera bore at an angle to the object
         camera_height = 33  # camera vertical distance above ground, use when cam looking at objects on ground
         if camera =='lifecam':
             camera_fov = 55  # Lifecam 320x240
         elif camera =='geniuscam':
             camera_fov = 118  # Genius 120 352x288
-            cameraShift = -8  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
+            self.camera_shift = -8  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
         elif camera == 'c270':
             camera_fov = 59  # Logitech C290 432x240
 
+        # let's just do the calculations on the closest one for now; we could loop through them all easily enough
+        x, y, w, h = self.bounding_boxes[0]
+        self.aspect_ratio = h/w
+        self.height = h
+        target_width_fraction_fov = w / self.x_resolution
+
+        # X and Y are scaled from -1 to 1 in each direction to help with rotation
+        # so distances in these coordinates need to be divided by two to get percentage of fov
+        moments = cv2.moments(self.filter_contours_output[0])
+        centroid_x = int(-self.camera_shift + (moments["m10"] / moments["m00"]))
+        centroid_y = int(moments["m01"] / moments["m00"])
+        target_x = (-1.0 + 2.0*centroid_x/self.x_resolution)  # could also be (x+w/2) / self.x_resolution
+        target_y = (-1.0 + 2.0*centroid_y/self.y_resolution)
+        self.rotation_to_target = target_x * camera_fov / 2.0
+        self.distance_to_target = object_width / (2.0 * math.tan(target_width_fraction_fov * math.radians(camera_fov) / 2.0))
+        self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target
 
     def overlay_bounding_boxes(self):
         """Draw a box around all of our contours with the main one emphasized"""
@@ -108,14 +126,18 @@ class SpartanOverlay(GripPipeline):
         # black bar at top of image
         cv2.rectangle(self.image, (0, 0), (self.x_resolution, int(0.12 * self.y_resolution)), (0, 0, 0), -1)
         if len(self.filter_contours_output) > 0:  #  contours found
-            cv2.putText(self.image, f"Dist: {self.distance_to_target} Str: {self.strafe_to_target} H: TBD AR: {self.aspect_ratio} Rot: {self.rotation_to_target} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
+            cv2.putText(self.image, f"Dist: {self.distance_to_target:3.0f} Str: {self.strafe_to_target:2.1f} H: {self.height:2.0f} AR: {self.aspect_ratio:1.1f} Rot: {self.rotation_to_target:+2.0f} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
             if (self.distance_to_target > 10):
                 cv2.putText(self.image, "Targeted", target_text_location, 1, 0.9, target_text_color, 1);
             else:
                 cv2.putText(self.image, "Eaten!", target_text_location, 1, 1.0, target_warning_color, 1);
             # decorations - target lines, boxes, bullseyes, etc
+            # TODO - add decorations for when we have a target - needs the camera_shift to do it right
+            cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
+            cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
         else:  # no contours
-            # decorations - target lines, boxes, bullseyes, etc
+            # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
+            # TODO - add decorations for when we do not have a target
             pass
 
         cv2.putText(self.image, f"FPS: {int(1.0 /(self.end_time - self.start_time))} Bogeys: {len(self.filter_contours_output)}",
@@ -139,9 +161,10 @@ class SpartanOverlay(GripPipeline):
         # we just processed the incoming image with the parent GRIP pipeline and have our filtered contours.  now sort
         self.image = image
         self.y_resolution, self.x_resolution, self.channels = self.image.shape
-        self.bounding_box_sort_contours(method=method)
-        self.overlay_bounding_boxes()
-        self.get_object_attributes()
+        if len(self.filter_contours_output) > 0:
+            self.bounding_box_sort_contours(method=method)
+            self.overlay_bounding_boxes()
+            self.get_target_attributes()
         self.overlay_text()
         if post_to_nt:
             self.post_to_networktables()
@@ -153,6 +176,7 @@ if __name__ == "__main__":
     count = 0
     run_time = 1
     methods = ['top-down', 'bottom-up', 'right-to-left', 'left-to-right', 'size']
+    methods = ['size', 'left-to-right']
     for method in methods:
         count += 1
         cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)

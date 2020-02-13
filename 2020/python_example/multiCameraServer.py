@@ -14,6 +14,12 @@ from cscore import CameraServer, VideoSource, UsbCamera, MjpegServer
 from networktables import NetworkTablesInstance
 import ntcore
 
+from cscore import HttpCamera, CvSource, VideoMode  # CJH
+from networktables import NetworkTable  # CJH
+from networktables import NetworkTableEntry  # CJH
+from spartan_overlay import SpartanOverlay
+
+
 #   JSON format:
 #   {
 #       "team": <team number>,
@@ -224,6 +230,27 @@ if __name__ == "__main__":
     else:
         print("Setting up NetworkTables client for team {}".format(team))
         ntinst.startClientTeam(team)
+        #  ntinst.startClient("192.168.1.28")  # CJH for testing at home
+
+    #  CJH  stuff - add this to get networktables and processed stream
+    ballTable = ntinst.getTable("BallCam")
+    targetsEntry = ballTable.getEntry("targets")
+    distanceEntry = ballTable.getEntry("distance")
+    rotationEntry = ballTable.getEntry("rotation")
+    strafeEntry = ballTable.getEntry("strafe")
+
+    x_resolution = 320
+    y_resolution = 256
+    processed_port = 1182
+    image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, 20)
+    cvStream = MjpegServer("CV Image Stream", processed_port)
+    # cvStream.getProperty("compression").set(3)
+    cvStream.setSource(image_source)
+    inst2 = CameraServer.getInstance()
+    inst2.addCamera(image_source)
+    print(f"*** Starting 2429 BallCam Processed stream on {processed_port}")
+    camera = HttpCamera("BallCam Processed", "http://10.24.29.12:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
+    CameraServer.getInstance().addCamera(camera)
 
     # start cameras
     for config in cameraConfigs:
@@ -232,6 +259,9 @@ if __name__ == "__main__":
     # start switched cameras
     for config in switchedCameraConfigs:
         startSwitchedCamera(config)
+
+    #  start a vision thread (CJH)
+    pipeline = SpartanOverlay()
 
     # loop forever
     while True:

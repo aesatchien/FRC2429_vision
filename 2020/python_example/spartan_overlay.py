@@ -7,6 +7,9 @@ import cv2
 import time
 import math
 
+from networktables import NetworkTablesInstance
+from networktables import NetworkTable
+
 class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
     def __init__(self):
@@ -17,6 +20,8 @@ class SpartanOverlay(GripPipeline):
         self.image = None
         self.start_time = 0
         self.end_time = 0
+
+        self.camera_shift = 0
 
     def bounding_box_sort_contours(self, method='size'):
         """Get sorted contours and bounding boxes from our list of filtered contours
@@ -138,6 +143,8 @@ class SpartanOverlay(GripPipeline):
         else:  # no contours
             # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
             # TODO - add decorations for when we do not have a target
+            cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
+            cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
             pass
 
         cv2.putText(self.image, f"FPS: {int(1.0 /(self.end_time - self.start_time))} Bogeys: {len(self.filter_contours_output)}",
@@ -146,6 +153,10 @@ class SpartanOverlay(GripPipeline):
 
     def post_to_networktables(self):
         """Send object information to networktables"""
+        pass
+
+    def get_network_table(self):
+        """Grab the appropriate network table for our team"""
         pass
 
     def process(self, image, method='size', post_to_nt=True):
@@ -168,6 +179,7 @@ class SpartanOverlay(GripPipeline):
         self.overlay_text()
         if post_to_nt:
             self.post_to_networktables()
+        return self.targets, self.distance_to_target, self.strafe_to_target, self.height, self.rotation_to_target
 
 
 if __name__ == "__main__":

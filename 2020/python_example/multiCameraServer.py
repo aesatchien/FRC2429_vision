@@ -234,10 +234,10 @@ if __name__ == "__main__":
 
     #  CJH  stuff - add this to get networktables and processed stream
     ballTable = ntinst.getTable("BallCam")
-    targetsEntry = ballTable.getEntry("targets")
-    distanceEntry = ballTable.getEntry("distance")
-    rotationEntry = ballTable.getEntry("rotation")
-    strafeEntry = ballTable.getEntry("strafe")
+    targets_entry = ballTable.getEntry("targets")
+    distance_entry = ballTable.getEntry("distance")
+    rotation_entry = ballTable.getEntry("rotation")
+    strafe_entry = ballTable.getEntry("strafe")
 
     x_resolution = 320
     y_resolution = 256
@@ -261,8 +261,17 @@ if __name__ == "__main__":
         startSwitchedCamera(config)
 
     #  start a vision thread (CJH)
+    # TODO - turn this into a thread running in the background
     pipeline = SpartanOverlay()
+    if len(cameras) >= 1:
+        targets, distance_to_target, strafe_to_target, height, rotation_to_target = pipeline.process(cameras.get(0))
+        targets_entry.setNumber(targets)
+        distance_entry.setNumber(distance_to_target)
+        rotation_entry.setNumber(strafe_to_target)
+        strafe_entry.setNumber(rotation_to_target)
+        ntinst.flush()
+        image_source.putFrame(pipeline.image)
 
-    # loop forever
+    # loop forever - this just keeps the camera server alive
     while True:
         time.sleep(10)

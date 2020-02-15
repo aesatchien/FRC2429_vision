@@ -39,9 +39,11 @@ public class GripPipelineQ implements VisionPipeline {
 	static int xResolution = 320;
 	static int yResolution = 240;
 	static int cameraShift = 0;
-	static double cameraFov = 55;
+	//static double cameraFov = 55;  // Lifecam
+	static double cameraFov = 55;  // Geniuscam
 	static double fovRadians = (Math.PI/180.0)*(cameraFov);
 	double distance = 0;
+	
 	double distanceToTarget = 0;
 	double rotation = 0;
 	double rotationOffset = 0;

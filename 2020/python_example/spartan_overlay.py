@@ -6,9 +6,7 @@ from grip import GripPipeline  #put your GRIP generated grip.py in the same fold
 import cv2
 import time
 import math
-
-from networktables import NetworkTablesInstance
-from networktables import NetworkTable
+from threading import Thread
 
 class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
@@ -20,6 +18,12 @@ class SpartanOverlay(GripPipeline):
         self.image = None
         self.start_time = 0
         self.end_time = 0
+
+        self.distance_to_target = 0
+        self.rotation_to_target = 0
+        self.strafe_to_target = 0
+        self.aspect_ratio = 0
+        self.height = 0
 
         self.camera_shift = 0
 
@@ -81,7 +85,7 @@ class SpartanOverlay(GripPipeline):
         if camera =='lifecam':
             camera_fov = 55  # Lifecam 320x240
         elif camera =='geniuscam':
-            camera_fov = 118  # Genius 120 352x288
+            camera_fov = 90  # Genius 120 352x288
             self.camera_shift = -8  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
         elif camera == 'c270':
             camera_fov = 59  # Logitech C290 432x240
@@ -159,7 +163,7 @@ class SpartanOverlay(GripPipeline):
         """Grab the appropriate network table for our team"""
         pass
 
-    def process(self, image, method='size', post_to_nt=True):
+    def process(self, image, method='size', post_to_nt=True, camera='lifecam'):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -175,16 +179,43 @@ class SpartanOverlay(GripPipeline):
         if len(self.filter_contours_output) > 0:
             self.bounding_box_sort_contours(method=method)
             self.overlay_bounding_boxes()
-            self.get_target_attributes()
+            self.get_target_attributes(camera=camera)
         self.overlay_text()
         if post_to_nt:
             self.post_to_networktables()
-        return self.targets, self.distance_to_target, self.strafe_to_target, self.height, self.rotation_to_target
+        return [self.targets, self.distance_to_target, self.strafe_to_target, self.height, self.rotation_to_target]
 
+
+    def process_thread(self, method='size'):
+        # run the update loop in a thread ... if we want to
+        Thread(target=self.update, args=(), kwargs={'method':method}).start()
+        print('Thread processed')
+        return self
+
+    def update(self, method='size', camera='geniuscam'):
+        # quick way to loop
+        self.stopped = False
+        self.count = 0
+        cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        # keep looping infinitely until the thread is stopped
+        while True:
+            # if the thread indicator variable is set, stop the thread
+            if self.stopped:
+                return
+            # otherwise, read the next frame from the stream
+            self.count += 1
+            s, im = cam.read()  # captures image
+            self.process(image=im, method=method, camera=camera)
+            cv2.imshow(f"Test Picture: sorting by {method}", self.image)  # displays captured image
+            if cv2.waitKey(1) & 0xFF is ord('q'):
+                self.stopped = True
+                cv2.destroyAllWindows()
+                cam.release()
 
 if __name__ == "__main__":
     """Test things out with just a few images"""
     start_time = time.time()
+    """
     count = 0
     run_time = 1
     methods = ['top-down', 'bottom-up', 'right-to-left', 'left-to-right', 'size']
@@ -203,5 +234,9 @@ if __name__ == "__main__":
 #        if cv2.waitKey(1) & 0xFF == ord('q'):
 #            break
     #cv2.waitKey(0)
-
-    print(f"Processed {count} images in {round(time.time()-start_time, 2)} seconds")
+"""
+    pipeline = SpartanOverlay()
+    # this is supposed to spawn a thread ...
+    #pipeline.process_thread(method='left-to-right')
+    pipeline.update(method='right-to-left')
+    print(f"Processed {pipeline.count} images in {round(time.time()-start_time, 2)} seconds ({round(pipeline.count/(time.time()-start_time),1)} FPS)")

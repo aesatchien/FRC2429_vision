@@ -1,5 +1,6 @@
-#!/bin/sh
-echo "Waiting 5 seconds..."
-sleep 5
+#!/usr/bin/sh
+echo "Waiting 2 seconds..."
+sleep 2
 export PYTHONUNBUFFERED=1
-exec ./multiCameraServer.py
+python3 multiCameraServer.py
+

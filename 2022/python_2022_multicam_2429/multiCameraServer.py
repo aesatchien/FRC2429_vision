@@ -255,7 +255,8 @@ if __name__ == "__main__":
     cvStream = MjpegServer("CV Image Stream", processed_port)
     # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps  is 11Mbps
     # 50 seems to cut it ~ 5x t- 2.3Mbps, still looks pretty good, 25 is pretty marginal at 1.6Mbps.  Default is -1?
-    #cvStream.getProperty("compression").set(75)
+    if x_resolution > 300:
+        cvStream.getProperty("compression").set(60)
     cvStream.setSource(image_source)  # now the stream is updated by image_source
     cs = CameraServer.getInstance()
     cs.addCamera(image_source)  # is this really necessary?  we add another one later

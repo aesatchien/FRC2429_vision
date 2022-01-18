@@ -154,7 +154,7 @@ class SpartanOverlay(GripPipeline):
             cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
             pass
 
-        cv2.putText(self.image, f"FPS: {int(1.0 /(self.end_time - self.start_time))} Bogeys: {len(self.filter_contours_output)}",
+        cv2.putText(self.image, f"MS: {1000*(self.end_time - self.start_time):.1f} Bogeys: {len(self.filter_contours_output)}",
                         info_text_location, 1, 0.9, info_text_color, 1)
 
 

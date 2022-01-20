@@ -1,4 +1,4 @@
-# FRC2429_historical
+# FRC2429_vision
 Repo for the different years of vision processing code for 2429
 
 Maintained by CJH
@@ -18,6 +18,7 @@ Maintained by CJH
 
 **2019**: Java- mainly a simple overlay on camera because we did not track objects
 
-**2020**: Plan to switch to python, break it into modules for 1) different targets and 2) posting to networktables
+### Moving to  http://frcvision.local:1182/ or http://10.24.29.12:1182/ for the single camera stream
+**2020**: Switched to python, break it into modules for 1) different targets and 2) posting to networktables.  Still uses stock GRIP pipeline
 
-		TODO: add PIXY and other camera codes in addition to opencv
+**2022**: Python working with GRIP pipeline, will add: PIXY support, red/blue cv pipeline options and socket connections for vision results transfer

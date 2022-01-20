@@ -2,7 +2,8 @@
 # intended to be used with the wpi multicamera server and a grip pipeline
 # note that GRIP is old so sometimes you have to correct the cv2 return values on some of the auto-generated code
 # 2/8/2020 CJH FRC team 2429
-from grip import GripPipeline  #put your GRIP generated grip.py in the same folder
+# updated 1/20/2022
+from grip import GripPipeline  # put your GRIP generated grip.py in the same folder - this is our parent class
 import cv2
 import time
 import math
@@ -15,7 +16,7 @@ class SpartanOverlay(GripPipeline):
     def __init__(self):
         super().__init__()
         # can override the GRIP parameters here if we need to
-
+        # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it
 
         self.image = None
         self.start_time = 0
@@ -28,7 +29,6 @@ class SpartanOverlay(GripPipeline):
         self.strafe_to_target = 0
         self.height = 0
         self.rotation_to_target = 0
-
 
     def bounding_box_sort_contours(self, method='size'):
         """Get sorted contours and bounding boxes from our list of filtered contours
@@ -160,10 +160,12 @@ class SpartanOverlay(GripPipeline):
 
     def post_to_networktables(self):
         """Send object information to networktables"""
+        # let the cameraserver do this, and skip it here
         pass
 
     def get_network_table(self):
         """Grab the appropriate network table for our team"""
+        # let the cameraserver do this, and skip it here
         pass
 
     def process(self, image, method='size', post_to_nt=True):
@@ -186,11 +188,12 @@ class SpartanOverlay(GripPipeline):
         self.overlay_text()
         if post_to_nt:
             self.post_to_networktables()
+        # ToDo: return a dictionary, this is getting a bit long
         return self.targets, self.distance_to_target, self.strafe_to_target, self.height, self.rotation_to_target
 
 
 if __name__ == "__main__":
-    """Test things out with just a few images"""
+    """Test things out with just a few images if not using the pipeline"""
     start_time = time.time()
     count = 0
     run_time = 1
@@ -199,7 +202,7 @@ if __name__ == "__main__":
     for method in methods:
         count += 1
         cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        s, im = cam.read()  # captures image
+        s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
         pipeline = SpartanOverlay()
         pipeline.process(image=im, method=method)
         cv2.imshow(f"Test Picture: sorting by {method}", pipeline.image)  # displays captured image

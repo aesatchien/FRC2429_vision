@@ -116,7 +116,11 @@ class GripPipeline:
         else:
             mode = cv2.RETR_LIST
         method = cv2.CHAIN_APPROX_SIMPLE
-        img, contours, hierarchy = cv2.findContours(input, mode=mode, method=method)
+        # older cv2 returns contours, hierarchy, newer one returns img, contours, hierarchy
+        # img, contours, hierarchy = cv2.findContours(input, mode=mode, method=method)
+        # return contours
+        contour_output = cv2.findContours(input, mode=mode, method=method)
+        contours = contour_output[-2]  # should work with multiple versions of cv2 - contours is 2nd to last either way
         return contours
 
     @staticmethod

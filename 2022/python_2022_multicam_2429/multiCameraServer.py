@@ -13,7 +13,7 @@ from cscore import CameraServer, VideoSource, UsbCamera, MjpegServer
 from networktables import NetworkTablesInstance
 
 from cscore import HttpCamera, CvSource, VideoMode  # CJH
-from spartan_overlay import SpartanOverlay
+from spartan_overlay import SpartanOverlay # CJH
 
 #   JSON format:
 #   {
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     processed_port = 1182
     # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS, or is
     # fixed by how often you put an image (below)
-    image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, 30)
+    image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, 20)
     # start a stream
     cvStream = MjpegServer("CV Image Stream", processed_port)
     # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps  is 11Mbps

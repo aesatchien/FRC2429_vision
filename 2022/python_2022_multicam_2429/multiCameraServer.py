@@ -12,8 +12,8 @@ import numpy as np
 from cscore import CameraServer, VideoSource, UsbCamera, MjpegServer
 from networktables import NetworkTablesInstance
 
-from cscore import HttpCamera, CvSource, VideoMode  # CJH
-from spartan_overlay import SpartanOverlay # CJH
+from cscore import HttpCamera, CvSource, VideoMode  # 2429 CJH
+from spartan_overlay import SpartanOverlay # 2429 CJH
 
 #   JSON format:
 #   {
@@ -236,26 +236,27 @@ if __name__ == "__main__":
         startSwitchedCamera(config)
 
 
-    #  -------   CJH  stuff - add this to get networktables and processed stream  ------------
+    #  -------   2429 CJH  stuff - add this to get networktables and processed stream  ------------
     ballTable = ntinst.getTable("BallCam")
     targets_entry = ballTable.getEntry("targets")
     distance_entry = ballTable.getEntry("distance")
     rotation_entry = ballTable.getEntry("rotation")
     strafe_entry = ballTable.getEntry("strafe")
 
+    # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS
+    # except for how it reports, and the actual speed is determined by the rate the code puts images to the sink
     vm = cameras[0].getVideoMode()
     x_resolution = vm.width
     y_resolution = vm.height
-    #fps = cameras
+    stream_fps = 20
     processed_port = 1182
-    # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS, or is
-    # fixed by how often you put an image (below)
-    image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, 20)
+
+    image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
     # start a stream
     cvStream = MjpegServer("CV Image Stream", processed_port)
-    # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps  is 11Mbps
+    # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps is 11Mbps
     # 50 seems to cut it ~ 5x t- 2.3Mbps, still looks pretty good, 25 is pretty marginal at 1.6Mbps.  Default is -1?
-    if x_resolution > 300:
+    if x_resolution > 300:  # just take the default for smaller formats
         cvStream.getProperty("compression").set(60)
     cvStream.setSource(image_source)  # now the stream is updated by image_source
     cs = CameraServer.getInstance()
@@ -263,7 +264,7 @@ if __name__ == "__main__":
     print(f"*** Starting 2429 BallCam Processed stream on {processed_port}")
     # camera = HttpCamera("BallCam Processed", "http://10.24.29.12:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
     # actually, this should be more bulletproof, esp when testing at home
-    camera = HttpCamera("BallCam Processed", "http://127.0.0.1:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
+    camera = HttpCamera("BallCam Processed", f"http://127.0.0.1:{processed_port}/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
     cs.addCamera(camera)  # how does this know we want cvStream assigned to the web?
     # -------------------------------------------'''
 
@@ -271,40 +272,42 @@ if __name__ == "__main__":
     # TODO - turn this into a thread running in the background
     pipeline = SpartanOverlay()
 
-    cs = CameraServer.getInstance()  # already taken care of above, but if i comment it out this is necessary
+    cs = CameraServer.getInstance()  # already taken care of above, but if i comment it out above this is necessary
     # this next part will be trickier if we have more than one camera, but we can have separate pipelines
     # also, since i added a camera above, this doesn't work if i just use cs.getVideo() - i think adding that one changes the primary
     sink = cs.getVideo(camera=cameras[0])
-    #sink = cs.getVideo() # can only do this if a camera is started, i.e. camera = cs.startAutomaticCapture()
-    vm = cameras[0].getVideoMode()  # getting the resolution, etc from the camera
-    img = np.zeros((vm.height, vm.width, 3))  # make our first dummy image for cv
+    # sink = cs.getVideo() # can only do this if a camera is started, i.e. camera = cs.startAutomaticCapture()
+    vm = cameras[0].getVideoMode()  # getting the resolution, etc from the camera again, repeating in case above changes
+    img = np.zeros((vm.height, vm.width, 3))  # make our first dummy image for cv to write over
 
-    success_counter = 0
+    success_counter = 0  # keep track of FPS so we can tell in the console when things are going wrong
     previous_counts = 0
-    failure_counter= 0
+    failure_counter = 0  # very first image often fails, and after that we are solid
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
     while True and failure_counter < 100:
         if len(cameras) >= 1:
-            image_time, captured_img = sink.grabFrame(img)
-            if image_time > 0: # actually got an image
+            image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
+            if image_time > 0:  # actually got an image
                 targets, distance_to_target, strafe_to_target, height, rotation_to_target = pipeline.process(captured_img)
-                targets_entry.setNumber(targets)
+                targets_entry.setNumber(targets)  # should see if we can make this one dict to push, may be a one-liner
                 distance_entry.setNumber(distance_to_target)
                 rotation_entry.setNumber(strafe_to_target)
                 strafe_entry.setNumber(rotation_to_target)
                 ntinst.flush()
-                image_source.putFrame(pipeline.image)
+                image_source.putFrame(pipeline.image)  # feeds the Http camera with a new image
                 success_counter += 1
             else:  # keep track of failures to read the image from the sink
                 failure_counter += 1
             if success_counter % 30 == 0:
+                # update the console - most FPS issues are with auto-exposure or if exposure time is too long for FPS setting
+                # the cameras seem to cut FPS down automatically by integer divisors - e.g. max 30 --> max 15 --> max 7.5
                 fps = (success_counter - previous_counts) / (time.time() - previous_time)
                 print(f'Cameras: {len(cameras)}  Avg FPS: {fps:0.1f}  Reported:{cameras[0].getActualFPS()}  Success: {success_counter:10d}  Failure:{failure_counter:10d}', end='\r', flush=True)
                 previous_counts = success_counter
                 previous_time = time.time()
         # ----------------------------------------------------
 
-    # loop forever
+    # loop forever - this was the Java way because the pipeline was in a thread.  Not needed in python
     #while True:
     #    time.sleep(9)

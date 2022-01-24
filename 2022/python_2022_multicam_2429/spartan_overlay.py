@@ -3,22 +3,46 @@
 # note that GRIP is old so sometimes you have to correct the cv2 return values on some of the auto-generated code
 # 2/8/2020 CJH FRC team 2429
 # updated 1/20/2022
-from grip import GripPipeline  # put your GRIP generated grip.py in the same folder - this is our parent class
-import cv2
 import time
 import math
+import cv2
+import numpy as np
+from grip import GripPipeline  # put your GRIP generated grip.py in the same folder - this is our parent class
 
 from networktables import NetworkTablesInstance
 from networktables import NetworkTable
 
 class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
-    def __init__(self):
+    def __init__(self, color='yellow'):
         super().__init__()
+        #print(self.__hsv_threshold_hue)  # does not exist?
         # can override the GRIP parameters here if we need to
-        # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it
+        # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it? Need color-specific stuff though
+        self.color = color
+        # updating the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
+        if self.color == 'yellow':  # yellow balls
+            self.hsv_threshold_hue = [20, 30]
+            self.hsv_threshold_saturation = [128, 255]
+            self.hsv_threshold_value = [100, 255]
+        elif self.color == 'blue':  # blue balls
+            self.hsv_threshold_hue = [103, 110]
+            self.hsv_threshold_saturation = [100, 255]
+            self.hsv_threshold_value = [40, 255]
+        elif self.color == 'red':  # red balls
+            # can invert to cyan or just add a second range
+            self.hsv_threshold_hue = [0, 5]
+            self.hsv_threshold_saturation = [150, 254]
+            self.hsv_threshold_value = [50, 254]
+        elif self.color == 'green':  # vision targets
+            self.hsv_threshold_hue = [70, 90]  # need to check these - retroreflectors are tough to get low sat
+            self.hsv_threshold_saturation = [50, 255]
+            self.hsv_threshold_value = [40, 250]
+        else:
+            pass
 
         self.image = None
+        self.original_image = None
         self.start_time = 0
         self.end_time = 0
         self.camera_shift = 0
@@ -180,8 +204,10 @@ class SpartanOverlay(GripPipeline):
         super(self.__class__, self).process(image)
         # we just processed the incoming image with the parent GRIP pipeline and have our filtered contours.  now sort
         self.image = image
+        self.original_image = image
         self.y_resolution, self.x_resolution, self.channels = self.image.shape
-        if len(self.filter_contours_output) > 0:
+        self.targets = len(self.filter_contours_output)
+        if self.targets > 0:
             self.bounding_box_sort_contours(method=method)
             self.overlay_bounding_boxes()
             self.get_target_attributes()
@@ -192,26 +218,82 @@ class SpartanOverlay(GripPipeline):
         return self.targets, self.distance_to_target, self.strafe_to_target, self.height, self.rotation_to_target
 
 
+
 if __name__ == "__main__":
-    """Test things out with just a few images if not using the pipeline"""
+
+    """
+    Test things out with just a few images if not using the pipeline  - updated 2022 0124
+    Best to use on a computer (not pi) to check the HSV values of objects in front of the computer
+    Set the color below to yellow, blue, green or red (red is tougher) to test
+    """
+    import sys
+    args = sys.argv[1:]
+    colors = ['yellow', 'blue', 'green', 'red']
+    if len(args) > 0 and args[0] in colors:  # allow color to be passed from command line
+        color = args[0]
+    else:  # default color
+        color = "yellow"
+
     start_time = time.time()
     count = 0
     run_time = 1
     methods = ['top-down', 'bottom-up', 'right-to-left', 'left-to-right', 'size']
     methods = ['size', 'left-to-right']
-    for method in methods:
-        count += 1
+
+    sort_test = False  # test the sorting methods of bounding boxes
+    if sort_test:
+        for method in methods:
+            count += 1
+            cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
+            pipeline = SpartanOverlay(color=color)
+            pipeline.process(image=im, method=method)
+            cv2.imshow(f"Test Picture: sorting by {method}", pipeline.image)  # displays captured image
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            cam.release()
+
+    video = True
+    if video:  # run continuous video and report HSV on objects found
+        start_time = time.time()
+        end_time = start_time
+        pipeline = SpartanOverlay(color=color)
         cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
-        pipeline = SpartanOverlay()
-        pipeline.process(image=im, method=method)
-        cv2.imshow(f"Test Picture: sorting by {method}", pipeline.image)  # displays captured image
+        np.set_printoptions(precision=1)
+        while end_time - start_time < 10:  # take video for x seconds
+            count += 1
+            s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
+            if s > 0:  # Found an image
+                pipeline.process(image=im, method='size')
+                x_center, y_center = pipeline.x_resolution // 2, pipeline.y_resolution // 2
+                if pipeline.targets < 1:  # get some diagnostics on a box if nothing is recognized
+                    width, height = 10, 20
+                    t = cv2.cvtColor(pipeline.image, cv2.COLOR_BGR2HSV)[y_center-height:y_center+height, x_center-width:x_center+width, :]
+                    pipeline.image[:,:,0] = pipeline.hsv_threshold_output  # make a color cast to show what is thresholded (maybe should draw the contour instead)
+                    pipeline.image = cv2.rectangle(pipeline.image, (x_center-width, y_center-height),(x_center+width, y_center+height), (0,255,255))
+                    hue = t[:, :, 0]; sat = t[:, :, 1]; val = t[:, :, 2]
+                else:  # display the stats on the main target we found
+                    mask = np.ones_like(pipeline.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
+                    mask = cv2.drawContours(mask, pipeline.filter_contours_output, 0, (0,0,0), -1)  # False (zero) inside the contour
+                    mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=5)  # have to cut off the edges a bit (grow the True region)
+                    t = np.ma.masked_where(mask == 1, cv2.cvtColor(pipeline.original_image, cv2.COLOR_BGR2HSV))  # data is valid if mask is False
+                    hue = t[:, :, 0].compressed(); sat = t[:, :, 1].compressed(); val = t[:, :, 2].compressed()  # don't want messages about masked format strings
+
+                if len(hue) > 0:
+                    pipeline.image = cv2.putText(pipeline.image, f"hue min max mean: {hue.min()} {hue.max()} {hue.mean():.1f}", (x_center, 2*y_center-30), 1, 0.9, (0, 255, 200), 1)
+                    pipeline.image = cv2.putText(pipeline.image, f"sat min max mean: {sat.min()} {sat.max()} {sat.mean():.1f}", (x_center, 2*y_center-20), 1, 0.9, (0, 255, 200), 1)
+                    pipeline.image = cv2.putText(pipeline.image, f"val min max mean: {val.min()} {val.max()} {val.mean():.1f}", (x_center, 2*y_center-10), 1, 0.9, (0, 255, 200), 1)
+                else:
+                    pipeline.image = cv2.putText(pipeline.image, f"Detected region too small?", (x_center, 2 * y_center - 10), 1, 0.9, (0, 255, 200), 1)
+
+                print(f'mean: {t[:, :, 0].mean()}', end='\r', flush='True')
+                cv2.imshow(f"Test Picture: sorting by size on {pipeline.color}", pipeline.image)  # displays captured image
+                end_time = time.time()
+                cv2.waitKey(delay=100)
+
+        cam.release()
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-        cam.release()
+        print(f'mean: {t[:, :, 0].mean()}', end='\n', flush='True')
+        print(f'Captured {count} frames in {end_time - start_time:.1f}s - average fps is {count/(end_time - start_time):.1f}')
 
-#        if cv2.waitKey(1) & 0xFF == ord('q'):
-#            break
-    #cv2.waitKey(0)
-
-    print(f"Processed {count} images in {round(time.time()-start_time, 2)} seconds")

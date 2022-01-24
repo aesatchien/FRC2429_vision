@@ -12,15 +12,16 @@ class GripPipeline:
         """initializes all values to presets or None if need to be set
         """
 
+        # had to un-namemangle these for simplicity of letting child change them
+        self.hsv_threshold_hue = [11.3, 32.5]
+        self.hsv_threshold_saturation = [128.4, 255.0]
+        self.hsv_threshold_value = [100.8, 255.0]
+
         self.__blur_type = BlurType.Median_Filter
         self.__blur_radius = 0.0
-
         self.blur_output = None
 
         self.__hsv_threshold_input = self.blur_output
-        self.__hsv_threshold_hue = [11.33093525179856, 32.55972696245734]
-        self.__hsv_threshold_saturation = [128.41726618705036, 255.0]
-        self.__hsv_threshold_value = [100.89928057553956, 255.0]
 
         self.hsv_threshold_output = None
 
@@ -55,7 +56,7 @@ class GripPipeline:
 
         # Step HSV_Threshold0:
         self.__hsv_threshold_input = self.blur_output
-        (self.hsv_threshold_output) = self.__hsv_threshold(self.__hsv_threshold_input, self.__hsv_threshold_hue, self.__hsv_threshold_saturation, self.__hsv_threshold_value)
+        (self.hsv_threshold_output) = self.__hsv_threshold(self.__hsv_threshold_input, self.hsv_threshold_hue, self.hsv_threshold_saturation, self.hsv_threshold_value)
 
         # Step Find_Contours0:
         self.__find_contours_input = self.hsv_threshold_output
@@ -100,7 +101,12 @@ class GripPipeline:
             A black and white numpy.ndarray.
         """
         out = cv2.cvtColor(input, cv2.COLOR_BGR2HSV)
-        return cv2.inRange(out, (hue[0], sat[0], val[0]),  (hue[1], sat[1], val[1]))
+        if hue[0] < 10:  # reflect red
+            mask_1 = cv2.inRange(out, (hue[0], sat[0], val[0]), (hue[1], sat[1], val[1]))
+            mask_2 = cv2.inRange(out, (180-hue[1], sat[0], val[0]), (180, sat[1], val[1]))
+            return mask_1 | mask_2
+        else:
+            return cv2.inRange(out, (hue[0], sat[0], val[0]),  (hue[1], sat[1], val[1]))
 
     @staticmethod
     def __find_contours(input, external_only):

@@ -1,23 +1,25 @@
-======================
-Deploying from desktop
-======================
+==================================
+2429's Custom Camera code for 2022
+==================================
 
-On the rPi web dashboard:
+There are three python files in here:
+==================================
+ grip.py - the GRIP pipeline
+==================================
+With a minor modification so we can change HSV values.   
+It takes an image, blurs it, HSV thresholds it, gets contours from the threshold and filters the contours
 
-1) Make the rPi writable by selecting the "Writable" tab
-2) In the rPi web dashboard Application tab, select the "Uploaded Python file"
-   option for Application
-3) Click "Browse..." and select the "multiCameraServer.py" file in
-   your desktop project directory
-4) Click Save
+======================================
+ multiCameraServer.py - server config
+======================================
+starts the MJPEG server for our camera and feeds it images from the spartan_overlay.py
 
-The application will be automatically started.  Console output can be seen by
-enabling console output in the Vision Status tab.
+==================================
+spartan_overlay.py - custom code
+==================================
+this is the custom one for us, and we can do whatever we want here.  
+It takes the GRIP output and then does our calculations.  It's set up for an older game with the green lines, etc.  Think about how you would like to present aids to the driver and try to add them.  
 
-========================
-Deploying locally on rPi
-========================
-
-1) Copy multiCameraServer.py and runCamera to /home/pi
-2) Run "./runInteractive" in /home/pi or "sudo svc -t /service/camera" to
-   restart service.
+I updated it to run in training mode as:
+python spartan_overlay.py yellow  
+- but that color option can be red, blue, green, yellow.  You can hold up objects in front of your camera and track and see the values (hopefully).  Try using it and see if you can figure out how it works and try your own overlays.

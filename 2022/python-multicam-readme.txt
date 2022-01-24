@@ -1,4 +1,4 @@
-01/20/2022 - Notes on getting the default multicamera py to work with our stream
+01/20/2022 - Notes on getting the default multicamera py to work with our streaming camera
 Basically added the following at the top:
 
 from cscore import HttpCamera, CvSource, VideoMode  # CJH

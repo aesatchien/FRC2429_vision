@@ -13,35 +13,35 @@ class GripPipeline:
         """
 
         # had to un-namemangle these for simplicity of letting child change them
-        self.hsv_threshold_hue = [11.3, 32.5]
-        self.hsv_threshold_saturation = [128.4, 255.0]
-        self.hsv_threshold_value = [100.8, 255.0]
+        self._hsv_threshold_hue = [11.3, 32.5]
+        self._hsv_threshold_saturation = [128.4, 255.0]
+        self._hsv_threshold_value = [100.8, 255.0]
 
-        self.__blur_type = BlurType.Median_Filter
-        self.__blur_radius = 0.0
+        self._blur_type = BlurType.Median_Filter
+        self._blur_radius = 0.0
         self.blur_output = None
 
-        self.__hsv_threshold_input = self.blur_output
+        self._hsv_threshold_input = self.blur_output
 
         self.hsv_threshold_output = None
 
-        self.__find_contours_input = self.hsv_threshold_output
-        self.__find_contours_external_only = True
+        self._find_contours_input = self.hsv_threshold_output
+        self._find_contours_external_only = True
 
         self.find_contours_output = None
 
-        self.__filter_contours_contours = self.find_contours_output
-        self.__filter_contours_min_area = 100.0
-        self.__filter_contours_min_perimeter = 0.0
-        self.__filter_contours_min_width = 10.0
-        self.__filter_contours_max_width = 1000.0
-        self.__filter_contours_min_height = 10.0
-        self.__filter_contours_max_height = 1000
-        self.__filter_contours_solidity = [24.280575539568343, 100.0]
-        self.__filter_contours_max_vertices = 1000000
-        self.__filter_contours_min_vertices = 0
-        self.__filter_contours_min_ratio = 0.5
-        self.__filter_contours_max_ratio = 1.5
+        self._filter_contours_contours = self.find_contours_output
+        self._filter_contours_min_area = 100.0
+        self._filter_contours_min_perimeter = 0.0
+        self._filter_contours_min_width = 10.0
+        self._filter_contours_max_width = 1000.0
+        self._filter_contours_min_height = 10.0
+        self._filter_contours_max_height = 1000
+        self._filter_contours_solidity = [24.3, 100.0]
+        self._filter_contours_max_vertices = 1000000
+        self._filter_contours_min_vertices = 0
+        self._filter_contours_min_ratio = 0.5
+        self._filter_contours_max_ratio = 1.5
 
         self.filter_contours_output = None
 
@@ -52,19 +52,19 @@ class GripPipeline:
         """
         # Step Blur0:
         self.__blur_input = source0
-        (self.blur_output) = self.__blur(self.__blur_input, self.__blur_type, self.__blur_radius)
+        (self.blur_output) = self.__blur(self.__blur_input, self._blur_type, self._blur_radius)
 
         # Step HSV_Threshold0:
-        self.__hsv_threshold_input = self.blur_output
-        (self.hsv_threshold_output) = self.__hsv_threshold(self.__hsv_threshold_input, self.hsv_threshold_hue, self.hsv_threshold_saturation, self.hsv_threshold_value)
+        self._hsv_threshold_input = self.blur_output
+        (self.hsv_threshold_output) = self.__hsv_threshold(self._hsv_threshold_input, self._hsv_threshold_hue, self._hsv_threshold_saturation, self._hsv_threshold_value)
 
         # Step Find_Contours0:
-        self.__find_contours_input = self.hsv_threshold_output
-        (self.find_contours_output) = self.__find_contours(self.__find_contours_input, self.__find_contours_external_only)
+        self._find_contours_input = self.hsv_threshold_output
+        (self.find_contours_output) = self.__find_contours(self._find_contours_input, self._find_contours_external_only)
 
         # Step Filter_Contours0:
-        self.__filter_contours_contours = self.find_contours_output
-        (self.filter_contours_output) = self.__filter_contours(self.__filter_contours_contours, self.__filter_contours_min_area, self.__filter_contours_min_perimeter, self.__filter_contours_min_width, self.__filter_contours_max_width, self.__filter_contours_min_height, self.__filter_contours_max_height, self.__filter_contours_solidity, self.__filter_contours_max_vertices, self.__filter_contours_min_vertices, self.__filter_contours_min_ratio, self.__filter_contours_max_ratio)
+        self._filter_contours_contours = self.find_contours_output
+        (self.filter_contours_output) = self.__filter_contours(self._filter_contours_contours, self._filter_contours_min_area, self._filter_contours_min_perimeter, self._filter_contours_min_width, self._filter_contours_max_width, self._filter_contours_min_height, self._filter_contours_max_height, self._filter_contours_solidity, self._filter_contours_max_vertices, self._filter_contours_min_vertices, self._filter_contours_min_ratio, self._filter_contours_max_ratio)
 
 
     @staticmethod

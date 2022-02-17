@@ -15,6 +15,19 @@ from networktables import NetworkTablesInstance
 from cscore import HttpCamera, CvSource, VideoMode  # 2429 CJH
 from spartan_overlay import SpartanOverlay # 2429 CJH
 
+from ctypes import Structure, c_uint
+
+
+class Blocks(Structure):
+    _fields_ = [("m_signature", c_uint),
+                ("m_x", c_uint),
+                ("m_y", c_uint),
+                ("m_width", c_uint),
+                ("m_height", c_uint),
+                ("m_angle", c_uint),
+                ("m_index", c_uint),
+                ("m_age", c_uint)]
+
 #   JSON format:
 #   {
 #       "team": <team number>,
@@ -237,11 +250,8 @@ if __name__ == "__main__":
 
 
     #  -------   2429 CJH  stuff - add this to get networktables and processed stream  ------------
-    ballTable = ntinst.getTable("BallCam")
-    targets_entry = ballTable.getEntry("targets")
-    distance_entry = ballTable.getEntry("distance")
-    rotation_entry = ballTable.getEntry("rotation")
-    strafe_entry = ballTable.getEntry("strafe")
+
+    ballTable = ntinst.getTable("BallCam")  # the network table served by the pi
 
     # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS
     # except for how it reports, and the actual speed is determined by the rate the code puts images to the sink
@@ -270,7 +280,17 @@ if __name__ == "__main__":
 
     #  ----------------  start a vision thread (CJH)  --------------------
     # TODO - turn this into a thread running in the background
-    pipeline = SpartanOverlay()
+
+
+    ballframes = ballTable.getEntry('frames')
+    camera_dict = {'red': {}, 'blue': {}}  # the colors we need to check for
+    # set up network tables and pipelines, one for each color
+    for key in camera_dict.keys():
+        camera_dict[key].update({'targets_entry': ballTable.getEntry(f"/{key}/targets")})
+        camera_dict[key].update({'distance_entry': ballTable.getEntry(f"/{key}/distance")})
+        camera_dict[key].update({'rotation_entry': ballTable.getEntry(f"/{key}/rotation")})
+        camera_dict[key].update({'strafe_entry': ballTable.getEntry(f"/{key}/strafe")})
+        camera_dict[key].update({'pipeline': SpartanOverlay(color=key)})
 
     cs = CameraServer.getInstance()  # already taken care of above, but if i comment it out above this is necessary
     # this next part will be trickier if we have more than one camera, but we can have separate pipelines
@@ -285,18 +305,37 @@ if __name__ == "__main__":
     failure_counter = 0  # very first image often fails, and after that we are solid
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
+
+    team_keys = ['blue']  # default color for camera
+    key_order = ['red', 'blue']  # process in this order
+
     while True and failure_counter < 100:
+
         if len(cameras) >= 1:
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
-                targets, distance_to_target, strafe_to_target, height, rotation_to_target = pipeline.process(captured_img)
-                targets_entry.setNumber(targets)  # should see if we can make this one dict to push, may be a one-liner
-                distance_entry.setNumber(distance_to_target)
-                rotation_entry.setNumber(strafe_to_target)
-                strafe_entry.setNumber(rotation_to_target)
+
+                for key in team_keys:
+                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img)
+                    camera_dict[key]['targets_entry'].setNumber(targets)  # should see if we can make this one dict to push, may be a one-liner
+                    camera_dict[key]['distance_entry'].setNumber(distance_to_target)
+                    camera_dict[key]['rotation_entry'].setNumber(strafe_to_target)
+                    camera_dict[key]['strafe_entry'].setNumber(rotation_to_target)
                 ntinst.flush()
-                image_source.putFrame(pipeline.image)  # feeds the Http camera with a new image
+
+                # if we are connected to a robot, get its team color.  default to blue
+                if success_counter % 100 == 0:  # check every 5s for a team color update
+                    ballframes.setNumber(success_counter)
+                    if ntinst.getTable('FMSInfo').getEntry('IsRedAlliance').getBoolean(True):
+                        team_keys = ['red']
+                        key_order = ['blue', 'red']
+                    else:
+                        team_keys = ['blue']
+                        key_order = ['red', 'blue']
+                    # print(f'At frame {success_counter} team key is {team_key}')
+                image_source.putFrame(camera_dict[team_keys[0]]['pipeline'].image)  # feeds the Http camera with a new image, either blue or red
                 success_counter += 1
+
             else:  # keep track of failures to read the image from the sink
                 failure_counter += 1
             if success_counter % 30 == 0:
@@ -308,6 +347,3 @@ if __name__ == "__main__":
                 previous_time = time.time()
         # ----------------------------------------------------
 
-    # loop forever - this was the Java way because the pipeline was in a thread.  Not needed in python
-    #while True:
-    #    time.sleep(9)

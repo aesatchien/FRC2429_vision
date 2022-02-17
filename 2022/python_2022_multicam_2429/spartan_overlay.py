@@ -22,22 +22,22 @@ class SpartanOverlay(GripPipeline):
         self.color = color
         # updating the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         if self.color == 'yellow':  # yellow balls
-            self.hsv_threshold_hue = [20, 30]
-            self.hsv_threshold_saturation = [128, 255]
-            self.hsv_threshold_value = [100, 255]
+            self._hsv_threshold_hue = [20, 30]
+            self._hsv_threshold_saturation = [128, 255]
+            self._hsv_threshold_value = [100, 255]
         elif self.color == 'blue':  # blue balls
-            self.hsv_threshold_hue = [103, 110]
-            self.hsv_threshold_saturation = [100, 255]
-            self.hsv_threshold_value = [40, 255]
+            self._hsv_threshold_hue = [104, 114]
+            self._hsv_threshold_saturation = [100, 255]
+            self._hsv_threshold_value = [100, 255]
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
-            self.hsv_threshold_hue = [0, 5]
-            self.hsv_threshold_saturation = [150, 254]
-            self.hsv_threshold_value = [50, 254]
+            self._hsv_threshold_hue = [170, 179]
+            self._hsv_threshold_saturation = [150, 254]
+            self._hsv_threshold_value = [50, 254]
         elif self.color == 'green':  # vision targets
-            self.hsv_threshold_hue = [70, 90]  # need to check these - retroreflectors are tough to get low sat
-            self.hsv_threshold_saturation = [50, 255]
-            self.hsv_threshold_value = [40, 250]
+            self._hsv_threshold_hue = [70, 90]  # need to check these - retroreflectors are tough to get low sat
+            self._hsv_threshold_saturation = [50, 255]
+            self._hsv_threshold_value = [40, 250]
         else:
             pass
 
@@ -95,6 +95,11 @@ class SpartanOverlay(GripPipeline):
         #self.filter_contours_output = sorted(self.filter_contours_output, key=key, reverse=reverse)[:5]
 
     def get_target_attributes(self, camera='lifecam'):
+        """
+        Figure out haw far away targets are
+        Use the camera FoV and rescale to distance knowing the object's actual size
+        Use the camera resolution to rescale to a xy coordinate system with origin at image center
+        """
         self.distance_to_target = 0
         self.rotation_to_target = 0
         self.strafe_to_target = 0
@@ -103,7 +108,7 @@ class SpartanOverlay(GripPipeline):
 
         # object parameters
         object_height = 7  # 2020 squishy yellow ball
-        object_width = 7  # 2020 squishy yellow ball
+        object_width = 7 * 0.0254  # 2020 squishy yellow ball, 7 inches to meters
 
         # camera specific parameters
         self.camera_shift = 0  # when the cameras are flawed (center of camera bore axis not center of image)
@@ -118,16 +123,16 @@ class SpartanOverlay(GripPipeline):
             camera_fov = 59  # Logitech C290 432x240
 
         # let's just do the calculations on the closest one for now; we could loop through them all easily enough
-        x, y, w, h = self.bounding_boxes[0]
+        x, y, w, h = self.bounding_boxes[0]  # returned rectangle parameters
         self.aspect_ratio = h/w
         self.height = h
-        target_width_fraction_fov = w / self.x_resolution
+        target_width_fraction_fov = w / self.x_resolution  #
 
         # X and Y are scaled from -1 to 1 in each direction to help with rotation
         # so distances in these coordinates need to be divided by two to get percentage of fov
         moments = cv2.moments(self.filter_contours_output[0])
-        centroid_x = int(-self.camera_shift + (moments["m10"] / moments["m00"]))
-        centroid_y = int(moments["m01"] / moments["m00"])
+        centroid_x = int(-self.camera_shift + (moments["m10"] / moments["m00"]))  # also easier as x + w/2
+        centroid_y = int(moments["m01"] / moments["m00"])  # also easier as y +h/2
         target_x = (-1.0 + 2.0*centroid_x/self.x_resolution)  # could also be (x+w/2) / self.x_resolution
         target_y = (-1.0 + 2.0*centroid_y/self.y_resolution)
         self.rotation_to_target = target_x * camera_fov / 2.0
@@ -138,10 +143,10 @@ class SpartanOverlay(GripPipeline):
         """Draw a box around all of our contours with the main one emphasized"""
         for ix, contour in enumerate(self.filter_contours_output):
             if ix == 0:
-                color = (255, 0, 0)  # blue for our primary target
+                color = (0, 255, 0)  # green for our primary target
                 thickness = 2
             else:
-                color = (0, 255, 0) # green for the other bogeys
+                color = (255, 0, 255) # magenta for the other bogeys
                 thickness = 1
             rect = cv2.boundingRect(contour)
             #print(rect)
@@ -176,9 +181,15 @@ class SpartanOverlay(GripPipeline):
             # TODO - add decorations for when we do not have a target
             cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
             cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
-            pass
+            debug = True
+            if debug:
+                x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+                width, height = 10, 20
+                t = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height, x_center - width:x_center + width, :]
+                hue = t[:, :, 0]; sat = t[:, :, 1]; val = t[:, :, 2]
+                cv2.putText(self.image, f"Center HSV: {int(hue.mean()):3d} {int(sat.mean()):3d} {int(val.mean()):3d}", target_area_text_location, 1, 0.9, info_text_color, 1)
 
-        cv2.putText(self.image, f"MS: {1000*(self.end_time - self.start_time):.1f} Bogeys: {len(self.filter_contours_output)}",
+        cv2.putText(self.image, f"MS: {1000*(self.end_time - self.start_time):.1f} {self.color} bogeys: {len(self.filter_contours_output)}",
                         info_text_location, 1, 0.9, info_text_color, 1)
 
 
@@ -232,7 +243,7 @@ if __name__ == "__main__":
     if len(args) > 0 and args[0] in colors:  # allow color to be passed from command line
         color = args[0]
     else:  # default color
-        color = "yellow"
+        color = "blue"
 
     start_time = time.time()
     count = 0
@@ -294,6 +305,11 @@ if __name__ == "__main__":
         cam.release()
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-        print(f'mean: {t[:, :, 0].mean()}', end='\n', flush='True')
+        print(f'mean: {t[:, :, 0].mean():.2f}', end='\n', flush='True')
+        # print(f'hist: {np.histogram(t[:, :, 0], bins=90, range=(0,179))}', end='\n', flush='True')
         print(f'Captured {count} frames in {end_time - start_time:.1f}s - average fps is {count/(end_time - start_time):.1f}')
 
+        import matplotlib.pyplot as plt
+        plt.hist([t[:, :, 0].flatten(), t[:, :, 1].flatten(), t[:, :, 2].flatten()], label=['h','s','v'], bins=255)
+        plt.legend()
+        plt.show()

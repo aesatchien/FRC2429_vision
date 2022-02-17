@@ -1,6 +1,7 @@
-#!/usr/bin/sh
-echo "Waiting 2 seconds..."
-sleep 2
+#!/bin/sh
+### TYPE: upload-python
+echo "Waiting 3 seconds..."
+sleep 3
 export PYTHONUNBUFFERED=1
-python3 multiCameraServer.py
+python3 /home/pi/2429/multiCameraServer.py
 

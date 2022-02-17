@@ -306,7 +306,7 @@ if __name__ == "__main__":
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
 
-    team_keys = ['blue']  # default color for camera
+    team_key = 'blue'  # default color for camera
     key_order = ['red', 'blue']  # process in this order
 
     while True and failure_counter < 100:
@@ -315,25 +315,25 @@ if __name__ == "__main__":
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
 
-                for key in team_keys:
-                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img)
+                for key in camera_dict.keys():
+                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     camera_dict[key]['targets_entry'].setNumber(targets)  # should see if we can make this one dict to push, may be a one-liner
                     camera_dict[key]['distance_entry'].setNumber(distance_to_target)
-                    camera_dict[key]['rotation_entry'].setNumber(strafe_to_target)
-                    camera_dict[key]['strafe_entry'].setNumber(rotation_to_target)
+                    camera_dict[key]['strafe_entry'].setNumber(strafe_to_target)
+                    camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
                 ntinst.flush()
 
                 # if we are connected to a robot, get its team color.  default to blue
                 if success_counter % 100 == 0:  # check every 5s for a team color update
                     ballframes.setNumber(success_counter)
                     if ntinst.getTable('FMSInfo').getEntry('IsRedAlliance').getBoolean(True):
-                        team_keys = ['red']
-                        key_order = ['blue', 'red']
+                        team_key = 'red'
+                        key_order = ['blue', 'red']  # probably not necessary
                     else:
-                        team_keys = ['blue']
-                        key_order = ['red', 'blue']
+                        team_key = 'blue'
+                        key_order = ['red', 'blue']  # probably not necessary
                     # print(f'At frame {success_counter} team key is {team_key}')
-                image_source.putFrame(camera_dict[team_keys[0]]['pipeline'].image)  # feeds the Http camera with a new image, either blue or red
+                image_source.putFrame(camera_dict[team_key]['pipeline'].image)  # feeds the Http camera with a new image, either blue or red
                 success_counter += 1
 
             else:  # keep track of failures to read the image from the sink

@@ -67,8 +67,8 @@ class GripPipeline:
         (self.filter_contours_output) = self.__filter_contours(self._filter_contours_contours, self._filter_contours_min_area, self._filter_contours_min_perimeter, self._filter_contours_min_width, self._filter_contours_max_width, self._filter_contours_min_height, self._filter_contours_max_height, self._filter_contours_solidity, self._filter_contours_max_vertices, self._filter_contours_min_vertices, self._filter_contours_min_ratio, self._filter_contours_max_ratio)
 
 
-    @staticmethod
-    def __blur(src, type, radius):
+    # @staticmethod
+    def __blur(self, src, type, radius):
         """Softens an image using one of several filters.
         Args:
             src: The source mat (numpy.ndarray).
@@ -89,8 +89,8 @@ class GripPipeline:
         else:
             return cv2.bilateralFilter(src, -1, round(radius), round(radius))
 
-    @staticmethod
-    def __hsv_threshold(input, hue, sat, val):
+    # @staticmethod
+    def __hsv_threshold(self, input, hue, sat, val):
         """Segment an image based on hue, saturation, and value ranges.
         Args:
             input: A BGR numpy.ndarray.
@@ -108,8 +108,8 @@ class GripPipeline:
         else:
             return cv2.inRange(out, (hue[0], sat[0], val[0]),  (hue[1], sat[1], val[1]))
 
-    @staticmethod
-    def __find_contours(input, external_only):
+    # @staticmethod
+    def __find_contours(self, input, external_only):
         """Sets the values of pixels in a binary image to their distance to the nearest black pixel.
         Args:
             input: A numpy.ndarray.
@@ -129,8 +129,8 @@ class GripPipeline:
         contours = contour_output[-2]  # should work with multiple versions of cv2 - contours is 2nd to last either way
         return contours
 
-    @staticmethod
-    def __filter_contours(input_contours, min_area, min_perimeter, min_width, max_width,
+    # @staticmethod
+    def __filter_contours(self, input_contours, min_area, min_perimeter, min_width, max_width,
                         min_height, max_height, solidity, max_vertex_count, min_vertex_count,
                         min_ratio, max_ratio):
         """Filters out contours that do not meet certain criteria.

@@ -167,8 +167,8 @@ class SpartanOverlay(GripPipeline):
         # black bar at top of image
         cv2.rectangle(self.image, (0, 0), (self.x_resolution, int(0.12 * self.y_resolution)), (0, 0, 0), -1)
         if len(self.filter_contours_output) > 0:  #  contours found
-            cv2.putText(self.image, f"Dist: {self.distance_to_target:3.0f} Str: {self.strafe_to_target:2.1f} H: {self.height:2.0f} AR: {self.aspect_ratio:1.1f} Rot: {self.rotation_to_target:+2.0f} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
-            if (self.distance_to_target > 10):
+            cv2.putText(self.image, f"Dist: {self.distance_to_target:3.2f} Str: {self.strafe_to_target:2.1f} H: {self.height:2.0f} AR: {self.aspect_ratio:1.1f} Rot: {self.rotation_to_target:+2.0f} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
+            if (self.distance_to_target > 0.5):
                 cv2.putText(self.image, "Targeted", target_text_location, 1, 0.9, target_text_color, 1);
             else:
                 cv2.putText(self.image, "Eaten!", target_text_location, 1, 1.0, target_warning_color, 1);

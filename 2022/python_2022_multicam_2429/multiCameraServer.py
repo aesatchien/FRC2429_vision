@@ -259,7 +259,7 @@ if __name__ == "__main__":
     x_resolution = vm.width
     y_resolution = vm.height
     stream_fps = 20
-    processed_port = 1182
+    processed_port = 1186   # allow for multiple cameras on 1181-1185
 
     image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
     # start a stream

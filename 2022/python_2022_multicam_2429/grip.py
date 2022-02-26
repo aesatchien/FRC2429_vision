@@ -10,7 +10,9 @@ class GripPipeline:
     
     def __init__(self):
         """initializes all values to presets or None if need to be set
+        CJH made a lot of changes in order for this to be visible to child
         """
+        self.color = None  # add in the option of having a color here, it helps with filter selection)
 
         # had to un-namemangle these for simplicity of letting child change them
         self._hsv_threshold_hue = [11.3, 32.5]

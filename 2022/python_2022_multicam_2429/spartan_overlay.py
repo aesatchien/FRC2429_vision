@@ -17,10 +17,11 @@ class SpartanOverlay(GripPipeline):
     def __init__(self, color='yellow'):
         super().__init__()
         #print(self.__hsv_threshold_hue)  # does not exist?
+        # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
         # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it? Need color-specific stuff though
+        # ToDo: override the filter contours stuff here as well for balls vs vision targets
         self.color = color
-        # updating the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         if self.color == 'yellow':  # yellow balls
             self._hsv_threshold_hue = [20, 30]
             self._hsv_threshold_saturation = [128, 255]
@@ -31,7 +32,8 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_value = [100, 255]
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
-            self._hsv_threshold_hue = [170, 179]
+            # currently grip pipleline is reflecting red around 180, so just use the 0-10 (ish values)
+            self._hsv_threshold_hue = [0, 10]  # see comment above
             self._hsv_threshold_saturation = [150, 254]
             self._hsv_threshold_value = [50, 254]
         elif self.color == 'green':  # vision targets
@@ -107,20 +109,29 @@ class SpartanOverlay(GripPipeline):
         self.height = 0
 
         # object parameters
-        object_height = 7  # 2020 squishy yellow ball
-        object_width = 7 * 0.0254  # 2020 squishy yellow ball, 7 inches to meters
+        if self.color == 'yellow':
+            object_width = 7 * 0.0254  # 2020 squishy yellow ball, 7 inches to meters
+        elif self.color == 'blue' or self.color == 'red':
+            object_width = 9.5 * 0.0254  # 2022 big tennis ball, 9.5 inches to meters
+        elif self.color == 'green':
+            # ToDo: have to update this to do the distance differently - see shooter from 2019 maybe
+            object_width = 9.5 * 0.0254  # 2022 big tennis ball, 9.5 inches to meters
+        else:
+            object_width = 9.5 * 0.0254  # default for now
 
         # camera specific parameters
         self.camera_shift = 0  # when the cameras are flawed (center of camera bore axis not center of image)
         # need to do extra math if camera bore at an angle to the object
         camera_height = 33  # camera vertical distance above ground, use when cam looking at objects on ground
-        if camera =='lifecam':
+        if camera == 'lifecam':
             camera_fov = 55  # Lifecam 320x240
-        elif camera =='geniuscam':
+        elif camera == 'geniuscam':
             camera_fov = 118  # Genius 120 352x288
             self.camera_shift = -8  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
         elif camera == 'c270':
             camera_fov = 59  # Logitech C290 432x240
+        elif camera == 'elp100':
+            camera_fov = 100  # little elp
 
         # let's just do the calculations on the closest one for now; we could loop through them all easily enough
         x, y, w, h = self.bounding_boxes[0]  # returned rectangle parameters
@@ -235,6 +246,7 @@ if __name__ == "__main__":
     """
     Test things out with just a few images if not using the pipeline  - updated 2022 0124
     Best to use on a computer (not pi) to check the HSV values of objects in front of the computer
+    But to really get the targets right, save an image from the web
     Set the color below to yellow, blue, green or red (red is tougher) to test
     """
     import sys

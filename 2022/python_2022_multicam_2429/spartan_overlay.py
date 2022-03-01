@@ -40,6 +40,14 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_hue = [70, 90]  # need to check these - retroreflectors are tough to get low sat
             self._hsv_threshold_saturation = [50, 255]
             self._hsv_threshold_value = [40, 250]
+            # in 2022 they are long and flat, so w/h >> 1
+            self._filter_contours_min_ratio = 2
+            self._filter_contours_max_ratio = 1000
+            self._filter_contours_min_area = 10.0
+            self._filter_contours_min_width = 10.0
+            self._filter_contours_max_width = 1000.0
+            self._filter_contours_min_height = 2
+            self._filter_contours_max_height = 100
         else:
             pass
 
@@ -135,7 +143,7 @@ class SpartanOverlay(GripPipeline):
 
         # let's just do the calculations on the closest one for now; we could loop through them all easily enough
         x, y, w, h = self.bounding_boxes[0]  # returned rectangle parameters
-        self.aspect_ratio = h/w
+        self.aspect_ratio = w/h
         self.height = h
         target_width_fraction_fov = w / self.x_resolution  #
 
@@ -255,7 +263,7 @@ if __name__ == "__main__":
     if len(args) > 0 and args[0] in colors:  # allow color to be passed from command line
         color = args[0]
     else:  # default color
-        color = "blue"
+        color = "green"
 
     start_time = time.time()
     count = 0
@@ -321,7 +329,8 @@ if __name__ == "__main__":
         # print(f'hist: {np.histogram(t[:, :, 0], bins=90, range=(0,179))}', end='\n', flush='True')
         print(f'Captured {count} frames in {end_time - start_time:.1f}s - average fps is {count/(end_time - start_time):.1f}')
 
-        import matplotlib.pyplot as plt
-        plt.hist([t[:, :, 0].flatten(), t[:, :, 1].flatten(), t[:, :, 2].flatten()], label=['h','s','v'], bins=255)
-        plt.legend()
-        plt.show()
+        if False:
+            import matplotlib.pyplot as plt
+            plt.hist([t[:, :, 0].flatten(), t[:, :, 1].flatten(), t[:, :, 2].flatten()], label=['h','s','v'], bins=255)
+            plt.legend()
+            plt.show()

@@ -16,6 +16,7 @@ class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
     def __init__(self, color='yellow'):
         super().__init__()
+        self.debug = False
         #print(self.__hsv_threshold_hue)  # does not exist?
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
@@ -30,12 +31,16 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_hue = [104, 114]
             self._hsv_threshold_saturation = [100, 255]
             self._hsv_threshold_value = [100, 255]
+            self._filter_contours_solidity = [50.0, 100.0]
+            self._filter_contours_box_fill = [50.0, 95.0]
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
             # currently grip pipleline is reflecting red around 180, so just use the 0-10 (ish values)
             self._hsv_threshold_hue = [0, 10]  # see comment above
             self._hsv_threshold_saturation = [150, 254]
             self._hsv_threshold_value = [50, 254]
+            self._filter_contours_solidity = [50.0, 100.0]
+            self._filter_contours_box_fill = [50.0, 95.0]
         elif self.color == 'green':  # vision targets
             self._hsv_threshold_hue = [70, 90]  # need to check these - retroreflectors are tough to get low sat
             self._hsv_threshold_saturation = [50, 255]
@@ -168,8 +173,14 @@ class SpartanOverlay(GripPipeline):
                 color = (255, 0, 255) # magenta for the other bogeys
                 thickness = 1
             rect = cv2.boundingRect(contour)
+            x, y, w, h = rect
             #print(rect)
             self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])), (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
+
+            # test fill percent and solidity
+            if self.debug:
+                box_fill, solidity = self.get_solidity(contour)
+                self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
         pass
 
     def overlay_text(self):
@@ -211,6 +222,15 @@ class SpartanOverlay(GripPipeline):
         cv2.putText(self.image, f"MS: {1000*(self.end_time - self.start_time):.1f} {self.color} bogeys: {len(self.filter_contours_output)}",
                         info_text_location, 1, 0.9, info_text_color, 1)
 
+    def get_solidity(self, contour):
+        rect = cv2.boundingRect(contour)
+        x, y, w, h = rect
+        box_area = w * h  # area of the bounding box
+        area = cv2.contourArea(contour)  # area of the contour
+        hull = cv2.convexHull(contour)  # area of the hull of the contour
+        solidity = 100 * area / cv2.contourArea(hull)  # this measurement came with GRIP, i don't like it
+        box_fill = 100 * area / box_area
+        return box_fill, solidity
 
     def post_to_networktables(self):
         """Send object information to networktables"""
@@ -263,7 +283,8 @@ if __name__ == "__main__":
     if len(args) > 0 and args[0] in colors:  # allow color to be passed from command line
         color = args[0]
     else:  # default color
-        color = "green"
+        color = "red"
+
 
     start_time = time.time()
     count = 0
@@ -278,6 +299,7 @@ if __name__ == "__main__":
             cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
             s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
             pipeline = SpartanOverlay(color=color)
+            pipeline.debug = True
             pipeline.process(image=im, method=method)
             cv2.imshow(f"Test Picture: sorting by {method}", pipeline.image)  # displays captured image
             cv2.waitKey(0)
@@ -289,9 +311,10 @@ if __name__ == "__main__":
         start_time = time.time()
         end_time = start_time
         pipeline = SpartanOverlay(color=color)
+        pipeline.debug = True
         cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         np.set_printoptions(precision=1)
-        while end_time - start_time < 10:  # take video for x seconds
+        while end_time - start_time < 15:  # take video for x seconds
             count += 1
             s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
             if s > 0:  # Found an image

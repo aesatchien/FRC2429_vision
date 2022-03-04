@@ -40,6 +40,7 @@ class GripPipeline:
         self._filter_contours_min_height = 10.0
         self._filter_contours_max_height = 1000
         self._filter_contours_solidity = [24.3, 100.0]
+        self._filter_contours_box_fill = [1.0, 100.0]
         self._filter_contours_max_vertices = 1000000
         self._filter_contours_min_vertices = 0
         self._filter_contours_min_ratio = 0.5
@@ -66,7 +67,11 @@ class GripPipeline:
 
         # Step Filter_Contours0:
         self._filter_contours_contours = self.find_contours_output
-        (self.filter_contours_output) = self.__filter_contours(self._filter_contours_contours, self._filter_contours_min_area, self._filter_contours_min_perimeter, self._filter_contours_min_width, self._filter_contours_max_width, self._filter_contours_min_height, self._filter_contours_max_height, self._filter_contours_solidity, self._filter_contours_max_vertices, self._filter_contours_min_vertices, self._filter_contours_min_ratio, self._filter_contours_max_ratio)
+        (self.filter_contours_output) = self.__filter_contours(self._filter_contours_contours, self._filter_contours_min_area, self._filter_contours_min_perimeter,
+                                                               self._filter_contours_min_width, self._filter_contours_max_width, self._filter_contours_min_height,
+                                                               self._filter_contours_max_height, self._filter_contours_solidity, self._filter_contours_max_vertices,
+                                                               self._filter_contours_min_vertices, self._filter_contours_min_ratio, self._filter_contours_max_ratio,
+                                                               self._filter_contours_box_fill)
 
 
     # @staticmethod
@@ -134,7 +139,7 @@ class GripPipeline:
     # @staticmethod
     def __filter_contours(self, input_contours, min_area, min_perimeter, min_width, max_width,
                         min_height, max_height, solidity, max_vertex_count, min_vertex_count,
-                        min_ratio, max_ratio):
+                        min_ratio, max_ratio, box_fill):
         """Filters out contours that do not meet certain criteria.
         Args:
             input_contours: Contours as a list of numpy.ndarray.
@@ -172,6 +177,10 @@ class GripPipeline:
                 continue
             ratio = (float)(w) / h
             if (ratio < min_ratio or ratio > max_ratio):
+                continue
+            box_area = w * h
+            box_fill_ratio = 100 * area / box_area
+            if (box_fill_ratio < box_fill[0] or box_fill_ratio > box_fill[1]):
                 continue
             output.append(contour)
         return output

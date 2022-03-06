@@ -255,27 +255,30 @@ if __name__ == "__main__":
 
     # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS
     # except for how it reports, and the actual speed is determined by the rate the code puts images to the sink
-    vm = cameras[0].getVideoMode()
-    x_resolution = vm.width
-    y_resolution = vm.height
-    stream_fps = 20
-    processed_port = 1186   # allow for multiple cameras on 1181-1185
 
-    image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
-    # start a stream
-    cvStream = MjpegServer("CV Image Stream", processed_port)
-    # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps is 11Mbps
-    # 50 seems to cut it ~ 5x t- 2.3Mbps, still looks pretty good, 25 is pretty marginal at 1.6Mbps.  Default is -1?
-    if x_resolution > 300:  # just take the default for smaller formats
-        cvStream.getProperty("compression").set(60)
-    cvStream.setSource(image_source)  # now the stream is updated by image_source
-    cs = CameraServer.getInstance()
-    cs.addCamera(image_source)  # is this really necessary?  we add another one later
-    print(f"*** Starting 2429 BallCam Processed stream on {processed_port}")
-    # camera = HttpCamera("BallCam Processed", "http://10.24.29.12:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
-    # actually, this should be more bulletproof, esp when testing at home
-    camera = HttpCamera("BallCam Processed", f"http://127.0.0.1:{processed_port}/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
-    cs.addCamera(camera)  # how does this know we want cvStream assigned to the web?
+    processed_ports = [1186, 1187]   # allow for multiple cameras on 1181-1185
+    stream_labels = ['Ballcam', 'Shootercam']
+
+    for ix, cam in enumerate(cameras):  # should allow me to have as many cameras as i want
+        vm = cameras[ix].getVideoMode()
+        x_resolution = vm.width
+        y_resolution = vm.height
+        stream_fps = 20
+        image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
+        # start a stream
+        cvStream = MjpegServer("CV Image Stream", processed_ports[ix])
+        # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps is 11Mbps
+        # 50 seems to cut it ~ 5x t- 2.3Mbps, still looks pretty good, 25 is pretty marginal at 1.6Mbps.  Default is -1?
+        if x_resolution > 300:  # just take the default for smaller formats
+            cvStream.getProperty("compression").set(60)
+        cvStream.setSource(image_source)  # now the stream is updated by image_source
+        cs = CameraServer.getInstance()
+        cs.addCamera(image_source)  # is this really necessary?  we add another one later
+        print(f"*** Starting 2429 {stream_labels[ix]} Processed stream on {processed_ports[ix]}")
+        # camera = HttpCamera("BallCam Processed", "http://10.24.29.12:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
+        # actually, this should be more bulletproof, esp when testing at home
+        camera = HttpCamera(f"{stream_labels[ix]} Processed", f"http://127.0.0.1:{processed_ports[ix]}/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
+        cs.addCamera(camera)  # how does this know we want cvStream assigned to the web?
     # -------------------------------------------'''
 
     #  ----------------  start a vision thread (CJH)  --------------------
@@ -283,14 +286,17 @@ if __name__ == "__main__":
 
 
     ballframes = ballTable.getEntry('frames')
-    camera_dict = {'red': {}, 'blue': {}}  # the colors we need to check for
+    camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
     # set up network tables and pipelines, one for each color
     for key in camera_dict.keys():
         camera_dict[key].update({'targets_entry': ballTable.getEntry(f"/{key}/targets")})
         camera_dict[key].update({'distance_entry': ballTable.getEntry(f"/{key}/distance")})
         camera_dict[key].update({'rotation_entry': ballTable.getEntry(f"/{key}/rotation")})
         camera_dict[key].update({'strafe_entry': ballTable.getEntry(f"/{key}/strafe")})
-        camera_dict[key].update({'pipeline': SpartanOverlay(color=key)})
+        if key == 'green':
+            camera_dict[key].update({'pipeline': SpartanOverlay(color=key, camera='lifecam')})
+        else:
+            camera_dict[key].update({'pipeline': SpartanOverlay(color=key, camera='geniuscam')})
 
     cs = CameraServer.getInstance()  # already taken care of above, but if i comment it out above this is necessary
     # this next part will be trickier if we have more than one camera, but we can have separate pipelines
@@ -299,6 +305,12 @@ if __name__ == "__main__":
     # sink = cs.getVideo() # can only do this if a camera is started, i.e. camera = cs.startAutomaticCapture()
     vm = cameras[0].getVideoMode()  # getting the resolution, etc from the camera again, repeating in case above changes
     img = np.zeros((vm.height, vm.width, 3))  # make our first dummy image for cv to write over
+
+    if len(cameras) > 1:  # add a second camera
+        sink_2 = cs.getVideo(camera=cameras[1])
+        vm2 = cameras[1].getVideoMode()
+        img2 = np.zeros((vm2.height, vm2.width, 3))
+
 
     success_counter = 0  # keep track of FPS so we can tell in the console when things are going wrong
     previous_counts = 0
@@ -312,10 +324,10 @@ if __name__ == "__main__":
     while True and failure_counter < 100:
 
         if len(cameras) >= 1:
+            # get the ball images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
-
-                for key in camera_dict.keys():
+                for key in key_order:
                     targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     camera_dict[key]['targets_entry'].setNumber(targets)  # should see if we can make this one dict to push, may be a one-liner
                     camera_dict[key]['distance_entry'].setNumber(distance_to_target)
@@ -345,5 +357,17 @@ if __name__ == "__main__":
                 print(f'Cameras: {len(cameras)}  Avg FPS: {fps:0.1f}  Reported:{cameras[0].getActualFPS()}  Success: {success_counter:10d}  Failure:{failure_counter:10d}', end='\r', flush=True)
                 previous_counts = success_counter
                 previous_time = time.time()
+
+        if len(cameras) >= 2:
+            # get the shooter target images - green stuff
+            image_time, captured_img2 = sink_2.grabFrame(img)  # default time out is about 4 FPS
+            if image_time > 0:  # actually got an image
+                for key in ['green']:
+                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img2.copy())
+                    camera_dict[key]['targets_entry'].setNumber(targets)  # should see if we can make this one dict to push, may be a one-liner
+                    camera_dict[key]['distance_entry'].setNumber(distance_to_target)
+                    camera_dict[key]['strafe_entry'].setNumber(strafe_to_target)
+                    camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
+                ntinst.flush()
         # ----------------------------------------------------
 

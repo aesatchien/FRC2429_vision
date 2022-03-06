@@ -14,7 +14,7 @@ from networktables import NetworkTable
 
 class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
-    def __init__(self, color='yellow'):
+    def __init__(self, color='yellow', camera='lifecam'):
         super().__init__()
         self.debug = False
         #print(self.__hsv_threshold_hue)  # does not exist?
@@ -23,6 +23,8 @@ class SpartanOverlay(GripPipeline):
         # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it? Need color-specific stuff though
         # ToDo: override the filter contours stuff here as well for balls vs vision targets
         self.color = color
+        self.camera = camera
+
         if self.color == 'yellow':  # yellow balls
             self._hsv_threshold_hue = [20, 30]
             self._hsv_threshold_saturation = [128, 255]
@@ -37,22 +39,21 @@ class SpartanOverlay(GripPipeline):
             # can invert to cyan or just add a second range
             # currently grip pipleline is reflecting red around 180, so just use the 0-10 (ish values)
             self._hsv_threshold_hue = [0, 10]  # see comment above
-            self._hsv_threshold_saturation = [150, 254]
-            self._hsv_threshold_value = [50, 254]
+            self._hsv_threshold_saturation = [150, 255]
+            self._hsv_threshold_value = [50, 255]
             self._filter_contours_solidity = [50.0, 100.0]
             self._filter_contours_box_fill = [50.0, 95.0]
         elif self.color == 'green':  # vision targets
-            self._hsv_threshold_hue = [70, 90]  # need to check these - retroreflectors are tough to get low sat
-            self._hsv_threshold_saturation = [50, 255]
-            self._hsv_threshold_value = [40, 250]
-            # in 2022 they are long and flat, so w/h >> 1
+            self._hsv_threshold_hue = [76, 90]  # verified with lifecam 20220305 on training images
+            self._hsv_threshold_saturation = [100, 255]  # retroreflectors tough to get low sat so this removes lights
+            self._hsv_threshold_value = [40, 255]
+            # in 2022 they are long and flat, so w/h >> 1.  small too.
             self._filter_contours_min_ratio = 2
-            self._filter_contours_max_ratio = 1000
+            self._filter_contours_max_ratio = 6
             self._filter_contours_min_area = 10.0
-            self._filter_contours_min_width = 10.0
-            self._filter_contours_max_width = 1000.0
-            self._filter_contours_min_height = 2
-            self._filter_contours_max_height = 100
+            self._filter_contours_min_width = 3
+            self._filter_contours_min_height = 3
+            self._filter_contours_max_height = 50
         else:
             pass
 
@@ -109,7 +110,7 @@ class SpartanOverlay(GripPipeline):
         # if you only wanted size it would be really simple - just do key = cv.contourArea and reverse = True w/o a zip
         #self.filter_contours_output = sorted(self.filter_contours_output, key=key, reverse=reverse)[:5]
 
-    def get_target_attributes(self, camera='lifecam'):
+    def get_target_attributes(self):
         """
         Figure out haw far away targets are
         Use the camera FoV and rescale to distance knowing the object's actual size
@@ -136,32 +137,40 @@ class SpartanOverlay(GripPipeline):
         self.camera_shift = 0  # when the cameras are flawed (center of camera bore axis not center of image)
         # need to do extra math if camera bore at an angle to the object
         camera_height = 33  # camera vertical distance above ground, use when cam looking at objects on ground
-        if camera == 'lifecam':
+        if self.camera == 'lifecam':
             camera_fov = 55  # Lifecam 320x240
-        elif camera == 'geniuscam':
+        elif self.camera == 'geniuscam':
             camera_fov = 118  # Genius 120 352x288
             self.camera_shift = -8  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
-        elif camera == 'c270':
+        elif self.camera == 'c270':
             camera_fov = 59  # Logitech C290 432x240
-        elif camera == 'elp100':
+        elif self.camera == 'elp100':
             camera_fov = 100  # little elp
 
-        # let's just do the calculations on the closest one for now; we could loop through them all easily enough
-        x, y, w, h = self.bounding_boxes[0]  # returned rectangle parameters
-        self.aspect_ratio = w/h
-        self.height = h
-        target_width_fraction_fov = w / self.x_resolution  #
+        if self.color =='green':
+            hub_x, hub_y, left_boundary, right_boundary = self.find_centers(self.filter_contours_output)
+            target_x = (-1.0 + 2.0 * hub_x / self.x_resolution)  # could also be (x+w/2) / self.x_resolution
+            self.rotation_to_target = target_x * camera_fov / 2.0
+            self.distance_to_target = hub_y  # needs a bit more complexity
+            self.strafe_to_target = 0
 
-        # X and Y are scaled from -1 to 1 in each direction to help with rotation
-        # so distances in these coordinates need to be divided by two to get percentage of fov
-        moments = cv2.moments(self.filter_contours_output[0])
-        centroid_x = int(-self.camera_shift + (moments["m10"] / moments["m00"]))  # also easier as x + w/2
-        centroid_y = int(moments["m01"] / moments["m00"])  # also easier as y +h/2
-        target_x = (-1.0 + 2.0*centroid_x/self.x_resolution)  # could also be (x+w/2) / self.x_resolution
-        target_y = (-1.0 + 2.0*centroid_y/self.y_resolution)
-        self.rotation_to_target = target_x * camera_fov / 2.0
-        self.distance_to_target = object_width / (2.0 * math.tan(target_width_fraction_fov * math.radians(camera_fov) / 2.0))
-        self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target
+        else:
+            # let's just do the calculations on the closest one for now; we could loop through them all easily enough
+            x, y, w, h = self.bounding_boxes[0]  # returned rectangle parameters
+            self.aspect_ratio = w/h
+            self.height = h
+            target_width_fraction_fov = w / self.x_resolution  #
+
+            # X and Y are scaled from -1 to 1 in each direction to help with rotation
+            # so distances in these coordinates need to be divided by two to get percentage of fov
+            moments = cv2.moments(self.filter_contours_output[0])
+            centroid_x = int(-self.camera_shift + (moments["m10"] / moments["m00"]))  # also easier as x + w/2
+            centroid_y = int(moments["m01"] / moments["m00"])  # also easier as y +h/2
+            target_x = (-1.0 + 2.0*centroid_x/self.x_resolution)  # could also be (x+w/2) / self.x_resolution
+            target_y = (-1.0 + 2.0*centroid_y/self.y_resolution)
+            self.rotation_to_target = target_x * camera_fov / 2.0
+            self.distance_to_target = object_width / (2.0 * math.tan(target_width_fraction_fov * math.radians(camera_fov) / 2.0))
+            self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target
 
     def overlay_bounding_boxes(self):
         """Draw a box around all of our contours with the main one emphasized"""
@@ -206,12 +215,15 @@ class SpartanOverlay(GripPipeline):
             # TODO - add decorations for when we have a target - needs the camera_shift to do it right
             cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
             cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
+            if debug:
+                pass
+
         else:  # no contours
             # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
             # TODO - add decorations for when we do not have a target
             cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
             cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
-            debug = True
+
             if debug:
                 x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
                 width, height = 10, 20
@@ -231,6 +243,20 @@ class SpartanOverlay(GripPipeline):
         solidity = 100 * area / cv2.contourArea(hull)  # this measurement came with GRIP, i don't like it
         box_fill = 100 * area / box_area
         return box_fill, solidity
+
+    def find_centers(self, contours):  # group the items
+        x_centers = []
+        y_centers = []
+        left_boundary = 1000
+        right_boundary = 0
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            x_centers.append(x + w // 2)
+            y_centers.append(y + h // 2)
+            left_boundary = x if x < left_boundary else left_boundary
+            right_boundary = x + w if x + w > right_boundary else right_boundary
+        return int(np.mean(x_centers)), int(np.mean(y_centers)), left_boundary, right_boundary
+
 
     def post_to_networktables(self):
         """Send object information to networktables"""

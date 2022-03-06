@@ -16,7 +16,7 @@ class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
     def __init__(self, color='yellow', camera='lifecam'):
         super().__init__()
-        self.debug = False
+        self.debug = True
         #print(self.__hsv_threshold_hue)  # does not exist?
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
@@ -30,11 +30,13 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_saturation = [128, 255]
             self._hsv_threshold_value = [100, 255]
         elif self.color == 'blue':  # blue balls
-            self._hsv_threshold_hue = [104, 114]
-            self._hsv_threshold_saturation = [100, 255]
-            self._hsv_threshold_value = [100, 255]
+            self._hsv_threshold_hue = [100, 114]
+            self._hsv_threshold_saturation = [80, 255]
+            self._hsv_threshold_value = [80, 255]
             self._filter_contours_solidity = [50.0, 100.0]
             self._filter_contours_box_fill = [50.0, 95.0]
+			self._filter_contours_max_ratio = 2.0
+            self._filter_contours_min_area = 30.0
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
             # currently grip pipleline is reflecting red around 180, so just use the 0-10 (ish values)
@@ -43,6 +45,7 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_value = [50, 255]
             self._filter_contours_solidity = [50.0, 100.0]
             self._filter_contours_box_fill = [50.0, 95.0]
+			 self._filter_contours_max_ratio = 2.0
         elif self.color == 'green':  # vision targets
             self._hsv_threshold_hue = [76, 90]  # verified with lifecam 20220305 on training images
             self._hsv_threshold_saturation = [100, 255]  # retroreflectors tough to get low sat so this removes lights
@@ -216,8 +219,18 @@ class SpartanOverlay(GripPipeline):
             cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
             cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
             if debug:
-                pass
-
+            # display the stats on the main target we found
+            x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+            mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
+            mask = cv2.drawContours(mask, self.filter_contours_output, 0, (0,0,0), -1)  # False (zero) inside the contour
+            mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)  # have to cut off the edges a bit (grow the True region)
+            t = np.ma.masked_where(mask == 1, cv2.cvtColor(self.original_image, cv2.COLOR_BGR2HSV))  # data is valid if mask is False
+            hue = t[:, :, 0].compressed(); sat = t[:, :, 1].compressed(); val = t[:, :, 2].compressed()  # don't want messages about masked format strings
+    
+            if len(hue) > 0:
+                self.image = cv2.putText(self.image, f"hue min max mean: {hue.min()} {hue.max()} {hue.mean():.1f}", (x_center//2, 2*y_center-30), 1, 0.9, (0, 255, 200), 1)
+                self.image = cv2.putText(self.image, f"sat min max mean: {sat.min()} {sat.max()} {sat.mean():.1f}", (x_center//2, 2*y_center-20), 1, 0.9, (0, 255, 200), 1)
+                self.image = cv2.putText(self.image, f"val min max mean: {val.min()} {val.max()} {val.mean():.1f}", (x_center//2, 2*y_center-10), 1, 0.9, (0, 255, 200), 1)
         else:  # no contours
             # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
             # TODO - add decorations for when we do not have a target

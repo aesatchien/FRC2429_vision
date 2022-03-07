@@ -258,22 +258,22 @@ if __name__ == "__main__":
 
     processed_ports = [1186, 1187]   # allow for multiple cameras on 1181-1185
     stream_labels = ['Ballcam', 'Shootercam']
-
+    image_source = [None, None]
     for ix, cam in enumerate(cameras):  # should allow me to have as many cameras as i want
         vm = cameras[ix].getVideoMode()
         x_resolution = vm.width
         y_resolution = vm.height
         stream_fps = 20
-        image_source = CvSource("CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
+        image_source[ix] = CvSource(f"{stream_labels[ix]} CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
         # start a stream
-        cvStream = MjpegServer("CV Image Stream", processed_ports[ix])
+        cvStream = MjpegServer(f"{stream_labels[ix]} CV Image Stream", processed_ports[ix])
         # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps is 11Mbps
         # 50 seems to cut it ~ 5x t- 2.3Mbps, still looks pretty good, 25 is pretty marginal at 1.6Mbps.  Default is -1?
         if x_resolution > 300:  # just take the default for smaller formats
             cvStream.getProperty("compression").set(60)
-        cvStream.setSource(image_source)  # now the stream is updated by image_source
+        cvStream.setSource(image_source[ix])  # now the stream is updated by image_source
         cs = CameraServer.getInstance()
-        cs.addCamera(image_source)  # is this really necessary?  we add another one later
+        cs.addCamera(image_source[ix])  # is this really necessary?  we add another one later
         print(f"*** Starting 2429 {stream_labels[ix]} Processed stream on {processed_ports[ix]}")
         # camera = HttpCamera("BallCam Processed", "http://10.24.29.12:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
         # actually, this should be more bulletproof, esp when testing at home
@@ -345,7 +345,7 @@ if __name__ == "__main__":
                         team_key = 'blue'
                         key_order = ['red', 'blue']  # probably not necessary
                     # print(f'At frame {success_counter} team key is {team_key}')
-                image_source.putFrame(camera_dict[team_key]['pipeline'].image)  # feeds the Http camera with a new image, either blue or red
+                image_source[0].putFrame(camera_dict[team_key]['pipeline'].image)  # feeds the Http camera with a new image, either blue or red
                 success_counter += 1
 
             else:  # keep track of failures to read the image from the sink
@@ -360,14 +360,16 @@ if __name__ == "__main__":
 
         if len(cameras) >= 2:
             # get the shooter target images - green stuff
-            image_time, captured_img2 = sink_2.grabFrame(img)  # default time out is about 4 FPS
+            image_time, captured_img2 = sink_2.grabFrame(img2)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
                 for key in ['green']:
-                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img2.copy())
+                    targets, distance_to_target, str
+                    afe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img2.copy())
                     camera_dict[key]['targets_entry'].setNumber(targets)  # should see if we can make this one dict to push, may be a one-liner
                     camera_dict[key]['distance_entry'].setNumber(distance_to_target)
                     camera_dict[key]['strafe_entry'].setNumber(strafe_to_target)
                     camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
                 ntinst.flush()
+                image_source[1].putFrame(camera_dict[key]['pipeline'].image)
         # ----------------------------------------------------
 

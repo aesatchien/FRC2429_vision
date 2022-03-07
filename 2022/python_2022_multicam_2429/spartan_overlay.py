@@ -35,7 +35,7 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_value = [80, 255]
             self._filter_contours_solidity = [50.0, 100.0]
             self._filter_contours_box_fill = [50.0, 95.0]
-			self._filter_contours_max_ratio = 2.0
+            self._filter_contours_max_ratio = 2.0
             self._filter_contours_min_area = 30.0
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
@@ -45,7 +45,7 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_value = [50, 255]
             self._filter_contours_solidity = [50.0, 100.0]
             self._filter_contours_box_fill = [50.0, 95.0]
-			 self._filter_contours_max_ratio = 2.0
+            self._filter_contours_max_ratio = 2.0
         elif self.color == 'green':  # vision targets
             self._hsv_threshold_hue = [76, 90]  # verified with lifecam 20220305 on training images
             self._hsv_threshold_saturation = [100, 255]  # retroreflectors tough to get low sat so this removes lights
@@ -218,7 +218,63 @@ class SpartanOverlay(GripPipeline):
             # TODO - add decorations for when we have a target - needs the camera_shift to do it right
             cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
             cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
-            if debug:
+            if self.debug:
+                # display the stats on the main target we found
+                x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+                mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
+                mask = cv2.drawContours(mask, self.filter_contours_output, 0, (0,0,0), -1)  # False (zero) inside the contour
+                mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)  # have to cut off the edges a bit (grow the True region)
+                t = np.ma.masked_where(mask == 1, cv2.cvtColor(self.original_image, cv2.COLOR_BGR2HSV))  # data is valid if mask is False
+                hue = t[:, :, 0].compressed(); sat = t[:, :, 1].compressed(); val = t[:, :, 2].compressed()  # don't want messages about masked format strings
+
+                if len(hue) > 0:
+                    self.image = cv2.putText(self.image, f"hue min max mean: {hue.min()} {hue.max()} {hue.mean():.1f}", (x_center//2, 2*y_center-30), 1, 0.9, (0, 255, 200), 1)
+                    self.image = cv2.putText(self.image, f"sat min max mean: {sat.min()} {sat.max()} {sat.mean():.1f}", (x_center//2, 2*y_center-20), 1, 0.9, (0, 255, 200), 1)
+                    self.image = cv2.putText(self.image, f"val min max mean: {val.min()} {val.max()} {val.mean():.1f}", (x_center//2, 2*y_center-10), 1, 0.9, (0, 255, 200), 1)
+        else:  # no contours
+            # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
+            # TODO - add decorations for when we do not have a target
+            cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
+            cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
+
+            if self.debug:
+                x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+                width, height = 10, 20
+                t = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height, x_center - width:x_center + width, :]
+                hue = t[:, :, 0]; sat = t[:, :, 1]; val = t[:, :, 2]
+                cv2.putText(self.image, f"Center HSV: {int(hue.mean()):3d} {int(sat.mean()):3d} {int(val.mean()):3d}", target_area_text_location, 1, 0.9, info_text_color, 1)
+
+        cv2.putText(self.image, f"MS: {1000*(self.end_time - self.start_time):.1f} {self.color} bogeys: {len(self.filter_contours_output)}",
+                        info_text_location, 1, 0.9, info_text_color, 1)
+
+
+    def overlay_vision_text(self):
+        """Write our object information to the image about the shooter"""
+        self.end_time = time.time()
+        info_text_location = (int(0.035*self.x_resolution), 12)
+        info_text_color = (0, 255, 255)
+        target_text_color = (255, 255, 0)
+        target_warning_color = (20, 20, 255)
+        target_text_location = (int(0.7 * self.x_resolution), 13)
+        target_area_text_location = (int(0.02 * self.x_resolution), 27)
+        target_dist_text_location = (0.03 * self.x_resolution, self.y_resolution - 20)
+
+        # black bar at top of image
+        cv2.rectangle(self.image, (0, 0), (self.x_resolution, int(0.12 * self.y_resolution)), (0, 0, 0), -1)
+        if len(self.filter_contours_output) > 0:  #  contours found
+            cv2.putText(self.image, f"Dist: {self.distance_to_target:3.2f} Str: {self.strafe_to_target:2.1f} H: {self.height:2.0f} AR: {self.aspect_ratio:1.1f} Rot: {self.rotation_to_target:+2.0f} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
+            if (self.distance_to_target > 0.5):
+                cv2.putText(self.image, "MSG 1", target_text_location, 1, 0.9, target_text_color, 1);
+            else:
+                cv2.putText(self.image, "MSG 2!", target_text_location, 1, 1.0, target_warning_color, 1);
+            # decorations - target lines, boxes, bullseyes, etc
+            # TODO - add decorations for when we have a target - needs the camera_shift to do it right
+            hub_x, hub_y, left_boundary, right_boundary = self.find_centers(self.filter_contours_output)
+            im_height, im_width, _ = self.image.shape
+            cv2.line(self.image, (hub_x, 20), (hub_x, im_height - 20), (255, 127, 0), 2)  # Draw the line: image, start, stop, color, thickness
+            cv2.line(self.image, (left_boundary, hub_y), (right_boundary, hub_y), (255, 127, 0), 2)  # Draw the line: image, start, stop,
+
+           if self.debug:
             # display the stats on the main target we found
             x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
             mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
@@ -226,7 +282,7 @@ class SpartanOverlay(GripPipeline):
             mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)  # have to cut off the edges a bit (grow the True region)
             t = np.ma.masked_where(mask == 1, cv2.cvtColor(self.original_image, cv2.COLOR_BGR2HSV))  # data is valid if mask is False
             hue = t[:, :, 0].compressed(); sat = t[:, :, 1].compressed(); val = t[:, :, 2].compressed()  # don't want messages about masked format strings
-    
+
             if len(hue) > 0:
                 self.image = cv2.putText(self.image, f"hue min max mean: {hue.min()} {hue.max()} {hue.mean():.1f}", (x_center//2, 2*y_center-30), 1, 0.9, (0, 255, 200), 1)
                 self.image = cv2.putText(self.image, f"sat min max mean: {sat.min()} {sat.max()} {sat.mean():.1f}", (x_center//2, 2*y_center-20), 1, 0.9, (0, 255, 200), 1)
@@ -237,7 +293,7 @@ class SpartanOverlay(GripPipeline):
             cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
             cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
 
-            if debug:
+            if self.debug:
                 x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
                 width, height = 10, 20
                 t = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height, x_center - width:x_center + width, :]
@@ -300,7 +356,10 @@ class SpartanOverlay(GripPipeline):
             self.bounding_box_sort_contours(method=method)
             self.overlay_bounding_boxes()
             self.get_target_attributes()
-        self.overlay_text()
+        if self.color == 'green':
+            self.overlay_vision_text()
+        else:
+            self.overlay_text()
         if post_to_nt:
             self.post_to_networktables()
         # ToDo: return a dictionary, this is getting a bit long

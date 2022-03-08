@@ -16,7 +16,7 @@ class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
     def __init__(self, color='yellow', camera='lifecam'):
         super().__init__()
-        self.debug = True
+        self.debug = False
         #print(self.__hsv_threshold_hue)  # does not exist?
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
@@ -37,6 +37,9 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_box_fill = [50.0, 95.0]
             self._filter_contours_max_ratio = 2.0
             self._filter_contours_min_area = 30.0
+            self._filter_contours_max_height = 60
+            self.ignore_y = [20, 185]  # above or below this we ignore detections
+
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
             # currently grip pipleline is reflecting red around 180, so just use the 0-10 (ish values)
@@ -46,12 +49,15 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_solidity = [50.0, 100.0]
             self._filter_contours_box_fill = [50.0, 95.0]
             self._filter_contours_max_ratio = 2.0
+            self._filter_contours_max_height = 60
+            self.ignore_y = [20, 185]  # above or below this we ignore detections
+
         elif self.color == 'green':  # vision targets
             self._hsv_threshold_hue = [76, 90]  # verified with lifecam 20220305 on training images
             self._hsv_threshold_saturation = [100, 255]  # retroreflectors tough to get low sat so this removes lights
             self._hsv_threshold_value = [40, 255]
             # in 2022 they are long and flat, so w/h >> 1.  small too.
-            self._filter_contours_min_ratio = 2
+            self._filter_contours_min_ratio = 0.5
             self._filter_contours_max_ratio = 6
             self._filter_contours_min_area = 10.0
             self._filter_contours_min_width = 3
@@ -154,7 +160,7 @@ class SpartanOverlay(GripPipeline):
             hub_x, hub_y, left_boundary, right_boundary = self.find_centers(self.filter_contours_output)
             target_x = (-1.0 + 2.0 * hub_x / self.x_resolution)  # could also be (x+w/2) / self.x_resolution
             self.rotation_to_target = target_x * camera_fov / 2.0
-            self.distance_to_target = hub_y  # needs a bit more complexity
+            self.distance_to_target = -0.219 + 4.5E-3 * hub_y + 1.89E-5 * hub_y ** 2 # needs a bit more complexity
             self.strafe_to_target = 0
 
         else:
@@ -192,32 +198,42 @@ class SpartanOverlay(GripPipeline):
             # test fill percent and solidity
             if self.debug:
                 box_fill, solidity = self.get_solidity(contour)
-                self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-        pass
-
-    def overlay_text(self):
+                #self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
+                self.image = cv2.putText(self.image, f'{int(x)}, {int(y)}', (int(x), int(y)), 1, 1.5,
+                                 (0, 255, 255), 1, 1)
+    def overlay_text(self, show_lines=False):
         """Write our object information to the image"""
         self.end_time = time.time()
-        info_text_location = (int(0.035*self.x_resolution), 12)
+        location = 'bottom'
+        if location == 'top':
+            info_text_location = (int(0.035 * self.x_resolution), 12)
+            target_text_location = (int(0.7 * self.x_resolution), 13)
+            target_area_text_location = (int(0.02 * self.x_resolution), 27)
+            # black bar at top of image
+            cv2.rectangle(self.image, (0, int(0.88 * self.y_resolution)), (self.x_resolution, 0), (0, 0, 0), -1)
+        else:
+            info_text_location = (int(0.035 * self.x_resolution), -15 + self.y_resolution)
+            target_text_location = (int(0.7 * self.x_resolution), -13 + self.y_resolution)
+            target_area_text_location = (int(0.02 * self.x_resolution), -2 + self.y_resolution)
+            # black bar at bottom of image
+            cv2.rectangle(self.image, (0, int(0.90 * self.y_resolution)), (self.x_resolution, self.y_resolution), (0, 0, 0), -1)
+
         info_text_color = (0, 255, 255)
         target_text_color = (255, 255, 0)
         target_warning_color = (20, 20, 255)
-        target_text_location = (int(0.7 * self.x_resolution), 13)
-        target_area_text_location = (int(0.02 * self.x_resolution), 27)
-        target_dist_text_location = (0.03 * self.x_resolution, self.y_resolution - 20)
 
-        # black bar at top of image
-        cv2.rectangle(self.image, (0, 0), (self.x_resolution, int(0.12 * self.y_resolution)), (0, 0, 0), -1)
         if len(self.filter_contours_output) > 0:  #  contours found
             cv2.putText(self.image, f"Dist: {self.distance_to_target:3.2f} Str: {self.strafe_to_target:2.1f} H: {self.height:2.0f} AR: {self.aspect_ratio:1.1f} Rot: {self.rotation_to_target:+2.0f} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
-            if (self.distance_to_target > 0.5):
-                cv2.putText(self.image, "Targeted", target_text_location, 1, 0.9, target_text_color, 1);
-            else:
-                cv2.putText(self.image, "Eaten!", target_text_location, 1, 1.0, target_warning_color, 1);
+            if show_lines:
+                if (self.distance_to_target > 0.5):
+                    cv2.putText(self.image, "Targeted", target_text_location, 1, 0.9, target_text_color, 1);
+                else:
+                    cv2.putText(self.image, "Eaten!", target_text_location, 1, 1.0, target_warning_color, 1);
             # decorations - target lines, boxes, bullseyes, etc
             # TODO - add decorations for when we have a target - needs the camera_shift to do it right
-            cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
-            cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
+            if show_lines:
+                cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
+                cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (0,255,0), 2)
             if self.debug:
                 # display the stats on the main target we found
                 x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
@@ -234,8 +250,9 @@ class SpartanOverlay(GripPipeline):
         else:  # no contours
             # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
             # TODO - add decorations for when we do not have a target
-            cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
-            cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
+            if show_lines:
+                cv2.line(self.image, (int(0.3*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.3*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
+                cv2.line(self.image, (int(0.7*self.x_resolution + self.camera_shift), int(0.77*self.y_resolution)), (int(0.7*self.x_resolution + self.camera_shift), int(0.14*self.y_resolution)), (127,127,127), 1)
 
             if self.debug:
                 x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
@@ -262,7 +279,7 @@ class SpartanOverlay(GripPipeline):
         # black bar at top of image
         cv2.rectangle(self.image, (0, 0), (self.x_resolution, int(0.12 * self.y_resolution)), (0, 0, 0), -1)
         if len(self.filter_contours_output) > 0:  #  contours found
-            cv2.putText(self.image, f"Dist: {self.distance_to_target:3.2f} Str: {self.strafe_to_target:2.1f} H: {self.height:2.0f} AR: {self.aspect_ratio:1.1f} Rot: {self.rotation_to_target:+2.0f} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
+            cv2.putText(self.image, f"Dist: {self.distance_to_target:3.1f} Str: {self.strafe_to_target:2.1f} H: {self.height:2.0f} Rot: {self.rotation_to_target:+2.0f} deg", target_area_text_location, 1, 0.9, target_text_color, 1)
             if (self.distance_to_target > 0.5):
                 cv2.putText(self.image, "MSG 1", target_text_location, 1, 0.9, target_text_color, 1);
             else:
@@ -274,7 +291,7 @@ class SpartanOverlay(GripPipeline):
             cv2.line(self.image, (hub_x, 20), (hub_x, im_height - 20), (255, 127, 0), 2)  # Draw the line: image, start, stop, color, thickness
             cv2.line(self.image, (left_boundary, hub_y), (right_boundary, hub_y), (255, 127, 0), 2)  # Draw the line: image, start, stop,
 
-           if self.debug:
+        if self.debug:
             # display the stats on the main target we found
             x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
             mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)

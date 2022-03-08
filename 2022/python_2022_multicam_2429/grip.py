@@ -33,11 +33,11 @@ class GripPipeline:
         self.find_contours_output = None
 
         self._filter_contours_contours = self.find_contours_output
-        self._filter_contours_min_area = 100.0
+        self._filter_contours_min_area = 80.0
         self._filter_contours_min_perimeter = 0.0
-        self._filter_contours_min_width = 10.0
+        self._filter_contours_min_width = 8.0
         self._filter_contours_max_width = 1000.0
-        self._filter_contours_min_height = 10.0
+        self._filter_contours_min_height = 8.0
         self._filter_contours_max_height = 1000
         self._filter_contours_solidity = [24.3, 100.0]
         self._filter_contours_box_fill = [1.0, 100.0]
@@ -45,6 +45,7 @@ class GripPipeline:
         self._filter_contours_min_vertices = 0
         self._filter_contours_min_ratio = 0.5
         self._filter_contours_max_ratio = 1.5
+        self.ignore_y = [0, 2000]  # all y is ok
 
         self.filter_contours_output = None
 
@@ -61,6 +62,9 @@ class GripPipeline:
         self._hsv_threshold_input = self.blur_output
         (self.hsv_threshold_output) = self.__hsv_threshold(self._hsv_threshold_input, self._hsv_threshold_hue, self._hsv_threshold_saturation, self._hsv_threshold_value)
 
+        if self.color == 'green':
+            self.hsv_threshold_output = cv2.dilate(self.hsv_threshold_output, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=1)
+
         # Step Find_Contours0:
         self._find_contours_input = self.hsv_threshold_output
         (self.find_contours_output) = self.__find_contours(self._find_contours_input, self._find_contours_external_only)
@@ -71,7 +75,7 @@ class GripPipeline:
                                                                self._filter_contours_min_width, self._filter_contours_max_width, self._filter_contours_min_height,
                                                                self._filter_contours_max_height, self._filter_contours_solidity, self._filter_contours_max_vertices,
                                                                self._filter_contours_min_vertices, self._filter_contours_min_ratio, self._filter_contours_max_ratio,
-                                                               self._filter_contours_box_fill)
+                                                               self._filter_contours_box_fill, self.ignore_y)
 
 
     # @staticmethod
@@ -139,7 +143,7 @@ class GripPipeline:
     # @staticmethod
     def __filter_contours(self, input_contours, min_area, min_perimeter, min_width, max_width,
                         min_height, max_height, solidity, max_vertex_count, min_vertex_count,
-                        min_ratio, max_ratio, box_fill):
+                        min_ratio, max_ratio, box_fill, ignore_y):
         """Filters out contours that do not meet certain criteria.
         Args:
             input_contours: Contours as a list of numpy.ndarray.
@@ -160,6 +164,8 @@ class GripPipeline:
         output = []
         for contour in input_contours:
             x,y,w,h = cv2.boundingRect(contour)
+            if y < ignore_y[0] or y > ignore_y[1]:
+                continue
             if (w < min_width or w > max_width):
                 continue
             if (h < min_height or h > max_height):

@@ -38,7 +38,12 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_max_ratio = 2.0
             self._filter_contours_min_area = 30.0
             self._filter_contours_max_height = 60
-            self.ignore_y = [20, 185]  # above or below this we ignore detections
+
+            # OC SPECIFIC WITH THE FILTER AND HARSH LIGHTING
+            self._hsv_threshold_hue = [118, 132]
+            self._hsv_threshold_saturation = [120, 255]
+            self._hsv_threshold_value = [150, 255]
+            self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
@@ -50,7 +55,12 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_box_fill = [50.0, 95.0]
             self._filter_contours_max_ratio = 2.0
             self._filter_contours_max_height = 60
-            self.ignore_y = [20, 185]  # above or below this we ignore detections
+
+            # OC SPECIFIC WITH THE FILTER AND HARSH LIGHTING
+            self._hsv_threshold_hue = [165, 180]
+            self._hsv_threshold_saturation = [120, 255]
+            self._hsv_threshold_value = [160, 255]
+            self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'green':  # vision targets
             self._hsv_threshold_hue = [76, 90]  # verified with lifecam 20220305 on training images
@@ -150,7 +160,7 @@ class SpartanOverlay(GripPipeline):
             camera_fov = 55  # Lifecam 320x240
         elif self.camera == 'geniuscam':
             camera_fov = 118  # Genius 120 352x288
-            self.camera_shift = -8  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
+            self.camera_shift = 14  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
         elif self.camera == 'c270':
             camera_fov = 59  # Logitech C290 432x240
         elif self.camera == 'elp100':

@@ -6,8 +6,10 @@
 
 import json
 import time
-import sys
+import sys, os, glob
 import numpy as np
+
+from cv2 import imwrite
 
 from cscore import CameraServer, VideoSource, UsbCamera, MjpegServer
 from networktables import NetworkTablesInstance
@@ -327,6 +329,18 @@ if __name__ == "__main__":
 
     server_dict = {'ballcam' : True, 'shootercam' : True}
 
+    # make a folder to keep track of images
+    save_images = False
+    if save_images:
+        image_counter = 0
+        dir_count = len(glob.glob('image*')) + 2
+        folder = f'images_{dir_count}'
+        try:
+            os.mkdir(folder)
+        except Exception as e:
+            pass
+
+
     while True and failure_counter < 100:
 
         if len(cameras) >= 1:
@@ -340,6 +354,14 @@ if __name__ == "__main__":
                     camera_dict[key]['strafe_entry'].setNumber(strafe_to_target)
                     camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
                 ntinst.flush()
+
+
+                if ballcam_success_counter % 107 == 0 and save_images:  # save an image every few seconds
+
+                    image_counter += 1
+                    print(f'Writing image {image_counter%200:03d}...')
+                    imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)
+
 
                 # if we are connected to a robot, get its team color.  default to blue
                 if ballcam_success_counter % 50 == 0:  # check every 5s for a team color update
@@ -366,6 +388,8 @@ if __name__ == "__main__":
                 previous_ball_counts = ballcam_success_counter
                 previous_shooter_counts = shootercam_success_counter
                 previous_time = time.time()
+
+
 
         if len(cameras) >= 2:
             # get the shooter target images - green stuff

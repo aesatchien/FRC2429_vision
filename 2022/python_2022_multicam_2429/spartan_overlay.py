@@ -384,7 +384,7 @@ class SpartanOverlay(GripPipeline):
             self.overlay_bounding_boxes()
             self.get_target_attributes()
         if self.color == 'green':
-            self.image()
+            self.image, a, b = automatic_brightness_and_contrast(self.image, clip_hist_percent=10)
             self.overlay_vision_text()
         else:
             self.overlay_text()
@@ -455,7 +455,7 @@ if __name__ == "__main__":
     if len(args) > 0 and args[0] in colors:  # allow color to be passed from command line
         color = args[0]
     else:  # default color
-        color = "red"
+        color = "green"
 
 
     start_time = time.time()
@@ -486,7 +486,7 @@ if __name__ == "__main__":
         pipeline.debug = True
         cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         np.set_printoptions(precision=1)
-        while end_time - start_time < 15:  # take video for x seconds
+        while end_time - start_time < 2:  # take video for x seconds
             count += 1
             s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
             if s > 0:  # Found an image

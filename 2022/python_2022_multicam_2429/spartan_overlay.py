@@ -170,7 +170,9 @@ class SpartanOverlay(GripPipeline):
             hub_x, hub_y, left_boundary, right_boundary = self.find_centers(self.filter_contours_output)
             target_x = (-1.0 + 2.0 * hub_x / self.x_resolution)  # could also be (x+w/2) / self.x_resolution
             self.rotation_to_target = target_x * camera_fov / 2.0
-            self.distance_to_target = -0.219 + 4.5E-3 * hub_y + 1.89E-5 * hub_y ** 2 # needs a bit more complexity
+            # self.distance_to_target = -0.219 + 4.5E-3 * hub_y + 1.89E-5 * hub_y ** 2 # needs a bit more complexity
+            self.distance_to_target = 0.833 + 0.0183 * hub_y + -1.26E-4 * hub_y ** 2 + 7.36E-7 * hub_y ** 3 # needs a bit more complexityb_y
+
             self.strafe_to_target = 0
 
         else:
@@ -398,7 +400,7 @@ class SpartanOverlay(GripPipeline):
             contrast_method = 'clahe'
             if contrast_method == 'clahe':  # takes about 20ms on pi3b 320x240
                 # CLAHE (Contrast Limited Adaptive Histogram Equalization)
-                clahe = cv2.createCLAHE(clipLimit=3., tileGridSize=(8, 8))
+                clahe = cv2.createCLAHE(clipLimit=5., tileGridSize=(8, 8))
                 lab = cv2.cvtColor(self.image, cv2.COLOR_BGR2LAB)  # convert from BGR to LAB color space
                 l, a, b = cv2.split(lab)  # split on 3 different channels
                 l2 = clahe.apply(l)  # apply CLAHE to the L-channel

@@ -174,7 +174,9 @@ class SpartanOverlay(GripPipeline):
             hub_x, hub_y, left_boundary, right_boundary = self.find_centers(self.filter_contours_output)
             target_x = (-1.0 + 2.0 * hub_x / self.x_resolution)  # could also be (x+w/2) / self.x_resolution
             self.rotation_to_target = target_x * camera_fov / 2.0
-            self.distance_to_target = -0.219 + 4.5E-3 * hub_y + 1.89E-5 * hub_y ** 2 # needs a bit more complexity
+            # self.distance_to_target = -0.219 + 4.5E-3 * hub_y + 1.89E-5 * hub_y ** 2 # needs a bit more complexity
+            self.distance_to_target = 0.833 + 0.0183 * hub_y + -1.26E-4 * hub_y ** 2 + 7.36E-7 * hub_y ** 3 # needs a bit more complexityb_y
+
             self.strafe_to_target = 0
 
         else:
@@ -197,24 +199,35 @@ class SpartanOverlay(GripPipeline):
 
     def overlay_bounding_boxes(self):
         """Draw a box around all of our contours with the main one emphasized"""
-        for ix, contour in enumerate(self.filter_contours_output):
-            if ix == 0:
-                color = (0, 255, 0)  # green for our primary target
-                thickness = 2
-            else:
-                color = (255, 0, 255) # magenta for the other bogeys
-                thickness = 1
-            rect = cv2.boundingRect(contour)
-            x, y, w, h = rect
-            #print(rect)
-            self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])), (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
+        if self.color != 'green':
+            for ix, contour in enumerate(self.filter_contours_output):
+                if ix == 0:
+                    color = (0, 255, 0)  # green for our primary target
+                    thickness = 2
+                else:
+                    color = (255, 0, 255) # magenta for the other bogeys
+                    thickness = 1
+                rect = cv2.boundingRect(contour)
+                x, y, w, h = rect
+                #print(rect)
+                self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])), (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
+                # test fill percent and solidity
+                if self.debug:
+                    box_fill, solidity = self.get_solidity(contour)
+                    # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
+                    self.image = cv2.putText(self.image, f'{int(x)}, {int(y)}', (int(x), int(y)), 1, 1.5,
+                                             (0, 255, 255), 1, 1)
 
-            # test fill percent and solidity
-            if self.debug:
-                box_fill, solidity = self.get_solidity(contour)
-                #self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-                self.image = cv2.putText(self.image, f'{int(x)}, {int(y)}', (int(x), int(y)), 1, 1.5,
-                                 (0, 255, 255), 1, 1)
+        elif self.color == 'green':
+                for ix, contour in enumerate(self.filter_contours_output):
+                    color = (0, 0, 255)  # red outline for the green targets
+                    thickness = 2
+                    rect = cv2.boundingRect(contour)
+                    x, y, w, h = rect
+                    # print(rect)
+                    self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
+                                               (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
+
     def overlay_text(self, show_lines=False):
         """Write our object information to the image"""
         self.end_time = time.time()
@@ -388,8 +401,24 @@ class SpartanOverlay(GripPipeline):
             self.overlay_bounding_boxes()
             self.get_target_attributes()
         if self.color == 'green':
-            # self.image, a, b = automatic_brightness_and_contrast(self.image, clip_hist_percent=10)
+            contrast_method = 'clahe'
+            if contrast_method == 'clahe':  # takes about 20ms on pi3b 320x240
+                # CLAHE (Contrast Limited Adaptive Histogram Equalization)
+                clahe = cv2.createCLAHE(clipLimit=5., tileGridSize=(8, 8))
+                lab = cv2.cvtColor(self.image, cv2.COLOR_BGR2LAB)  # convert from BGR to LAB color space
+                l, a, b = cv2.split(lab)  # split on 3 different channels
+                l2 = clahe.apply(l)  # apply CLAHE to the L-channel
+                lab = cv2.merge((l2, a, b))  # merge channels
+                self.image = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)  # convert from LAB to BGR
+            elif contrast_method == 'auto_brightness':  # takes about 25ms on pi3b 320x240
+                self.image, a, b = automatic_brightness_and_contrast(self.image, clip_hist_percent=10)
+            elif contrast_method == 'add_weighted':  # takes about 5ms on pi3b 320x240 but is just a brightness enhancer
+                self.image = cv2.addWeighted( self.image, 2, self.image, 0, 2)
+            else:
+                pass  # no contrast enhancement
+            
             self.overlay_vision_text()
+
         else:
             self.overlay_text()
         if post_to_nt:

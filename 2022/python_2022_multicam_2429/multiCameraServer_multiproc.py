@@ -8,6 +8,8 @@ import json
 import time
 import sys, os, glob
 import numpy as np
+from multiprocessing import Pool, Queue
+from concurrent.futures import ThreadPoolExecutor
 
 #from cv2 import imwrite, resize
 import cv2
@@ -341,7 +343,115 @@ if __name__ == "__main__":
         except Exception as e:
             pass
 
+# ------------  multi-processing pool
+    # intialize global variables for the pool processes:
+    def init_pool(d_b):
+        global detection_buffer
+        detection_buffer = d_b
 
+    def detect_balls():
+        #cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        ball_counter = 0
+        print('Starting ball detection process ...')
+        while True:
+            ball_counter += 1
+            image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
+            #image_time, captured_img = cam.read(img)
+            if image_time > 0:  # actually got an image
+                for key in key_order:
+                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key][
+                        'pipeline'].process(captured_img.copy())
+                    camera_dict[key]['targets_entry'].setNumber(
+                        targets)  # should see if we can make this one dict to push, may be a one-liner
+                    camera_dict[key]['distance_entry'].setNumber(distance_to_target)
+                    camera_dict[key]['strafe_entry'].setNumber(strafe_to_target)
+                    camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
+                ntinst.flush()
+            # put the image in the queue
+            detection_buffer.put(('ballcam', ball_counter, image_time, camera_dict['red']['pipeline'].image))
+
+
+    def detect_hub():
+        hub_counter = 0
+        print('Starting hub detection process ...')
+        while True:
+            hub_counter += 1
+            # get the shooter target images - green stuff
+            image_time, captured_img2 = sink_2.grabFrame(img2)  # default time out is about 4 FPS
+
+            if image_time > 0:  # actually got an image
+                # check if the foscam is making large images
+                if captured_img2.shape[1] > 400:  # this is the width
+                    scale_percent = 50  # percent of original size
+                    width = int(captured_img2.shape[1] * scale_percent / 100)
+                    height = int(captured_img2.shape[0] * scale_percent / 100)
+                    dim = (width, height)
+                    image_to_process = cv2.resize(captured_img2.copy(), dim, interpolation=cv2.INTER_AREA)
+                else:
+                    image_to_process = captured_img2.copy()
+
+                for key in ['green']:
+                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key][
+                        'pipeline'].process(image_to_process)
+                    camera_dict[key]['targets_entry'].setNumber(
+                        targets)  # should see if we can make this one dict to push, may be a one-liner
+                    camera_dict[key]['distance_entry'].setNumber(distance_to_target)
+                    camera_dict[key]['strafe_entry'].setNumber(strafe_to_target)
+                    camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
+                ntinst.flush()
+            # put the image in the queue
+            detection_buffer.put(('shootercam', hub_counter, image_time, camera_dict['green']['pipeline'].image))
+
+
+    detection_buffer = Queue()
+    pool = Pool(3, initializer=init_pool, initargs=(detection_buffer,))
+    #show_future = pool.apply_async(show)
+    ballcam_process = pool.apply_async(detect_balls)
+    shootercam_process = pool.apply_async(detect_hub)
+
+    # poll the pools for new images
+    ballcam_success_counter, shootercam_success_counter = 0, 0
+    previous_ball_counts, previous_shooter_counts = 0, 0
+    ballcam_failure_counter, shootercam_failure_counter = 0, 0
+    previous_time = time.time()
+    while True:
+        (target, counter, image_time, frame) = detection_buffer.get()
+        # print (target, counter, image_time, frame)
+        if image_time > 0:
+            if target == 'ballcam':
+                ballcam_success_counter += 1
+                image_source[0].putFrame(frame)
+            elif target == 'shootercam':
+                shootercam_success_counter += 1
+                image_source[1].putFrame(frame)
+        else:
+            if target == 'ballcam':
+                ballcam_failure_counter += 1
+            elif target == 'shootercam':
+                shootercam_failure_counter += 1
+
+        if ballcam_failure_counter % 30 == 1 or ballcam_success_counter % 30 == 1:
+            now = time.time()
+            # update the console - most FPS issues are with auto-exposure or if exposure time is too long for FPS setting
+            # the cameras seem to cut FPS down automatically by integer divisors - e.g. max 30 --> max 15 --> max 7.5
+            fps1 = (ballcam_success_counter - previous_ball_counts) / (now - previous_time)
+            fps2 = (shootercam_success_counter - previous_shooter_counts) / (now - previous_time)
+            print(f'{time.ctime()} Cameras: {len(cameras)}  Avg Ball FPS: {fps1:0.1f} Avg Shoot FPS: {fps2:0.1f}  Success: {ballcam_success_counter:8d}/{shootercam_success_counter:8d}  Failures:{ballcam_failure_counter:3d}/{shootercam_failure_counter:3d}', end='\r', flush=True)
+            previous_ball_counts = ballcam_success_counter
+            previous_shooter_counts = shootercam_success_counter
+            previous_time = now
+
+"""
+    futures = []
+    for f in futures:
+        f.get()
+        # signal the "show" task to end by placing None in the queue
+    detection_buffer.put(None)
+    show_future.get()
+
+
+
+# ------------------- single process serial approach--------------------------
     while True and failure_counter < 100:
 
         if len(cameras) >= 1:
@@ -356,13 +466,10 @@ if __name__ == "__main__":
                     camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
                 ntinst.flush()
 
-
                 if ballcam_success_counter % 107 == 0 and save_images:  # save an image every few seconds
-
                     image_counter += 1
                     print(f'Writing image {image_counter%200:03d}...')
                     cv2.imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)
-
 
                 # if we are connected to a robot, get its team color.  default to blue
                 if ballcam_success_counter % 50 == 0:  # check every 5s for a team color update
@@ -417,3 +524,4 @@ if __name__ == "__main__":
                 shootercam_success_counter +=1
         # ----------------------------------------------------
 
+"""

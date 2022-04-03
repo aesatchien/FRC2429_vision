@@ -25,6 +25,8 @@ class SpartanOverlay(GripPipeline):
         self.color = color
         self.camera = camera
 
+        oc = False
+
         if self.color == 'yellow':  # yellow balls
             self._hsv_threshold_hue = [20, 30]
             self._hsv_threshold_saturation = [128, 255]
@@ -39,11 +41,12 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_min_area = 30.0
             self._filter_contours_max_height = 60
 
-            # OC SPECIFIC WITH THE FILTER AND HARSH LIGHTING
-            self._hsv_threshold_hue = [118, 132]
-            self._hsv_threshold_saturation = [120, 255]
-            self._hsv_threshold_value = [150, 255]
-            self.ignore_y = [80, 180]  # above or below this we ignore detections
+            if oc:
+                # OC SPECIFIC WITH THE FILTER AND HARSH LIGHTING
+                self._hsv_threshold_hue = [118, 132]
+                self._hsv_threshold_saturation = [120, 255]
+                self._hsv_threshold_value = [150, 255]
+                self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
@@ -56,11 +59,12 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_max_ratio = 2.0
             self._filter_contours_max_height = 60
 
+            if oc:
             # OC SPECIFIC WITH THE FILTER AND HARSH LIGHTING
-            self._hsv_threshold_hue = [165, 180]
-            self._hsv_threshold_saturation = [120, 255]
-            self._hsv_threshold_value = [160, 255]
-            self.ignore_y = [80, 180]  # above or below this we ignore detections
+                self._hsv_threshold_hue = [165, 180]
+                self._hsv_threshold_saturation = [120, 255]
+                self._hsv_threshold_value = [160, 255]
+                self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'green':  # vision targets
             self._hsv_threshold_hue = [76, 90]  # verified with lifecam 20220305 on training images
@@ -384,7 +388,7 @@ class SpartanOverlay(GripPipeline):
             self.overlay_bounding_boxes()
             self.get_target_attributes()
         if self.color == 'green':
-            self.image, a, b = automatic_brightness_and_contrast(self.image, clip_hist_percent=10)
+            # self.image, a, b = automatic_brightness_and_contrast(self.image, clip_hist_percent=10)
             self.overlay_vision_text()
         else:
             self.overlay_text()

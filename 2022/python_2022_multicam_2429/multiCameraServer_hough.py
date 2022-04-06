@@ -264,7 +264,7 @@ if __name__ == "__main__":
     image_source = [None, None]
     cvStream = [None, None]
     cams = [None, None]
-    for ix, cam in enumerate(cameras):  # should allow me to have as many cameras as i want
+    for ix, cam in enumerate(cameras[::-1]):  # should allow me to have as many cameras as i want
         vm = cameras[ix].getVideoMode()
         x_resolution = vm.width
         y_resolution = vm.height
@@ -356,13 +356,11 @@ if __name__ == "__main__":
                     camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
                 ntinst.flush()
 
-
                 if ballcam_success_counter % 107 == 0 and save_images:  # save an image every few seconds
 
                     image_counter += 1
                     print(f'Writing image {image_counter%200:03d}...')
                     cv2.imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)
-
 
                 # if we are connected to a robot, get its team color.  default to blue
                 if ballcam_success_counter % 50 == 0:  # check every 5s for a team color update
@@ -416,3 +414,4 @@ if __name__ == "__main__":
                     image_source[1].putFrame(camera_dict[key]['pipeline'].image)
                 shootercam_success_counter +=1
         # ----------------------------------------------------
+

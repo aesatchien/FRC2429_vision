@@ -26,6 +26,8 @@ class SpartanOverlay(GripPipeline):
         self.color = color
         self.camera = camera
 
+        oc = False
+
         if self.color == 'yellow':  # yellow balls
             self._hsv_threshold_hue = [20, 30]
             self._hsv_threshold_saturation = [128, 255]
@@ -40,11 +42,12 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_min_area = 30.0
             self._filter_contours_max_height = 60
 
-            # OC SPECIFIC WITH THE FILTER AND HARSH LIGHTING
-            self._hsv_threshold_hue = [118, 132]
-            self._hsv_threshold_saturation = [120, 255]
-            self._hsv_threshold_value = [150, 255]
-            self.ignore_y = [80, 180]  # above or below this we ignore detections
+            if oc:
+                # OC SPECIFIC WITH THE FILTER AND HARSH LIGHTING
+                self._hsv_threshold_hue = [118, 132]
+                self._hsv_threshold_saturation = [120, 255]
+                self._hsv_threshold_value = [150, 255]
+                self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'red':  # red balls
             # can invert to cyan or just add a second range
@@ -57,11 +60,12 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_max_ratio = 2.0
             self._filter_contours_max_height = 60
 
+            if oc:
             # OC SPECIFIC WITH THE FILTER AND HARSH LIGHTING
-            self._hsv_threshold_hue = [165, 180]
-            self._hsv_threshold_saturation = [120, 255]
-            self._hsv_threshold_value = [160, 255]
-            self.ignore_y = [80, 180]  # above or below this we ignore detections
+                self._hsv_threshold_hue = [165, 180]
+                self._hsv_threshold_saturation = [120, 255]
+                self._hsv_threshold_value = [160, 255]
+                self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'green':  # vision targets
             self._hsv_threshold_hue = [76, 90]  # verified with lifecam 20220305 on training images
@@ -419,6 +423,26 @@ class SpartanOverlay(GripPipeline):
             self.get_target_attributes()
             self.overlay_vision_text_hough()
             return self.telemetry_dict
+
+        if self.color == 'green':
+            contrast_method = 'clahe'
+            if contrast_method == 'clahe':  # takes about 20ms on pi3b 320x240
+                # CLAHE (Contrast Limited Adaptive Histogram Equalization)
+                clahe = cv2.createCLAHE(clipLimit=5., tileGridSize=(8, 8))
+                lab = cv2.cvtColor(self.image, cv2.COLOR_BGR2LAB)  # convert from BGR to LAB color space
+                l, a, b = cv2.split(lab)  # split on 3 different channels
+                l2 = clahe.apply(l)  # apply CLAHE to the L-channel
+                lab = cv2.merge((l2, a, b))  # merge channels
+                self.image = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)  # convert from LAB to BGR
+            elif contrast_method == 'auto_brightness':  # takes about 25ms on pi3b 320x240
+                self.image, a, b = automatic_brightness_and_contrast(self.image, clip_hist_percent=10)
+            elif contrast_method == 'add_weighted':  # takes about 5ms on pi3b 320x240 but is just a brightness enhancer
+                self.image = cv2.addWeighted( self.image, 2, self.image, 0, 2)
+            else:
+                pass  # no contrast enhancement
+            
+            self.overlay_vision_text()
+
         else:
             super(self.__class__, self).process(image)
             # we just processed the incoming image with the parent GRIP pipeline and have our filtered contours.  now sort

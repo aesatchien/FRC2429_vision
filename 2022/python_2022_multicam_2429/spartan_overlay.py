@@ -7,6 +7,7 @@ import time
 import math
 import cv2
 import numpy as np
+from skimage.draw import disk
 from grip import GripPipeline  # put your GRIP generated grip.py in the same folder - this is our parent class
 
 from networktables import NetworkTablesInstance
@@ -176,22 +177,51 @@ class SpartanOverlay(GripPipeline):
             self.strafe_to_target = 0
 
         else:
-            # let's just do the calculations on the closest one for now; we could loop through them all easily enough
-            x, y, w, h = self.bounding_boxes[0]  # returned rectangle parameters
-            self.aspect_ratio = w/h
-            self.height = h
-            target_width_fraction_fov = w / self.x_resolution  #
+            if self.approach == 'hough':
+                # do both red and blue
+                keys = ['red', 'blue']
+                self.telemetry_dict = {'red':{'targets_entry':0, 'distance_entry':0, 'strafe_entry':0, 'rotation_entry':0},
+                                       'blue':{'targets_entry':0, 'distance_entry':0, 'strafe_entry':0, 'rotation_entry':0}}
+                for key in keys:
+                    self.telemetry_dict[key]['targets_entry'] = self.circles_dict[key]['count']
+                    if self.circles_dict[key]['count'] > 0:
+                        w = 2 * self.circles_dict[key]['circles'][0][2]  # radius
+                        self.aspect_ratio = 1
+                        self.height = w
+                        target_width_fraction_fov = w / self.x_resolution  #
 
-            # X and Y are scaled from -1 to 1 in each direction to help with rotation
-            # so distances in these coordinates need to be divided by two to get percentage of fov
-            moments = cv2.moments(self.filter_contours_output[0])
-            centroid_x = int(-self.camera_shift + (moments["m10"] / moments["m00"]))  # also easier as x + w/2
-            centroid_y = int(moments["m01"] / moments["m00"])  # also easier as y +h/2
-            target_x = (-1.0 + 2.0*centroid_x/self.x_resolution)  # could also be (x+w/2) / self.x_resolution
-            target_y = (-1.0 + 2.0*centroid_y/self.y_resolution)
-            self.rotation_to_target = target_x * camera_fov / 2.0
-            self.distance_to_target = object_width / (2.0 * math.tan(target_width_fraction_fov * math.radians(camera_fov) / 2.0))
-            self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target
+                        # X and Y are scaled from -1 to 1 in each direction to help with rotation
+                        # so distances in these coordinates need to be divided by two to get percentage of fov
+                        centroid_x = int(-self.camera_shift + self.circles_dict[key]['circles'][0][0])  #
+                        centroid_y = int(self.circles_dict[key]['circles'][0][1])  #
+                        target_x = (-1.0 + 2.0 * centroid_x / self.x_resolution)  # could also be (x+w/2) / self.x_resolution
+                        target_y = (-1.0 + 2.0 * centroid_y / self.y_resolution)
+                        self.rotation_to_target = target_x * camera_fov / 2.0
+                        self.distance_to_target = object_width / (
+                                    2.0 * math.tan(target_width_fraction_fov * math.radians(camera_fov) / 2.0))
+                        self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target
+                        self.telemetry_dict[key]['distance_entry'] = self.distance_to_target
+                        self.telemetry_dict[key]['strafe_entry'] = self.strafe_to_target
+                        self.telemetry_dict[key]['rotation_entry'] = self.rotation_to_target
+                    else:
+                        pass  # leave the telemetry dict full of zeros
+            else:
+                # let's just do the calculations on the closest one for now; we could loop through them all easily enough
+                x, y, w, h = self.bounding_boxes[0]  # returned rectangle parameters
+                self.aspect_ratio = w/h
+                self.height = h
+                target_width_fraction_fov = w / self.x_resolution  #
+
+                # X and Y are scaled from -1 to 1 in each direction to help with rotation
+                # so distances in these coordinates need to be divided by two to get percentage of fov
+                moments = cv2.moments(self.filter_contours_output[0])
+                centroid_x = int(-self.camera_shift + (moments["m10"] / moments["m00"]))  # also easier as x + w/2
+                centroid_y = int(moments["m01"] / moments["m00"])  # also easier as y +h/2
+                target_x = (-1.0 + 2.0*centroid_x/self.x_resolution)  # could also be (x+w/2) / self.x_resolution
+                target_y = (-1.0 + 2.0*centroid_y/self.y_resolution)
+                self.rotation_to_target = target_x * camera_fov / 2.0
+                self.distance_to_target = object_width / (2.0 * math.tan(target_width_fraction_fov * math.radians(camera_fov) / 2.0))
+                self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target
 
     def overlay_bounding_boxes(self):
         """Draw a box around all of our contours with the main one emphasized"""
@@ -213,7 +243,6 @@ class SpartanOverlay(GripPipeline):
                     # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
                     self.image = cv2.putText(self.image, f'{int(x)}, {int(y)}', (int(x), int(y)), 1, 1.5,
                                              (0, 255, 255), 1, 1)
-
         elif self.color == 'green':
                 for ix, contour in enumerate(self.filter_contours_output):
                     color = (0, 0, 255)  # red outline for the green targets
@@ -377,49 +406,145 @@ class SpartanOverlay(GripPipeline):
         # let the cameraserver do this, and skip it here
         pass
 
-    def process(self, image, method='size', post_to_nt=True):
+    def process(self, image, approach='hough', method='size', post_to_nt=True):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
            :param method: sort method [size, left-to-right, right-to-left, top-down or bottom-up]
            :param post_to_nt: whether to post to a networktable named self.table_name
            """
-
         self.start_time = time.time()
-        super(self.__class__, self).process(image)
-        # we just processed the incoming image with the parent GRIP pipeline and have our filtered contours.  now sort
-        self.image = image
-        self.original_image = image
-        self.y_resolution, self.x_resolution, self.channels = self.image.shape
-        self.targets = len(self.filter_contours_output)
-        if self.targets > 0:
-            self.bounding_box_sort_contours(method=method)
-            self.overlay_bounding_boxes()
+        if approach == 'hough':
+            self.draw_circles()
             self.get_target_attributes()
-        if self.color == 'green':
-            contrast_method = 'clahe'
-            if contrast_method == 'clahe':  # takes about 20ms on pi3b 320x240
-                # CLAHE (Contrast Limited Adaptive Histogram Equalization)
-                clahe = cv2.createCLAHE(clipLimit=5., tileGridSize=(8, 8))
-                lab = cv2.cvtColor(self.image, cv2.COLOR_BGR2LAB)  # convert from BGR to LAB color space
-                l, a, b = cv2.split(lab)  # split on 3 different channels
-                l2 = clahe.apply(l)  # apply CLAHE to the L-channel
-                lab = cv2.merge((l2, a, b))  # merge channels
-                self.image = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)  # convert from LAB to BGR
-            elif contrast_method == 'auto_brightness':  # takes about 25ms on pi3b 320x240
-                self.image, a, b = automatic_brightness_and_contrast(self.image, clip_hist_percent=10)
-            elif contrast_method == 'add_weighted':  # takes about 5ms on pi3b 320x240 but is just a brightness enhancer
-                self.image = cv2.addWeighted( self.image, 2, self.image, 0, 2)
-            else:
-                pass  # no contrast enhancement
-            self.overlay_vision_text()
-
+            self.overlay_vision_text_hough()
+            return self.telemetry_dict
         else:
-            self.overlay_text()
-        if post_to_nt:
-            self.post_to_networktables()
-        # ToDo: return a dictionary, this is getting a bit long
+            super(self.__class__, self).process(image)
+            # we just processed the incoming image with the parent GRIP pipeline and have our filtered contours.  now sort
+            self.image = image
+            self.original_image = image
+            self.y_resolution, self.x_resolution, self.channels = self.image.shape
+            self.targets = len(self.filter_contours_output)
+            if self.targets > 0:
+                self.bounding_box_sort_contours(method=method)
+                self.overlay_bounding_boxes()
+                self.get_target_attributes()
+            if self.color == 'green':
+                contrast_method = 'clahe'
+                if contrast_method == 'clahe':  # takes about 20ms on pi3b 320x240
+                    # CLAHE (Contrast Limited Adaptive Histogram Equalization)
+                    clahe = cv2.createCLAHE(clipLimit=5., tileGridSize=(8, 8))
+                    lab = cv2.cvtColor(self.image, cv2.COLOR_BGR2LAB)  # convert from BGR to LAB color space
+                    l, a, b = cv2.split(lab)  # split on 3 different channels
+                    l2 = clahe.apply(l)  # apply CLAHE to the L-channel
+                    lab = cv2.merge((l2, a, b))  # merge channels
+                    self.image = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)  # convert from LAB to BGR
+                elif contrast_method == 'auto_brightness':  # takes about 25ms on pi3b 320x240
+                    self.image, a, b = automatic_brightness_and_contrast(self.image, clip_hist_percent=10)
+                elif contrast_method == 'add_weighted':  # takes about 5ms on pi3b 320x240 but is just a brightness enhancer
+                    self.image = cv2.addWeighted( self.image, 2, self.image, 0, 2)
+                else:
+                    pass  # no contrast enhancement
+                self.overlay_vision_text()
+            else:
+                self.overlay_text()
+            if post_to_nt:
+                self.post_to_networktables()
+            # ToDo: return a dictionary, this is getting a bit long
         return self.targets, self.distance_to_target, self.strafe_to_target, self.height, self.rotation_to_target
+
+    # ---------------  CIRCLE METHOD 2022  ------------------
+
+    def detect_circles(self):
+        self.gray = cv2.cvtColor(self.image, cv2.COLOR_RGB2GRAY)
+        self.img_hsv = cv2.cvtColor(self.image, cv2.COLOR_RGB2HSV)
+        [self.h, self.s, self.v] = [self.img_hsv[:, :, ix] for ix in range(3)]
+        r, g, b = cv2.split(self.image)
+        top, bot = 60, 160
+        arrays = [self.r, self.s, self.v, self.gray]
+        image_circles = {}
+        for a in arrays:
+            a[:top, :] = 0
+            a[bot:, :] = 0
+
+        for ix, a in enumerate(arrays):
+            circles = cv2.HoughCircles(a, cv2.HOUGH_GRADIENT_ALT, 1, minDist=20, param1=1, param2=0.2, minRadius=3,
+                                       maxRadius=20)
+            if ix >= 0:  # not really necessary, but it was when testing for best channels
+                if circles is not None:
+                    image_circles.update({ix: circles[0, :]})
+        return image_circles
+
+    def draw_circles(self, debug=True, verbose=False):
+        image_circles = self.detect_circles()
+        self.best_matches = find_matches(image_circles)
+        self.circles_dict = {'red': {'count': 0, 'circles': []}, 'blue': {'count': 0, 'circles': []},
+                        'ball': {'count': 0, 'circles': []}, 'other': {'count': 0, 'circles': []}}
+
+        cimg = self.image
+        self.count_dict = {'red': 0, 'blue': 0, 'ball': 0, 'other': 0}
+        for ix, match in enumerate(self.best_matches):
+            i = match[0][4]
+            mask = np.zeros((cimg.shape[0], cimg.shape[1]))
+            mask[:] = np.NaN
+            col = int(match[0][4][0])
+            row = int(match[0][4][1])
+            radius = match[0][4][2]
+            rr, cc = disk((row, col), radius // 2)
+            mask[rr, cc] = 1
+            rm = np.nanmedian(mask * self.r)
+            gm = np.nanmedian(mask * self.g)
+            bm = np.nanmedian(mask * self.b)
+            sm = np.nanmedian(mask * self.s)
+            hm = np.nanmedian(mask * self.h)
+            match_count = str(match[-1])
+            if sm > 130:
+                if rm > 100 and (hm > 160 or hm < 10):
+                    label = 'red ' + match_count
+                    self.circles_dict['red']['count'] += 1
+                    self.circles_dict['red']['circles'].append([row, col, radius])
+                elif rm < 50 and hm < 125 and hm > 100:
+                    label = 'blue ' + match_count
+                    self.circles_dict['blue']['count'] += 1
+                    self.circles_dict['blue']['circles'].append([row, col, radius])
+                else:
+                    label = 'c?' + match_count
+                    self.circles_dict['ball']['count'] += 1
+                    self.circles_dict['ball']['circles'].append([row, col, radius])
+            else:
+                label = 'nb' + match_count
+                self.circles_dict['other']['count'] += 1
+                self.circles_dict['other']['circles'].append([row, col, radius])
+
+            if 'nb' not in label:
+                # Draw outer circle (green)
+                cv2.circle(cimg, (int(i[0]), int(i[1])), int(i[2]), (0, 255, 0), 2)
+                # Draw Center (yellow)
+                cv2.circle(cimg, (int(i[0]), int(i[1])), 1, (255, 255, 0), 2)
+                if debug:
+                    textcolor = (255, 255, 255)
+                    cv2.putText(cimg, label, (col - 15, row - 15), 1, 1.1, textcolor, 1,
+                                cv2.LINE_AA)  # text: img, text, location, font, scale, color, thickness, line type
+                if verbose:
+                    print(f'{ix}: ({col},{row}) {label} R:{rm}, G:{gm}, B:{bm}, S:{sm}, H:{hm}')
+
+
+    def overlay_vision_text_hough(self):
+        """Write our object information to the image about the shooter"""
+        self.end_time = time.time()
+        info_text_location = (int(0.035*self.x_resolution), 12)
+        info_text_color, target_text_color, target_warning_color  = (0, 255, 255), (255, 255, 0), (20, 20, 255)
+        target_text_location = (int(0.7 * self.x_resolution), 13)
+        target_area_text_location = (int(0.02 * self.x_resolution), 27)
+        target_dist_text_location = (0.03 * self.x_resolution, self.y_resolution - 20)
+
+        # black bar at top of image
+        self.label = f"R{self.count_dict['red']} B{self.count_dict['blue']} S{self.count_dict['ball']} ?{self.count_dict['other']}"
+        cv2.rectangle(self.image, (0, 0), (self.x_resolution, int(0.12 * self.y_resolution)), (0, 0, 0), -1)
+        cv2.putText(self.image, f"MS: {1000*(self.end_time - self.start_time):.1f} {self.color} bogeys: {self.label}",
+                        info_text_location, 1, 0.9, info_text_color, 1)
+
 
 def convertScale(img, alpha, beta):
     """Add bias and gain to an image with saturation arithmetics. Unlike
@@ -468,6 +593,45 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=25):
 
     auto_result = convertScale(image, alpha=alpha, beta=beta)
     return (auto_result, alpha, beta)
+
+# tell if two circles overlap within a threshold number of pixels
+def circle_overlap(c1, c2, thresh=20):
+    dist =  ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2) **0.5
+    return dist < thresh
+
+# make a list of all centers where the votes are 2 or more, given the dictionary of circles passed to us
+# Todo: figure out the best sorting method.  If we go by y then it sorts by closest
+def find_matches(image_circles):
+    matches = []
+    for key_1 in image_circles:
+        for key_2 in image_circles:
+            if key_1 < key_2:
+                for ix, c1 in enumerate(image_circles[key_1]):
+                    for iy, c2 in enumerate(image_circles[key_2]):
+                        #print(f'{key_1},{key_2}: {c1} {c2} {circle_overlap(c1,c2)}')
+                        if circle_overlap(c1, c2):
+                            better = c1 if c1[2] > c2[2] else c2
+                            matches.append([key_1, ix, key_2, iy, better])
+    matches = sorted(matches, key=lambda x: (x[4][0], x[4][2]))
+    # matches
+    best_matches = []
+    count = 1
+    for ix, match in enumerate(matches[:-1]):
+        if circle_overlap(matches[ix][4], matches[ix+1][4]):
+            count += 1
+        else:
+            best_matches.append([matches[ix], count])
+            count = 1
+    # how do we take care of the final case?
+    if circle_overlap(matches[ix][4], matches[ix+1][4]):
+        best_matches.append([matches[ix], count])
+    else:
+        best_matches.append([matches[ix+1], 1])
+    best_matches = sorted(best_matches, key=lambda x: -x[0][4][1])  # reverse sort in y, closest is first
+    return best_matches
+
+
+
 
 if __name__ == "__main__":
 

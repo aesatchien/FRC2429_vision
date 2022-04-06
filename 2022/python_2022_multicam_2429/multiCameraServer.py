@@ -356,13 +356,11 @@ if __name__ == "__main__":
                     camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
                 ntinst.flush()
 
-
                 if ballcam_success_counter % 107 == 0 and save_images:  # save an image every few seconds
 
                     image_counter += 1
                     print(f'Writing image {image_counter%200:03d}...')
                     cv2.imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)
-
 
                 # if we are connected to a robot, get its team color.  default to blue
                 if ballcam_success_counter % 50 == 0:  # check every 5s for a team color update

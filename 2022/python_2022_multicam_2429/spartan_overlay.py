@@ -31,8 +31,9 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_hue = [20, 30]
             self._hsv_threshold_saturation = [128, 255]
             self._hsv_threshold_value = [100, 255]
+
         elif self.color == 'blue':  # blue balls
-            self._hsv_threshold_hue = [100, 114]
+            self._hsv_threshold_hue = [114, 136]
             self._hsv_threshold_saturation = [80, 255]
             self._hsv_threshold_value = [80, 255]
             self._filter_contours_solidity = [50.0, 100.0]
@@ -67,16 +68,18 @@ class SpartanOverlay(GripPipeline):
                 self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'green':  # vision targets
-            self._hsv_threshold_hue = [76, 90]  # verified with lifecam 20220305 on training images
-            self._hsv_threshold_saturation = [100, 255]  # retroreflectors tough to get low sat so this removes lights
-            self._hsv_threshold_value = [40, 255]
+            self._hsv_threshold_hue = [80, 87]  # verified with lifecam 20220305 on training images
+            self._hsv_threshold_saturation = [130, 255]  # retroreflectors tough to get low sat so this removes lights
+            self._hsv_threshold_value = [150, 255]
             # in 2022 they are long and flat, so w/h >> 1.  small too.
             self._filter_contours_min_ratio = 0.5
             self._filter_contours_max_ratio = 6
             self._filter_contours_min_area = 10.0
             self._filter_contours_min_width = 3
+            self._filter_contours_max_width = 40
             self._filter_contours_min_height = 3
-            self._filter_contours_max_height = 50
+            self._filter_contours_max_height = 25
+            self.ignore_y = [0, 200]  # above or below this we ignore detections
         else:
             pass
 
@@ -132,6 +135,46 @@ class SpartanOverlay(GripPipeline):
 
         # if you only wanted size it would be really simple - just do key = cv.contourArea and reverse = True w/o a zip
         #self.filter_contours_output = sorted(self.filter_contours_output, key=key, reverse=reverse)[:5]
+
+    ## AVR obnoxious green light
+    def avr_green_correction(self):
+        label = ''
+        if self.color == 'green' and len(self.filter_contours_output) > 1:
+            max_distance_x = 40
+            max_distance_y = 20
+            # remove x outlier on the left
+            self.bounding_box_sort_contours(method='left-to-right')
+            spacing = self.bounding_boxes[1][0] - self.bounding_boxes[0][0]
+            if spacing > max_distance_x:
+                label += f'X left limit violated: {spacing}'
+                # remove the first contour
+                self.filter_contours_output = self.filter_contours_output[1:]
+
+            # remove y outlier on the bottom
+            if len(self.filter_contours_output) > 1:
+                self.bounding_box_sort_contours(method='bottom-up')
+                spacing = self.bounding_boxes[0][1] - self.bounding_boxes[1][1]
+                if spacing > max_distance_y:
+                    label += f'Y lower limit violated: {spacing}'
+                    self.filter_contours_output = self.filter_contours_output[1:]
+
+            # possibly remove outlier on right
+            if len(self.filter_contours_output) > 1:
+                self.bounding_box_sort_contours(method='right-to-left')
+                spacing = abs(self.bounding_boxes[0][0] - self.bounding_boxes[1][0])  # abs for safety
+                if spacing > max_distance_x:
+                    label += f'X right limit violated: {spacing}'
+                    # remove the first contour
+                    self.filter_contours_output = self.filter_contours_output[1:]
+
+            # possibly remove outlier on top
+            if len(self.filter_contours_output) > 1:
+                self.bounding_box_sort_contours(method='top-down')
+                spacing = self.bounding_boxes[1][1] - self.bounding_boxes[0][1]
+                if spacing > max_distance_y:
+                    label += f'Y upper limit violated: {spacing}'
+                    self.filter_contours_output = self.filter_contours_output[1:]
+        return label
 
     def get_target_attributes(self):
         """
@@ -398,6 +441,8 @@ class SpartanOverlay(GripPipeline):
         self.targets = len(self.filter_contours_output)
         if self.targets > 0:
             self.bounding_box_sort_contours(method=method)
+            if self.color == 'green':
+                self.avr_green_correction()  # fix the green light on the ceiling and elsewhere
             self.overlay_bounding_boxes()
             self.get_target_attributes()
         if self.color == 'green':
@@ -416,7 +461,7 @@ class SpartanOverlay(GripPipeline):
                 self.image = cv2.addWeighted( self.image, 2, self.image, 0, 2)
             else:
                 pass  # no contrast enhancement
-            
+
             self.overlay_vision_text()
 
         else:

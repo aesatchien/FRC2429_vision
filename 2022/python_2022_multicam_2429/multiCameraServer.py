@@ -357,13 +357,6 @@ if __name__ == "__main__":
                 ntinst.flush()
 
 
-                if ballcam_success_counter % 107 == 0 and save_images:  # save an image every few seconds
-
-                    image_counter += 1
-                    print(f'Writing image {image_counter%200:03d}...')
-                    cv2.imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)
-
-
                 # if we are connected to a robot, get its team color.  default to blue
                 if ballcam_success_counter % 50 == 0:  # check every 5s for a team color update
                     ballframes.setNumber(ballcam_success_counter)
@@ -414,6 +407,13 @@ if __name__ == "__main__":
                 ntinst.flush()
                 if server_dict['shootercam']:
                     image_source[1].putFrame(camera_dict[key]['pipeline'].image)
-                shootercam_success_counter +=1
+                shootercam_success_counter += 1
+
+        if ballcam_success_counter % 51 == 0 and save_images:  # save an image every few seconds
+            image_counter += 1
+            print(f'Writing image {image_counter % 200:03d}...')
+            cv2.imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)
+            #cv2.imwrite(f'{folder}/test_{image_counter % 200:03d}.png', captured_img2)
+
         # ----------------------------------------------------
 

@@ -18,7 +18,7 @@ class SpartanOverlay(GripPipeline):
 
     def __init__(self, color='yellow', camera='lifecam'):
         super().__init__()
-        self.debug = False
+        self.debug = True ##  show HSV info as a written overlay
         # print(self.__hsv_threshold_hue)  # does not exist?
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
@@ -29,7 +29,26 @@ class SpartanOverlay(GripPipeline):
 
         oc = False
 
-        if self.color == 'yellow':  # yellow balls
+        if self.color == 'purple':  # 2023 purple cubes
+            self._hsv_threshold_hue = [115, 130]  # this is too close to blue...
+            self._hsv_threshold_saturation = [100, 255]
+            self._hsv_threshold_value = [100, 255]
+            self._filter_contours_solidity = [50.0, 100.0]
+            self._filter_contours_box_fill = [50.0, 95.0]
+            self._filter_contours_max_ratio = 1.5
+            self._filter_contours_min_ratio = 0.67
+            self._filter_contours_min_area = 30.0
+            #self._filter_contours_max_height = 60  # resolution dependent
+
+        elif self.color == 'yellow':  # 2023 yellow cones
+            self._hsv_threshold_hue = [14, 26]
+            self._hsv_threshold_saturation = [128, 255]
+            self._hsv_threshold_value = [100, 255]
+            self._filter_contours_max_ratio = 2 # h/w so still gets a tall cone
+            self._filter_contours_min_ratio = 0.5  # cone lying down
+            self._filter_contours_solidity = [50.0, 100.0]
+
+        elif self.color == 'yellow_balls':  # 2020 yellow balls
             self._hsv_threshold_hue = [20, 30]
             self._hsv_threshold_saturation = [128, 255]
             self._hsv_threshold_value = [100, 255]
@@ -580,9 +599,10 @@ if __name__ == "__main__":
     Set the color below to yellow, blue, green or red (red is tougher) to test
     """
     import sys
+    video_seconds = 20
 
     args = sys.argv[1:]
-    colors = ['yellow', 'blue', 'green', 'red']
+    colors = ['purple', 'yellow', 'blue', 'green', 'red', 'yellow-ball',]
     if len(args) > 0 and args[0] in colors:  # allow color to be passed from command line
         color = args[0]
     else:  # default color
@@ -614,9 +634,9 @@ if __name__ == "__main__":
         end_time = start_time
         pipeline = SpartanOverlay(color=color)
         pipeline.debug = True
-        cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cam = cv2.VideoCapture(1, cv2.CAP_DSHOW)
         np.set_printoptions(precision=1)
-        while end_time - start_time < 2:  # take video for x seconds
+        while end_time - start_time < video_seconds:  # take video for x seconds
             count += 1
             s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
             if s > 0:  # Found an image

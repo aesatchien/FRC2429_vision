@@ -297,7 +297,8 @@ if __name__ == "__main__":
 
 
     ballframes = ballTable.getDoubleTopic('frames').publish()
-    camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
+    # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
+    camera_dict = {'yellow': {}, 'purple': {}, 'green': {}}  # the colors we need to check for
     # set up network tables and pipelines, one for each color
     for key in camera_dict.keys():
         camera_dict[key].update({'targets_entry': ballTable.getDoubleTopic(f"/{key}/targets").publish()})
@@ -331,8 +332,8 @@ if __name__ == "__main__":
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
 
-    team_key = 'blue'  # default color for camera
-    key_order = ['red', 'blue']  # process in this order
+    team_key = 'purple'  # default color for camera
+    key_order = ['yellow', 'purple']  # process in this order
 
     server_dict = {'ballcam' : True, 'shootercam' : True}
 
@@ -352,7 +353,6 @@ if __name__ == "__main__":
 
         if len(cameras) >= 1:
             # get the ball images
-            # get the ball images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
                 for key in key_order:
@@ -368,11 +368,11 @@ if __name__ == "__main__":
                 if ballcam_success_counter % 50 == 0:  # check every 5s for a team color update
                     ballframes.set(ballcam_success_counter)
                     if ntinst.getTable('FMSInfo').getEntry('IsRedAlliance').getBoolean(True):
-                        team_key = 'red'
-                        key_order = ['blue', 'red']  # probably not necessary
+                        team_key = 'purple'
+                        # key_order = ['blue', 'red']  # probably not necessary
                     else:
-                        team_key = 'blue'
-                        key_order = ['red', 'blue']  # probably not necessary
+                        team_key = 'purple'
+                        # key_order = ['red', 'blue']  # probably not necessary
                     # print(f'At frame {success_counter} team key is {team_key}')
                 if server_dict['ballcam']:
                     image_source[0].putFrame(camera_dict[team_key]['pipeline'].image)  # feeds the Http camera with a new image, either blue or red

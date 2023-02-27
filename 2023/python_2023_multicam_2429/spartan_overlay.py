@@ -89,9 +89,10 @@ class SpartanOverlay(GripPipeline):
                 self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'green':  # vision targets
-            self._hsv_threshold_hue = [80, 87]  # verified with lifecam 20220305 on training images
-            self._hsv_threshold_saturation = [130, 255]  # retroreflectors tough to get low sat so this removes lights
-            self._hsv_threshold_value = [150, 255]
+            self._hsv_threshold_hue = [70, 90]
+            # self._hsv_threshold_hue = [80, 87]  # verified with lifecam 20220305 on training images
+            self._hsv_threshold_saturation = [110, 255]  # retroreflectors tough to get low sat so this removes lights
+            self._hsv_threshold_value = [120, 255]
             # in 2022 they are long and flat, so w/h >> 1.  small too.
             self._filter_contours_min_ratio = 0.5
             self._filter_contours_max_ratio = 6
@@ -234,7 +235,7 @@ class SpartanOverlay(GripPipeline):
         elif self.camera == 'elp100':
             camera_fov = 100  # little elp
 
-        if self.color == 'green':
+        if False:   #  self.color == 'green':  # 2022 fix for the hub
             hub_x, hub_y, left_boundary, right_boundary = self.find_centers(self.filter_contours_output)
             target_x = (-1.0 + 2.0 * hub_x / self.x_resolution)  # could also be (x+w/2) / self.x_resolution
             self.rotation_to_target = target_x * camera_fov / 2.0
@@ -492,14 +493,13 @@ class SpartanOverlay(GripPipeline):
         # let the cameraserver do this, and skip it here
         pass
 
-    def process(self, image, method='size', post_to_nt=True):
+    def process(self, image, method='size', post_to_nt=True, draw_overlay=True):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
            :param method: sort method [size, left-to-right, right-to-left, top-down or bottom-up]
            :param post_to_nt: whether to post to a networktable named self.table_name
            """
-
         self.start_time = time.time()
         super(self.__class__, self).process(image)
         # we just processed the incoming image with the parent GRIP pipeline and have our filtered contours.  now sort
@@ -510,11 +510,13 @@ class SpartanOverlay(GripPipeline):
         if self.targets > 0:
             self.bounding_box_sort_contours(method=method)
             if self.color == 'green':
-                self.avr_green_correction()  # fix the green light on the ceiling and elsewhere
-            self.overlay_bounding_boxes()
+                pass
+                # self.avr_green_correction()  # fix the green light on the ceiling and elsewhere
+            if draw_overlay:
+                self.overlay_bounding_boxes()
             self.get_target_attributes()
         if self.color == 'green':
-            contrast_method = 'clahe'
+            contrast_method = 'None'
             if contrast_method == 'clahe':  # takes about 20ms on pi3b 320x240
                 # CLAHE (Contrast Limited Adaptive Histogram Equalization)
                 clahe = cv2.createCLAHE(clipLimit=5., tileGridSize=(8, 8))
@@ -529,11 +531,12 @@ class SpartanOverlay(GripPipeline):
                 self.image = cv2.addWeighted(self.image, 2, self.image, 0, 2)
             else:
                 pass  # no contrast enhancement
-
-            self.overlay_vision_text()
-
-        else:
-            self.overlay_text()
+            if draw_overlay:
+                # self.overlay_vision_text()  # this one is for the hub
+                self.overlay_text()
+        else:  # if we're not on green
+            if draw_overlay:
+                self.overlay_text()
         if post_to_nt:
             self.post_to_networktables()
         # ToDo: return a dictionary, this is getting a bit long

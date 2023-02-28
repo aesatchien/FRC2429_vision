@@ -93,14 +93,15 @@ class SpartanOverlay(GripPipeline):
             # self._hsv_threshold_hue = [80, 87]  # verified with lifecam 20220305 on training images
             self._hsv_threshold_saturation = [110, 255]  # retroreflectors tough to get low sat so this removes lights
             self._hsv_threshold_value = [120, 255]
-            # in 2022 they are long and flat, so w/h >> 1.  small too.
-            self._filter_contours_min_ratio = 0.5
-            self._filter_contours_max_ratio = 6
+            # in 2022 they are long and flat, so w/h >> 1.  small too.  min ratio is .5, max is 6
+            # in 2023 they are tall and thin (4in tall) (2in wide?) ratio is w/h
+            self._filter_contours_min_ratio = 0.25
+            self._filter_contours_max_ratio = 1.
             self._filter_contours_min_area = 10.0
             self._filter_contours_min_width = 3
             self._filter_contours_max_width = 40
             self._filter_contours_min_height = 3
-            self._filter_contours_max_height = 25
+            self._filter_contours_max_height = 80
             self.ignore_y = [0, 200]  # above or below this we ignore detections
         else:
             pass
@@ -216,8 +217,8 @@ class SpartanOverlay(GripPipeline):
         elif self.color == 'blue' or self.color == 'red':
             object_width = 9.5 * 0.0254  # 2022 big tennis ball, 9.5 inches to meters
         elif self.color == 'green':
-            # ToDo: have to update this to do the distance differently - see shooter from 2019 maybe
-            object_width = 9.5 * 0.0254  # 2022 big tennis ball, 9.5 inches to meters
+            # ToDo: have to update this to do the 2023 distance differently - use height, not width
+            object_width = 2 * 0.0254  # 2022 big tennis ball, 9.5 inches to meters
         else:
             object_width = 9.5 * 0.0254  # default for now
 

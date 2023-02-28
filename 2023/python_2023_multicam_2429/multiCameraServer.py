@@ -281,7 +281,7 @@ if __name__ == "__main__":
         # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps is 11Mbps
         # 50 seems to cut it ~ 5x t- 2.3Mbps, still looks pretty good, 25 is pretty marginal at 1.6Mbps.  Default is -1?
         if x_resolution > 300:  # just take the default for smaller formats
-            cvStream[ix].getProperty("compression").set(25)
+            cvStream[ix].getProperty("compression").set(35)
         cvStream[ix].setSource(image_source[ix])  # now the stream is updated by image_source
         cs = CameraServer  #  .getInstance()
         cs.addCamera(image_source[ix])  # is this really necessary?  we add another one later

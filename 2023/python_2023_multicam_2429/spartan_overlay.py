@@ -30,7 +30,7 @@ class SpartanOverlay(GripPipeline):
         oc = False
 
         if self.color == 'purple':  # 2023 purple cubes
-            self._hsv_threshold_hue = [115, 130]  # this is too close to blue...
+            self._hsv_threshold_hue = [112, 130]  # this is too close to blue...
             self._hsv_threshold_saturation = [100, 255]
             self._hsv_threshold_value = [100, 255]
             self._filter_contours_solidity = [50.0, 100.0]
@@ -41,9 +41,9 @@ class SpartanOverlay(GripPipeline):
             #self._filter_contours_max_height = 60  # resolution dependent
 
         elif self.color == 'yellow':  # 2023 yellow cones
-            self._hsv_threshold_hue = [14, 26]
+            self._hsv_threshold_hue = [14, 22]
             self._hsv_threshold_saturation = [128, 255]
-            self._hsv_threshold_value = [100, 255]
+            self._hsv_threshold_value = [120, 255]
             self._filter_contours_max_ratio = 2 # h/w so still gets a tall cone
             self._filter_contours_min_ratio = 0.5  # cone lying down
             self._filter_contours_solidity = [50.0, 100.0]
@@ -89,10 +89,10 @@ class SpartanOverlay(GripPipeline):
                 self.ignore_y = [80, 180]  # above or below this we ignore detections
 
         elif self.color == 'green':  # vision targets
-            self._hsv_threshold_hue = [70, 90]
+            self._hsv_threshold_hue = [78, 90]
             # self._hsv_threshold_hue = [80, 87]  # verified with lifecam 20220305 on training images
             self._hsv_threshold_saturation = [110, 255]  # retroreflectors tough to get low sat so this removes lights
-            self._hsv_threshold_value = [120, 255]
+            self._hsv_threshold_value = [150, 255]
             # in 2022 they are long and flat, so w/h >> 1.  small too.  min ratio is .5, max is 6
             # in 2023 they are tall and thin (4in tall) (2in wide?) ratio is w/h
             self._filter_contours_min_ratio = 0.25

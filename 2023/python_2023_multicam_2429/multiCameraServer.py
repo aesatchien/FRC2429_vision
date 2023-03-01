@@ -406,10 +406,10 @@ if __name__ == "__main__":
             if image_time > 0:  # actually got an image
                 for key in ['green']:
                     targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(image_to_process)
-                    camera_dict[key]['targets_entry'].setNumber(targets)  # should see if we can make this one dict to push, may be a one-liner
-                    camera_dict[key]['distance_entry'].setNumber(distance_to_target)
-                    camera_dict[key]['strafe_entry'].setNumber(strafe_to_target)
-                    camera_dict[key]['rotation_entry'].setNumber(rotation_to_target)
+                    camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
+                    camera_dict[key]['distance_entry'].set(distance_to_target)
+                    camera_dict[key]['strafe_entry'].set(strafe_to_target)
+                    camera_dict[key]['rotation_entry'].set(rotation_to_target)
                 ntinst.flush()
                 if server_dict['shootercam']:
                     image_source[1].putFrame(camera_dict[key]['pipeline'].image)

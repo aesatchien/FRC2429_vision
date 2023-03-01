@@ -30,9 +30,9 @@ class SpartanOverlay(GripPipeline):
         oc = False
 
         if self.color == 'purple':  # 2023 purple cubes
-            self._hsv_threshold_hue = [112, 130]  # this is too close to blue...
+            self._hsv_threshold_hue = [116, 130]  # this is too close to blue...
             self._hsv_threshold_saturation = [100, 255]
-            self._hsv_threshold_value = [100, 255]
+            self._hsv_threshold_value = [60, 255]  # tends to be a bit dark
             self._filter_contours_solidity = [50.0, 100.0]
             self._filter_contours_box_fill = [50.0, 95.0]
             self._filter_contours_max_ratio = 1.5
@@ -288,8 +288,13 @@ class SpartanOverlay(GripPipeline):
 
         elif self.color == 'green':
             for ix, contour in enumerate(self.filter_contours_output):
-                color = (0, 0, 255)  # red outline for the green targets
-                thickness = 2
+                if ix == 0:
+                    color = (0, 0, 255)  # red for our primary target
+                    thickness = 2
+                else:
+                    color = (0, 255, 255)  # yellow for the other bogeys
+                    thickness = 2
+
                 rect = cv2.boundingRect(contour)
                 x, y, w, h = rect
                 # print(rect)
@@ -347,16 +352,17 @@ class SpartanOverlay(GripPipeline):
                                   iterations=2)  # have to cut off the edges a bit (grow the True region)
                 t = np.ma.masked_where(mask == 1, cv2.cvtColor(self.original_image,
                                                                cv2.COLOR_BGR2HSV))  # data is valid if mask is False
-                hue = t[:, :, 0].compressed();
-                sat = t[:, :, 1].compressed();
-                val = t[:, :, 2].compressed()  # don't want messages about masked format strings
 
-                if len(hue) > 0:
-                    self.image = cv2.putText(self.image, f"hue min max mean: {hue.min()} {hue.max()} {hue.mean():.1f}",
+                self.hue_stats = t[:, :, 0].compressed();
+                self.sat_stats = t[:, :, 1].compressed();
+                self.val_stats = t[:, :, 2].compressed()  # don't want messages about masked format strings
+
+                if len(self.hue_stats) > 0:
+                    self.image = cv2.putText(self.image, f"hue min max mean: {self.hue_stats.min()} {self.hue_stats.max()} {self.hue_stats.mean():.1f}",
                                              (x_center // 2, 2 * y_center - 30), 1, 0.9, (0, 255, 200), 1)
-                    self.image = cv2.putText(self.image, f"sat min max mean: {sat.min()} {sat.max()} {sat.mean():.1f}",
+                    self.image = cv2.putText(self.image, f"sat min max mean: {self.sat_stats.min()} {self.sat_stats.max()} {self.sat_stats.mean():.1f}",
                                              (x_center // 2, 2 * y_center - 20), 1, 0.9, (0, 255, 200), 1)
-                    self.image = cv2.putText(self.image, f"val min max mean: {val.min()} {val.max()} {val.mean():.1f}",
+                    self.image = cv2.putText(self.image, f"val min max mean: {self.val_stats.min()} {self.val_stats.max()} {self.val_stats.mean():.1f}",
                                              (x_center // 2, 2 * y_center - 10), 1, 0.9, (0, 255, 200), 1)
         else:  # no contours
             # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
@@ -374,10 +380,10 @@ class SpartanOverlay(GripPipeline):
                 width, height = 10, 20
                 t = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height,
                     x_center - width:x_center + width, :]
-                hue = t[:, :, 0];
-                sat = t[:, :, 1];
-                val = t[:, :, 2]
-                cv2.putText(self.image, f"Center HSV: {int(hue.mean()):3d} {int(sat.mean()):3d} {int(val.mean()):3d}",
+                hue_stats = t[:, :, 0];
+                sat_stats = t[:, :, 1];
+                val_stats = t[:, :, 2]
+                cv2.putText(self.image, f"Center HSV: {int(hue_stats.mean()):3d} {int(sat_stats.mean()):3d} {int(val_stats.mean()):3d}",
                             target_area_text_location, 1, 0.9, info_text_color, 1)
 
         cv2.putText(self.image,
@@ -511,7 +517,7 @@ class SpartanOverlay(GripPipeline):
         if self.targets > 0:
             self.bounding_box_sort_contours(method=method)
             if self.color == 'green':
-                pass
+                self.bounding_box_sort_contours(method='top-down')  # not sure how to sort green - may want to decide by turret location
                 # self.avr_green_correction()  # fix the green light on the ceiling and elsewhere
             if draw_overlay:
                 self.overlay_bounding_boxes()

@@ -21,7 +21,7 @@ from cscore import CameraServer, VideoSource, UsbCamera, MjpegServer
 from ntcore import NetworkTableInstance
 
 from cscore import HttpCamera, CvSource, VideoMode  # 2429 CJH
-from spartan_overlay import SpartanOverlay # 2429 CJH
+from spartan_overlay_2023 import SpartanOverlay # 2429 CJH
 
 from ctypes import Structure, c_uint
 

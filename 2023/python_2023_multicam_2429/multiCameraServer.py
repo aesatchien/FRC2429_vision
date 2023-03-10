@@ -358,7 +358,7 @@ if __name__ == "__main__":
     while True and failure_counter < 100:
 
         if len(cameras) >= 1:
-            # get the wristcam images
+            # get the armcam images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
                 results = top_pipeline.process(captured_img.copy())

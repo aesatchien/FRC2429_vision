@@ -123,7 +123,7 @@ class SpartanOverlay(GripPipeline):
         else:
             print('no valid color provided')
 
-    def process(self, image, method='size', draw_overlay=True):
+    def process(self, image, method='size', draw_overlay=True, reset_hsv=True):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -133,12 +133,13 @@ class SpartanOverlay(GripPipeline):
            """
         self.start_time = time.time()
         self.image = image
-        self.original_image = image
+        self.original_image = image.copy()  # expensive, but if we need it later
         self.y_resolution, self.x_resolution, self.channels = self.image.shape
 
         for color in self.colors:
             self.color = color
-            self.set_hsv()
+            if reset_hsv:
+                self.set_hsv()  # otherwise this does not allow us to pass in or set the hsv externally
             self.results.update({color: {'targets': 0, 'previous_targets': self.results[color]['targets'], 'distances': [],
                                         'strafes': [], 'heights': [], 'rotations':[], 'contours':[]}})
             self.contours.update({color: {'contours': []}})
@@ -280,7 +281,7 @@ class SpartanOverlay(GripPipeline):
             self.results[self.color]['heights'].append(self.height)
 
 
-    def overlay_bounding_boxes(self):
+    def overlay_bounding_boxes(self, contours=False):
         """Draw a box around all of our contours with the main one emphasized"""
         if self.color != 'green':
             for ix, contour in enumerate(self.filter_contours_output):
@@ -293,7 +294,10 @@ class SpartanOverlay(GripPipeline):
                 rect = cv2.boundingRect(contour)
                 x, y, w, h = rect
                 # print(rect)
-                self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
+                if contours:
+                    self.image = cv2.drawContours(self.image, self.filter_contours_output, 0, color, thickness)
+                else:
+                    self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
                                            (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
                 # test fill percent and solidity
                 if self.debug:
@@ -392,12 +396,11 @@ class SpartanOverlay(GripPipeline):
             if self.debug:
                 # display the stats on the main target we found
                 x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
-                mask = np.ones_like(
-                    self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
-                mask = cv2.drawContours(mask, self.filter_contours_output, 0, (0, 0, 0),
-                                        -1)  # False (zero) inside the contour
-                mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)),
-                                  iterations=2)  # have to cut off the edges a bit (grow the True region)
+                mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
+                mask = cv2.drawContours(mask, self.filter_contours_output, 0, (0, 0, 0), -1)  # False (zero) inside the contour
+                # mask = np.stack((self.hsv_threshold_output>>7,)*3, axis=-1)  # isn't this better than the contours?
+                mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)  # have to cut off the edges a bit (grow the True region)
+                # mask is 1 if using contours, 0 if using the hsv_threshold_output
                 t = np.ma.masked_where(mask == 1, cv2.cvtColor(self.original_image,
                                                                cv2.COLOR_BGR2HSV))  # data is valid if mask is False
 
@@ -486,12 +489,13 @@ if __name__ == "__main__":
     run_time = 1
     methods = ['top-down', 'bottom-up', 'right-to-left', 'left-to-right', 'size']
     methods = ['size', 'left-to-right']
+    usb_port = 1
 
     sort_test = False  # test the sorting methods of bounding boxes
     if sort_test:
         for method in methods:
             count += 1
-            cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            cam = cv2.VideoCapture(usb_port, cv2.CAP_DSHOW)
             s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
             pipeline = SpartanOverlay(colors=colors)
             pipeline.debug = True
@@ -507,7 +511,7 @@ if __name__ == "__main__":
         end_time = start_time
         pipeline = SpartanOverlay(colors=colors)
         pipeline.debug = True
-        cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cam = cv2.VideoCapture(usb_port, cv2.CAP_DSHOW)
         np.set_printoptions(precision=1)
         while end_time - start_time < video_seconds:  # take video for x seconds
             count += 1

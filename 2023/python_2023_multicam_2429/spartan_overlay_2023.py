@@ -48,7 +48,7 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def set_hsv(self):
-        home = True
+        home = False
         if self.color == 'purple':  # 2023 purple cubes
             self._hsv_threshold_hue = [116, 130]  # this is too close to blue...
             self._hsv_threshold_saturation = [100, 255]

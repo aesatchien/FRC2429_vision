@@ -18,7 +18,7 @@ class SpartanOverlay(GripPipeline):
 
     def __init__(self, colors=['yellow', 'purple', 'green'], camera='lifecam'):
         super().__init__()
-        self.debug = True  #  show HSV info as a written overlay
+        self.debug = False  #  show HSV info as a written overlay
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
         # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it? Need color-specific stuff though
@@ -106,7 +106,7 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_saturation = [110, 255]  # retroreflectors tough to get low sat so this removes lights
             self._hsv_threshold_value = [150, 255]
             if home:
-                self._hsv_threshold_hue = [68, 80]
+                self._hsv_threshold_hue = [68, 99]
                 self._hsv_threshold_saturation = [100, 255]
                 self._hsv_threshold_value = [100, 255]
             # in 2022 they are long and flat, so w/h >> 1.  small too.  min ratio is .5, max is 6
@@ -149,11 +149,7 @@ class SpartanOverlay(GripPipeline):
             self.results[self.color]['targets'] = targets
 
             if targets > 0:
-                self.bounding_box_sort_contours(method=method)
-                if self.color == 'green':
-                    self.bounding_box_sort_contours(method='top-down')  # not sure how to sort green - may want to decide by turret location
-                else:
-                    self.bounding_box_sort_contours(method='size')
+                self.bounding_box_sort_contours(method='center')
                 self.contours[self.color]['contours'] = self.filter_contours_output # TODO - sort these
                 self.get_target_attributes()  # updates self.results
 
@@ -185,7 +181,7 @@ class SpartanOverlay(GripPipeline):
         for ix, contour in enumerate(self.filter_contours_output):
             pass
             x, y, w, h = cv2.boundingRect(contour)
-            print(f"Contour {ix} has area {cv2.contourArea(contour)} with width {w} and height {h} at location ({x},{y})")
+            #print(f"Contour {ix} has area {cv2.contourArea(contour)} with width {w} and height {h} at location ({x},{y})")
 
         # *** Give ourselves some options on sorting, defaulting to size (closest) ***
         # if sorting by location, figure out if sorting by x or y coordinate
@@ -194,6 +190,7 @@ class SpartanOverlay(GripPipeline):
         else:  # left right, right left, center uses x axis
             axis = 0
         # below in zip sort we will sort on the axis (x or y) of second list in the zip (the bounding box)
+        # in the way we did the zip below, b[1] is the bounding box
         key = lambda b: b[1][axis]
         # handle if we need to sort in reverse, change sorting key for size
         if method == 'left-to-right' or method == 'top-down':
@@ -201,18 +198,19 @@ class SpartanOverlay(GripPipeline):
         elif method == 'right-to-left' or method == 'bottom-up':
             reverse = True
         elif method == 'center':
-            pass
-            # key = lambda b: abs()
-            # cv2.countour.
-
+            # distance from center is x+w - x_resolution/2
+            key = lambda b: abs( b[1][0]+b[1][2] - self.x_resolution/2 )
+            reverse = False  # want closest to the center first
         else:  # sort by size
-            key = lambda b: cv2.contourArea(b[0])
+            key = lambda b: cv2.contourArea(b[0])  # in the zip, b[0] is the contour
             reverse = True
 
         # could easily append a max_contours parameter here and limit to [:n] choices
         # we want the bounding boxes later anyway for
         bounding_boxes = [cv2.boundingRect(c) for c in self.filter_contours_output]
         # neat use of zip(*foo) to to give you back the lists you zipped to sort
+        # in this, the lambda variable [0] is the first thing in the list, [1] is the second
+        # so if sorting on bounding boxes, you use [1], but on countours you use [0]
         (self.filter_contours_output, self.bounding_boxes) = \
             zip(*sorted(zip(self.filter_contours_output, bounding_boxes), key=key, reverse=reverse))
 
@@ -290,7 +288,7 @@ class SpartanOverlay(GripPipeline):
                     color = (0, 255, 0)  # green for our primary target
                     thickness = 2
                 else:
-                    color = (255, 0, 255)  # magenta for the other bogeys
+                    color = (255, 255, 0)  # magenta for the other bogeys
                     thickness = 1
                 rect = cv2.boundingRect(contour)
                 x, y, w, h = rect
@@ -301,7 +299,7 @@ class SpartanOverlay(GripPipeline):
                 if self.debug:
                     box_fill, solidity = self.get_solidity(contour)
                     # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-                    self.image = cv2.putText(self.image, f'{int(x)}, {int(y)}', (int(x), int(y)), 1, 1.5,
+                    self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5,
                                              (0, 255, 255), 1, 1)
 
         elif self.color == 'green':
@@ -318,6 +316,12 @@ class SpartanOverlay(GripPipeline):
                 # print(rect)
                 self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
                                            (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
+                if self.debug:
+                    box_fill, solidity = self.get_solidity(contour)
+                    # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
+                    self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5,
+                                             (0, 255, 255), 1, 1)
+
 
     def simple_text_overlay(self, location='bottom', show_lines=False):
         """Write our object information to the image"""
@@ -467,7 +471,7 @@ if __name__ == "__main__":
     Set the color below to yellow, blue, green or red (red is tougher) to test
     """
     import sys
-    video_seconds = 0.1
+    video_seconds = 10
 
     args = sys.argv[1:]
     allowed_colors = ['purple', 'yellow', 'blue', 'green', 'red', 'yellow-ball']
@@ -475,7 +479,7 @@ if __name__ == "__main__":
         colors = [args[0]]
     else:  # default color
         colors = ['yellow', 'purple', 'green']
-        colors = ['green']
+        #colors = ['green']
 
     start_time = time.time()
     count = 0
@@ -503,7 +507,7 @@ if __name__ == "__main__":
         end_time = start_time
         pipeline = SpartanOverlay(colors=colors)
         pipeline.debug = True
-        cam = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         np.set_printoptions(precision=1)
         while end_time - start_time < video_seconds:  # take video for x seconds
             count += 1

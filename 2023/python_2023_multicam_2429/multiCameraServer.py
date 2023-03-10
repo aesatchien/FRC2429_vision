@@ -72,6 +72,7 @@ class Blocks(Structure):
 #   }
 
 configFile = "/boot/frc.json"
+#configFile = "./files/frc.json"
 
 class CameraConfig: pass
 
@@ -234,7 +235,7 @@ if __name__ == "__main__":
 
     # read configuration
     if not readConfig():
-        sys.exit(1)
+        pass
 
     # start NetworkTables
     ntinst = NetworkTableInstance.getDefault()
@@ -260,7 +261,8 @@ if __name__ == "__main__":
 
     #  -------   2429 CJH  stuff - add this to get networktables and processed stream  ------------
 
-    ballTable = ntinst.getTable("BallCam")  # the network table served by the pi
+    ball_table = ntinst.getTable("BallCam")  # the network table served by the pi
+    ground_table = ntinst.getTable("GroundCam")  # the network table served by the pi
 
     # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS
     # except for how it reports, and the actual speed is determined by the rate the code puts images to the sink
@@ -294,19 +296,25 @@ if __name__ == "__main__":
 
     #  ----------------  start a vision thread (CJH)  --------------------
     # TODO - turn this into a thread running in the background
-    ballframes = ballTable.getDoubleTopic('frames').publish()
+    ballframes = ball_table.getDoubleTopic('frames').publish()
     # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
-    camera_dict = {'yellow': {}, 'purple': {}, 'green': {}}  # the colors we need to check for
+    top_camera_dict = {'yellow': {}, 'purple': {}, 'green': {}}  # the colors we need to check for
+    bottom_camera_dict = {'yellow': {}, 'purple': {}}
     # set up network tables and pipelines, one for each color
-    for key in camera_dict.keys():
-        camera_dict[key].update({'targets_entry': ballTable.getDoubleTopic(f"/{key}/targets").publish()})
-        camera_dict[key].update({'distance_entry': ballTable.getDoubleTopic(f"/{key}/distance").publish()})
-        camera_dict[key].update({'rotation_entry': ballTable.getDoubleTopic(f"/{key}/rotation").publish()})
-        camera_dict[key].update({'strafe_entry': ballTable.getDoubleTopic(f"/{key}/strafe").publish()})
-        if key == 'green':
-            camera_dict[key].update({'pipeline': SpartanOverlay(color=key, camera='lifecam')})
-        else:
-            camera_dict[key].update({'pipeline': SpartanOverlay(color=key, camera='lifecam')})
+    for key in top_camera_dict.keys():
+        top_camera_dict[key].update({'targets_entry': ball_table.getDoubleTopic(f"/{key}/targets").publish()})
+        top_camera_dict[key].update({'distance_entry': ball_table.getDoubleTopic(f"/{key}/distance").publish()})
+        top_camera_dict[key].update({'rotation_entry': ball_table.getDoubleTopic(f"/{key}/rotation").publish()})
+        top_camera_dict[key].update({'strafe_entry': ball_table.getDoubleTopic(f"/{key}/strafe").publish()})
+    for key in bottom_camera_dict.keys():
+        top_camera_dict[key].update({'targets_entry': ground_table.getDoubleTopic(f"/{key}/targets").publish()})
+        top_camera_dict[key].update({'distance_entry': ground_table.getDoubleTopic(f"/{key}/distance").publish()})
+        top_camera_dict[key].update({'rotation_entry': ground_table.getDoubleTopic(f"/{key}/rotation").publish()})
+        top_camera_dict[key].update({'strafe_entry': ground_table.getDoubleTopic(f"/{key}/strafe").publish()})
+
+    # set up a pipeline for each camera
+    top_pipeline = SpartanOverlay(colors=top_camera_dict.keys(), camera='lifecam')
+    bottom_pipeline = SpartanOverlay(colors=bottom_camera_dict.keys(), camera='lifecam')
 
     cs = CameraServer #  .getInstance()  # already taken care of above, but if i comment it out above this is necessary
     # this next part will be trickier if we have more than one camera, but we can have separate pipelines
@@ -321,20 +329,17 @@ if __name__ == "__main__":
         vm2 = cameras[1].getVideoMode()
         img2 = np.zeros((vm2.height, vm2.width, 3))
 
-
-    ballcam_success_counter = 0  # keep track of FPS so we can tell in the console when things are going wrong
-    shootercam_success_counter = 0
-    previous_ball_counts = 0
-    previous_shooter_counts = 0
+    topcam_success_counter = 0  # keep track of FPS so we can tell in the console when things are going wrong
+    groundcam_success_counter = 0
+    previous_topcam_counts = 0
+    previous_groundcam_counts = 0
     failure_counter = 0  # very first image often fails, and after that we are solid
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
 
-    team_key = 'purple'  # default color for camera
-    key_order = ['yellow', 'purple']  # process in this order
     server_dict = {'ballcam' : True, 'shootercam' : True}
 
-    # make a folder to keep track of images  TODO - just do this on the driverstation in a notebook
+    # make a folder to keep track of images  TODO - just do this on the driverstation in a notebook? Turn on from dash?
     save_images = False
     if save_images:
         image_counter = 0
@@ -348,48 +353,48 @@ if __name__ == "__main__":
     while True and failure_counter < 100:
 
         if len(cameras) >= 1:
-            # get the ball images
+            # get the wristcam images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
-                for key in key_order:  # doing both colors !
-                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
-                    camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
-                    camera_dict[key]['distance_entry'].set(distance_to_target)
-                    camera_dict[key]['strafe_entry'].set(strafe_to_target)
-                    camera_dict[key]['rotation_entry'].set(rotation_to_target)
+                results = top_pipeline.process(captured_img.copy())
+                for key in top_pipeline.colors:  # doing all colors !
+                    #targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
+                    targets = results[key]['targets']
+                    top_camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
+                    if targets > 0:
+                        top_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
+                        top_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
+                        top_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
+                    else:
+                        top_camera_dict[key]['distance_entry'].set(0)
+                        top_camera_dict[key]['strafe_entry'].set(0)
+                        top_camera_dict[key]['rotation_entry'].set(0)
                 ntinst.flush()
 
                 # if we are connected to a robot, get its team color.  default to blue
-                if ballcam_success_counter % 30 == 0:  # check every 3s for a team color update
-                    ballframes.set(ballcam_success_counter)
-                    if ntinst.getTable('FMSInfo').getEntry('StationNumber').getInteger(0) == 1:
-                    #if ntinst.getTable('FMSInfo').getEntry('IsRedAlliance').getBoolean(True):
-                        team_key = 'purple'
-                        key_order = ['green', 'yellow', 'purple']  # probably not necessary
-                    elif ntinst.getTable('FMSInfo').getEntry('StationNumber').getInteger(0) == 2:
-                        team_key = 'green'
-                        key_order = ['purple', 'yellow', 'green']  # probably not necessary
-                    else:
-                        team_key = 'yellow'
-                        key_order = ['purple', 'green', 'yellow']  # probably not necessary
+                if topcam_success_counter % 30 == 0:  # check every few seconds for a camera selection update
+                    ballframes.set(topcam_success_counter)
+                    if ntinst.getTable('SmartDashboard').getEntry('StationNumber').getInteger(0) == 1:
+                        pass
                     # print(f'At frame {success_counter} team key is {team_key}')
                 if server_dict['ballcam']:
-                    image_source[0].putFrame(camera_dict[team_key]['pipeline'].image)  # feeds the Http camera with a new image, either blue or red
-                ballcam_success_counter += 1
+                    image_source[0].putFrame(top_pipeline.image)  # feeds the Http camera with a new image
+                topcam_success_counter += 1
 
             else:  # keep track of failures to read the image from the sink
                 failure_counter += 1
-            if ballcam_success_counter % 30 == 0:
+            if topcam_success_counter % 30 == 0:
                 now = time.time()
                 # update the console - most FPS issues are with auto-exposure or if exposure time is too long for FPS setting
                 # the cameras seem to cut FPS down automatically by integer divisors - e.g. max 30 --> max 15 --> max 7.5
-                fps1 = (ballcam_success_counter - previous_ball_counts) / (now - previous_time)
-                fps2 = (shootercam_success_counter - previous_shooter_counts) / (now - previous_time)
-                print(f'Cameras: {len(cameras)}  Avg Ball FPS: {fps1:0.1f} Avg Shoot FPS: {fps2:0.1f}  Reported:{cameras[0].getActualFPS()}  Success: {ballcam_success_counter:8d}  Failure:{failure_counter:3d}', end='\r', flush=True)
-                previous_ball_counts = ballcam_success_counter
-                previous_shooter_counts = shootercam_success_counter
+                fps1 = (topcam_success_counter - previous_topcam_counts) / (now - previous_time)
+                fps2 = (groundcam_success_counter - previous_groundcam_counts) / (now - previous_time)
+                print(f'Cameras: {len(cameras)}  Avg Ball FPS: {fps1:0.1f} Avg Shoot FPS: {fps2:0.1f}  Reported:{cameras[0].getActualFPS()}  Success: {topcam_success_counter:8d}  Failure:{failure_counter:3d}', end='\r', flush=True)
+                previous_topcam_counts = topcam_success_counter
+                previous_groundcam_counts = groundcam_success_counter
                 previous_time = now
 
+        process_bottom_cam = False  # do we want to recognize targets on the bottom camera?
         if len(cameras) >= 2:
             # get the shooter target images - green stuff
             image_time, captured_img2 = sink_2.grabFrame(img2)  # default time out is about 4 FPS
@@ -404,18 +409,28 @@ if __name__ == "__main__":
                 image_to_process = captured_img2.copy()
 
             if image_time > 0:  # actually got an image
-                for key in ['green']:
-                    targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(image_to_process)
-                    camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
-                    camera_dict[key]['distance_entry'].set(distance_to_target)
-                    camera_dict[key]['strafe_entry'].set(strafe_to_target)
-                    camera_dict[key]['rotation_entry'].set(rotation_to_target)
-                ntinst.flush()
-                if server_dict['shootercam']:
-                    image_source[1].putFrame(camera_dict[key]['pipeline'].image)
-                shootercam_success_counter += 1
+                if process_bottom_cam:
+                    results = bottom_pipeline.process(captured_img2.copy())
+                    for key in bottom_pipeline.colors:
+                        targets = results[key]['targets']
+                        bottom_camera_dict[key]['targets_entry'].set(targets)
+                        if targets > 0:
+                            bottom_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
+                            bottom_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
+                            bottom_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
+                        else:
+                            bottom_camera_dict[key]['distance_entry'].set(0)
+                            bottom_camera_dict[key]['strafe_entry'].set(0)
+                            bottom_camera_dict[key]['rotation_entry'].set(0)
+                    ntinst.flush()
+                    if server_dict['shootercam']:
+                        image_source[1].putFrame(bottom_pipeline.image)
+                else: # skip the processing, stream the raw image
+                    if server_dict['shootercam']:
+                        image_source[1].putFrame(captured_img2)
+                groundcam_success_counter += 1
 
-        if ballcam_success_counter % 51 == 0 and save_images:  # save an image every few seconds
+        if topcam_success_counter % 51 == 0 and save_images:  # save an image every few seconds
             image_counter += 1
             print(f'Writing image {image_counter % 200:03d}...')
             cv2.imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)

@@ -198,6 +198,7 @@ def startCamera(config):
     if config.streamConfig is not None:
         server.setConfigJson(json.dumps(config.streamConfig))
 
+
     return camera
 
 def startSwitchedCamera(config):
@@ -261,14 +262,14 @@ if __name__ == "__main__":
 
     #  -------   2429 CJH  stuff - add this to get networktables and processed stream  ------------
 
-    ball_table = ntinst.getTable("BallCam")  # the network table served by the pi
-    ground_table = ntinst.getTable("GroundCam")  # the network table served by the pi
+    top_table = ntinst.getTable("ArmCam")  # the network table served by the pi
+    ground_table = ntinst.getTable("BottomCam")  # the network table served by the pi
 
     # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS
     # except for how it reports, and the actual speed is determined by the rate the code puts images to the sink
 
     processed_ports = [1186, 1187]   # allow for multiple cameras on 1181-1185
-    stream_labels = ['Ballcam', 'Shootercam']
+    stream_labels = ['ArmCam', 'BottomCam']
     image_source = [None, None]
     cvStream = [None, None]
     cams = [None, None]
@@ -296,25 +297,27 @@ if __name__ == "__main__":
 
     #  ----------------  start a vision thread (CJH)  --------------------
     # TODO - turn this into a thread running in the background
-    ballframes = ball_table.getDoubleTopic('frames').publish()
+    top_frames = top_table.getDoubleTopic('frames').publish()
+    top_colors = top_table.getStringArrayTopic('colors').publish()
     # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
     top_camera_dict = {'yellow': {}, 'purple': {}, 'green': {}}  # the colors we need to check for
     bottom_camera_dict = {'yellow': {}, 'purple': {}}
     # set up network tables and pipelines, one for each color
     for key in top_camera_dict.keys():
-        top_camera_dict[key].update({'targets_entry': ball_table.getDoubleTopic(f"/{key}/targets").publish()})
-        top_camera_dict[key].update({'distance_entry': ball_table.getDoubleTopic(f"/{key}/distance").publish()})
-        top_camera_dict[key].update({'rotation_entry': ball_table.getDoubleTopic(f"/{key}/rotation").publish()})
-        top_camera_dict[key].update({'strafe_entry': ball_table.getDoubleTopic(f"/{key}/strafe").publish()})
+        top_camera_dict[key].update({'targets_entry': top_table.getDoubleTopic(f"/{key}/targets").publish()})
+        top_camera_dict[key].update({'distance_entry': top_table.getDoubleTopic(f"/{key}/distance").publish()})
+        top_camera_dict[key].update({'rotation_entry': top_table.getDoubleTopic(f"/{key}/rotation").publish()})
+        top_camera_dict[key].update({'strafe_entry': top_table.getDoubleTopic(f"/{key}/strafe").publish()})
     for key in bottom_camera_dict.keys():
-        top_camera_dict[key].update({'targets_entry': ground_table.getDoubleTopic(f"/{key}/targets").publish()})
-        top_camera_dict[key].update({'distance_entry': ground_table.getDoubleTopic(f"/{key}/distance").publish()})
-        top_camera_dict[key].update({'rotation_entry': ground_table.getDoubleTopic(f"/{key}/rotation").publish()})
-        top_camera_dict[key].update({'strafe_entry': ground_table.getDoubleTopic(f"/{key}/strafe").publish()})
-
+        bottom_camera_dict[key].update({'targets_entry': ground_table.getDoubleTopic(f"/{key}/targets").publish()})
+        bottom_camera_dict[key].update({'distance_entry': ground_table.getDoubleTopic(f"/{key}/distance").publish()})
+        bottom_camera_dict[key].update({'rotation_entry': ground_table.getDoubleTopic(f"/{key}/rotation").publish()})
+        bottom_camera_dict[key].update({'strafe_entry': ground_table.getDoubleTopic(f"/{key}/strafe").publish()})
+    ntinst.flush()
     # set up a pipeline for each camera
-    top_pipeline = SpartanOverlay(colors=top_camera_dict.keys(), camera='lifecam')
-    bottom_pipeline = SpartanOverlay(colors=bottom_camera_dict.keys(), camera='lifecam')
+    top_pipeline = SpartanOverlay(colors=list(top_camera_dict.keys()), camera='lifecam')
+    bottom_pipeline = SpartanOverlay(colors=list(bottom_camera_dict.keys()), camera='lifecam')
+    top_colors.set(top_pipeline.colors)  # announce to NT that we have the right colors
 
     cs = CameraServer #  .getInstance()  # already taken care of above, but if i comment it out above this is necessary
     # this next part will be trickier if we have more than one camera, but we can have separate pipelines
@@ -337,7 +340,7 @@ if __name__ == "__main__":
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
 
-    server_dict = {'ballcam' : True, 'shootercam' : True}
+    server_dict = {'armcam' : True, 'bottomcam' : True}
 
     # make a folder to keep track of images  TODO - just do this on the driverstation in a notebook? Turn on from dash?
     save_images = False
@@ -349,6 +352,8 @@ if __name__ == "__main__":
             os.mkdir(folder)
         except Exception as e:
             pass
+
+    cameras[0].setBrightness(51) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
 
     while True and failure_counter < 100:
 
@@ -373,11 +378,11 @@ if __name__ == "__main__":
 
                 # if we are connected to a robot, get its team color.  default to blue
                 if topcam_success_counter % 30 == 0:  # check every few seconds for a camera selection update
-                    ballframes.set(topcam_success_counter)
+                    top_frames.set(topcam_success_counter)
                     if ntinst.getTable('SmartDashboard').getEntry('StationNumber').getInteger(0) == 1:
                         pass
                     # print(f'At frame {success_counter} team key is {team_key}')
-                if server_dict['ballcam']:
+                if server_dict['armcam']:
                     image_source[0].putFrame(top_pipeline.image)  # feeds the Http camera with a new image
                 topcam_success_counter += 1
 
@@ -423,10 +428,10 @@ if __name__ == "__main__":
                             bottom_camera_dict[key]['strafe_entry'].set(0)
                             bottom_camera_dict[key]['rotation_entry'].set(0)
                     ntinst.flush()
-                    if server_dict['shootercam']:
+                    if server_dict['bottomcam']:
                         image_source[1].putFrame(bottom_pipeline.image)
                 else: # skip the processing, stream the raw image
-                    if server_dict['shootercam']:
+                    if server_dict['bottomcam']:
                         image_source[1].putFrame(captured_img2)
                 groundcam_success_counter += 1
 

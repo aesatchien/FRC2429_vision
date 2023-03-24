@@ -19,6 +19,7 @@ class SpartanOverlay(GripPipeline):
     def __init__(self, colors=['yellow', 'purple', 'green'], camera='lifecam'):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
+        self.training = False  # mode to reveal object colors for quick training,  need to pass this to process
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
         # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it? Need color-specific stuff though
@@ -51,8 +52,8 @@ class SpartanOverlay(GripPipeline):
         home = False
         if self.color == 'purple':  # 2023 purple cubes
             self._hsv_threshold_hue = [116, 130]  # this is too close to blue...
-            self._hsv_threshold_saturation = [100, 255]
             self._hsv_threshold_value = [60, 255]  # tends to be a bit dark
+            self._hsv_threshold_saturation = [100, 255]
             if home:  # values at home
                 self._hsv_threshold_hue = [112, 125]  # this is too close to blue...
                 self._hsv_threshold_saturation = [95, 250]
@@ -123,7 +124,50 @@ class SpartanOverlay(GripPipeline):
         else:
             print('no valid color provided')
 
-    def process(self, image, method='size', draw_overlay=True, reset_hsv=True):
+    def get_center_hsv(self, width=20, height=20):  # attempt to train hsv detector with center objects
+        x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+        t = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height,
+                x_center - width:x_center + width, :]
+        self.image = cv2.rectangle(self.image, (x_center - width, y_center - height),
+                                           (x_center + width, y_center + height), (255, 255, 255))
+        hue, sat, val = t[:, :, 0],  t[:, :, 1], t[:, :, 2]
+        # h,s and v all seem to have zeros show up when saturated?  Replace zeros?
+        replace_zeros = True
+        if replace_zeros:
+            for channel in [hue, sat, val]:
+                channel[channel == 0] = np.median(channel[channel > 0])
+        hue_mean, hue_std = np.median(hue), np.std(hue)  # median works better
+        sat_mean, sat_std = np.median(sat), np.std(sat)
+        val_mean, val_std = np.median(val), np.std(val)
+        stats_width = 3 # 3 gives 99% of the bell curve area
+        self.temp_hue = [max(np.floor(hue_mean-10), np.floor(hue_mean - stats_width * hue_std)), min(np.ceil(hue_mean+10), np.ceil(hue_mean + stats_width * hue_std))]
+        self.temp_sat = [min(60, np.floor(sat_mean - stats_width * sat_std)), min(np.ceil(sat_mean + stats_width * 1.5*sat_std), 255)]  # must have some color, but can't be too dark?
+        self.temp_val = [min(60, np.floor(val_mean - stats_width * val_std)), min(np.ceil(val_mean + stats_width * 1.5*val_std), 255)]
+        self._hsv_threshold_hue = self.temp_hue
+        self._hsv_threshold_saturation = self.temp_sat
+        self._hsv_threshold_value = self.temp_val
+        self.training_data = t
+        # self.color = f'{hue_mean:0f}_{sat_mean:0f}_{val_mean:0f}'
+
+    def overlay_color_stats(self):
+        x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+        hue_std = np.std(self.training_data[:, :, 0])
+        sat_std = np.std(self.training_data[:, :, 1])
+        val_std = np.std(self.training_data[:, :, 2])
+        hue_msg = f"hue min max mean std: {self.temp_hue[0]:.0f} {self.temp_hue[1]:.0f} {(self.temp_hue[1]+self.temp_hue[0])//2:.0f} {hue_std:.0f}"
+        sat_msg = f"sat min max mean std: {self.temp_sat[0]:.0f} {self.temp_sat[1]:.0f}  {(self.temp_sat[1]+self.temp_sat[0])//2:.0f} {sat_std:.0f}"
+        val_msg = f"val min max meanstd : {self.temp_val[0]:.0f} {self.temp_val[1]:.0f}  {(self.temp_val[1]+self.temp_val[0])//2:.0f} {val_std:.0f}"
+
+        # self.image = cv2.putText(self.image, hue_msg, (x_center, 2 * y_center - 34), 1, 0.9, (0, 255, 200), 1)
+        # self.image = cv2.putText(self.image, sat_msg, (x_center, 2 * y_center - 20), 1, 0.9, (0, 255, 200), 1)
+        # self.image = cv2.putText(self.image, val_msg, (x_center, 2 * y_center - 6), 1, 0.9, (0, 255, 200), 1)
+        cv2.rectangle(self.image, (0, 0), (self.x_resolution, 35), (0, 0, 0), -1)
+
+        self.image = cv2.putText(self.image, hue_msg, (2, 10), 1, 0.8, (0, 255, 200), 1)
+        self.image = cv2.putText(self.image, sat_msg, (2, 21), 1, 0.8, (0, 255, 200), 1)
+        self.image = cv2.putText(self.image, val_msg, (2, 32), 1, 0.8, (0, 255, 200), 1)
+
+    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -131,6 +175,8 @@ class SpartanOverlay(GripPipeline):
            :param method: sort method [size, left-to-right, right-to-left, top-down or bottom-up]
            :param post_to_nt: whether to post to a networktable named self.table_name
            """
+
+        self.training = training  # boolean to see of we switch to training mode
         self.start_time = time.time()
         self.image = image
         self.original_image = image.copy()  # expensive, but if we need it later
@@ -138,12 +184,16 @@ class SpartanOverlay(GripPipeline):
 
         for color in self.colors:
             self.color = color
-            if reset_hsv:
+            if self.training:
+                self.get_center_hsv()
+            elif reset_hsv:
                 self.set_hsv()  # otherwise this does not allow us to pass in or set the hsv externally
+
             self.results.update({color: {'targets': 0, 'previous_targets': self.results[color]['targets'], 'distances': [],
                                         'strafes': [], 'heights': [], 'rotations':[], 'contours':[]}})
             self.contours.update({color: {'contours': []}})
-            super(self.__class__, self).process(image)
+            # maybe be I should rename this as not overloading the parent, it's not pythonic
+            super(self.__class__, self).process(self.original_image)
             # update targets for a given color
             targets = len(self.filter_contours_output)
             self.results[self.color]['previous_targets'] = self.results[self.color]['targets']
@@ -168,6 +218,8 @@ class SpartanOverlay(GripPipeline):
             self.simple_text_overlay()  # designed for multiple colors
         else:
             self.overlay_text()
+        if self.training:
+            self.overlay_color_stats()
 
         return self.results
 
@@ -332,13 +384,13 @@ class SpartanOverlay(GripPipeline):
 
         location = location
         if location == 'top':
-            info_text_location = (int(0.035 * self.x_resolution), 12)
+            info_text_location = (2, 10)
             target_text_location = (int(0.7 * self.x_resolution), 13)
             target_area_text_location = (int(0.02 * self.x_resolution), 27)
             # black bar at top of image
             cv2.rectangle(self.image, (0, int(0.88 * self.y_resolution)), (self.x_resolution, 0), (0, 0, 0), -1)
         else:
-            info_text_location = (int(0.035 * self.x_resolution), -15 + self.y_resolution)
+            info_text_location = (2, -14 + self.y_resolution)
             target_text_location = (int(0.7 * self.x_resolution), -13 + self.y_resolution)
             target_area_text_location = (int(0.02 * self.x_resolution), -2 + self.y_resolution)
             # black bar at bottom of image
@@ -465,6 +517,23 @@ class SpartanOverlay(GripPipeline):
             right_boundary = x + w if x + w > right_boundary else right_boundary
         return int(np.mean(x_centers)), int(np.mean(y_centers)), left_boundary, right_boundary
 
+
+# ---------------   SPARKLINES  ---------------
+# -*- coding: utf-8 -*-
+# Unicode: 9601, 9602, 9603, 9604, 9605, 9606, 9607, 9608
+bar = '▁▂▃▄▅▆▇█'
+bar = '▁▂▃▅▆▇'
+barcount = len(bar)
+
+def sparkline(numbers, autoscale=True):
+    if autoscale:
+        mn, mx = np.min(numbers), np.max(numbers)
+    else:
+        mn, mx = -1.0, 1.0
+    extent = mx - mn
+    sparkline = ''.join(bar[min([barcount - 1, int((n - mn) / extent * barcount)])] for n in numbers)
+    return mn, mx, sparkline
+
 if __name__ == "__main__":
 
     """
@@ -474,7 +543,7 @@ if __name__ == "__main__":
     Set the color below to yellow, blue, green or red (red is tougher) to test
     """
     import sys
-    video_seconds = 10
+    video_seconds = 9
 
     args = sys.argv[1:]
     allowed_colors = ['purple', 'yellow', 'blue', 'green', 'red', 'yellow-ball']
@@ -506,6 +575,7 @@ if __name__ == "__main__":
             cam.release()
 
     video = True
+    training = True
     if video:  # run continuous video and report HSV on objects found
         start_time = time.time()
         end_time = start_time
@@ -518,67 +588,71 @@ if __name__ == "__main__":
             s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
             if s > 0:  # Found an image
                 im = cv2.resize(im.copy(), (640, 480), interpolation=cv2.INTER_AREA)
-                pipeline.process(image=im, method='size')
-                x_center, y_center = pipeline.x_resolution // 2, pipeline.y_resolution // 2
-                targets = sum([pipeline.results[color]['targets'] for color in colors])
-                if targets < 1:  # get some diagnostics on a box if nothing is recognized
-                    width, height = 10, 20
-                    t = cv2.cvtColor(pipeline.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height,
-                        x_center - width:x_center + width, :]
-                    pipeline.image[:, :,
-                    0] = pipeline.hsv_threshold_output  # make a color cast to show what is thresholded (maybe should draw the contour instead)
-                    pipeline.image = cv2.rectangle(pipeline.image, (x_center - width, y_center - height),
-                                                   (x_center + width, y_center + height), (0, 255, 255))
-                    hue = t[:, :, 0];
-                    sat = t[:, :, 1];
-                    val = t[:, :, 2]
-                else:  # display the stats on the main target we found
-                    mask = np.ones_like(
-                        pipeline.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
-                    mask = cv2.drawContours(mask, pipeline.filter_contours_output, 0, (0, 0, 0),
-                                            -1)  # False (zero) inside the contour
-                    mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)),
-                                      iterations=5)  # have to cut off the edges a bit (grow the True region)
-                    t = np.ma.masked_where(mask == 1, cv2.cvtColor(pipeline.original_image,
-                                                                   cv2.COLOR_BGR2HSV))  # data is valid if mask is False
-                    hue = t[:, :, 0].compressed();
-                    sat = t[:, :, 1].compressed();
-                    val = t[:, :, 2].compressed()  # don't want messages about masked format strings
+                pipeline.process(image=im, method='size', training=training)
 
-                if len(hue) > 0:
-                    pipeline.image = cv2.putText(pipeline.image,
-                                                 f"hue min max mean: {hue.min()} {hue.max()} {hue.mean():.1f}",
-                                                 (x_center, 2 * y_center - 30), 1, 0.9, (0, 255, 200), 1)
-                    pipeline.image = cv2.putText(pipeline.image,
-                                                 f"sat min max mean: {sat.min()} {sat.max()} {sat.mean():.1f}",
-                                                 (x_center, 2 * y_center - 20), 1, 0.9, (0, 255, 200), 1)
-                    pipeline.image = cv2.putText(pipeline.image,
-                                                 f"val min max mean: {val.min()} {val.max()} {val.mean():.1f}",
-                                                 (x_center, 2 * y_center - 10), 1, 0.9, (0, 255, 200), 1)
+                if pipeline.training:
+                    pass
                 else:
-                    pipeline.image = cv2.putText(pipeline.image, f"Detected region too small?",
-                                                 (x_center, 2 * y_center - 10), 1, 0.9, (0, 255, 200), 1)
+                    x_center, y_center = pipeline.x_resolution // 2, pipeline.y_resolution // 2
+                    targets = sum([pipeline.results[color]['targets'] for color in colors])
+                    if targets < 1:  # get some diagnostics on a box if nothing is recognized
+                        width, height = 10, 20
+                        t = cv2.cvtColor(pipeline.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height,
+                            x_center - width:x_center + width, :]
+                        pipeline.image[:, :, 0] = pipeline.hsv_threshold_output  # make a color cast to show what is thresholded (maybe should draw the contour instead)
+                        pipeline.image = cv2.rectangle(pipeline.image, (x_center - width, y_center - height),
+                                                       (x_center + width, y_center + height), (0, 255, 255))
+                        hue = t[:, :, 0];
+                        sat = t[:, :, 1];
+                        val = t[:, :, 2]
+                    else:  # display the stats on the main target we found
+                        mask = np.ones_like(
+                            pipeline.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
+                        mask = cv2.drawContours(mask, pipeline.filter_contours_output, 0, (0, 0, 0),
+                                                -1)  # False (zero) inside the contour
+                        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)),
+                                          iterations=5)  # have to cut off the edges a bit (grow the True region)
+                        t = np.ma.masked_where(mask == 1, cv2.cvtColor(pipeline.original_image,
+                                                                       cv2.COLOR_BGR2HSV))  # data is valid if mask is False
+                        hue = t[:, :, 0].compressed();
+                        sat = t[:, :, 1].compressed();
+                        val = t[:, :, 2].compressed()  # don't want messages about masked format strings
 
-                print(f'mean: {t[:, :, 0].mean()}', end='\r', flush='True')
+                    if len(hue) > 0:
+                        pipeline.image = cv2.putText(pipeline.image,
+                                                     f"hue min max mean: {hue.min()} {hue.max()} {hue.mean():.1f}",
+                                                     (x_center, 2 * y_center - 30), 1, 0.9, (0, 255, 200), 1)
+                        pipeline.image = cv2.putText(pipeline.image,
+                                                     f"sat min max mean: {sat.min()} {sat.max()} {sat.mean():.1f}",
+                                                     (x_center, 2 * y_center - 20), 1, 0.9, (0, 255, 200), 1)
+                        pipeline.image = cv2.putText(pipeline.image,
+                                                     f"val min max mean: {val.min()} {val.max()} {val.mean():.1f}",
+                                                     (x_center, 2 * y_center - 10), 1, 0.9, (0, 255, 200), 1)
+                    else:
+                        pipeline.image = cv2.putText(pipeline.image, f"Detected region too small?",
+                                                     (x_center, 2 * y_center - 10), 1, 0.9, (0, 255, 200), 1)
+
+                    print(f'mean: {t[:, :, 0].mean()}', end='\r', flush='True')
+
+                # end if on the train color
                 cv2.imshow(f"Test Picture: sorting by size on {pipeline.color}",
                            pipeline.image)  # displays captured image
                 end_time = time.time()
                 cv2.waitKey(delay=50)
 
+        # print(f'hist: {np.histogram(t[:, :, 0], bins=90, range=(0,179))}', end='\n', flush='True')
+        print(f'Captured {count} frames in {end_time - start_time:.1f}s - average fps is {count / (end_time - start_time):.1f}')
+        if pipeline.training:
+            import matplotlib.pyplot as plt
+            t = pipeline.training_data
+            print(f' hsv mean: {t[:, :, 0].mean():.1f} {t[:, :, 1].mean():.1f} {t[:, :, 2].mean():.1f}', end='\n', flush='True')
+            plt.hist([t[:, :, 0].flatten(), t[:, :, 1].flatten(), t[:, :, 2].flatten()], label=['h', 's', 'v'], bins=48, density=True, rwidth=1, range=(0,255))
+            plt.legend()
+            plt.show()
+        else:
+            print(f'mean: {t[:, :, 0].mean():.2f}', end='\n', flush='True')
+
         cam.release()
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-        print(f'mean: {t[:, :, 0].mean():.2f}', end='\n', flush='True')
-        # print(f'hist: {np.histogram(t[:, :, 0], bins=90, range=(0,179))}', end='\n', flush='True')
-        print(
-            f'Captured {count} frames in {end_time - start_time:.1f}s - average fps is {count / (end_time - start_time):.1f}')
-
-        if False:
-            import matplotlib.pyplot as plt
-
-            plt.hist([t[:, :, 0].flatten(), t[:, :, 1].flatten(), t[:, :, 2].flatten()], label=['h', 's', 'v'],
-                     bins=255)
-            plt.legend()
-            plt.show()
-
         # print(pipeline.results)

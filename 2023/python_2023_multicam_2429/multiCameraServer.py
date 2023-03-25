@@ -358,7 +358,12 @@ if __name__ == "__main__":
         except Exception as e:
             pass
 
-    cameras[0].setBrightness(51) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
+    bright_list = [item.config["brightness"] for item in cameraConfigs]
+    cameras[0].setBrightness(bright_list[0]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
+    time.sleep(0.25)
+    print(f'Resetting brightness on cam 0 to {bright_list[0]}')
+    cameras[0].setBrightness(bright_list[0])
+
 
     training = False  # for pipeline.process - are we in training mode
     while True and failure_counter < 100:
@@ -367,7 +372,7 @@ if __name__ == "__main__":
             # get the armcam images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
-                results = top_pipeline.process(captured_img.copy(), training=training)
+                results = top_pipeline.process(captured_img.copy(), method='size',  training=training)
                 for key in top_pipeline.colors:  # doing all colors !
                     #targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']

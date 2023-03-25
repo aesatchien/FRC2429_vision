@@ -20,7 +20,7 @@ class GripPipeline:
         self._hsv_threshold_value = [100.8, 255.0]
 
         self._blur_type = BlurType.Median_Filter
-        self._blur_radius = 0.0
+        self._blur_radius = 5
         self.blur_output = None
 
         self._hsv_threshold_input = self.blur_output
@@ -43,8 +43,8 @@ class GripPipeline:
         self._filter_contours_box_fill = [1.0, 100.0]
         self._filter_contours_max_vertices = 1000000
         self._filter_contours_min_vertices = 0
-        self._filter_contours_min_ratio = 0.5
-        self._filter_contours_max_ratio = 1.5
+        self._filter_contours_min_ratio = 0.25
+        self._filter_contours_max_ratio = 2.5
         self.ignore_y = [0, 2000]  # all y is ok
 
         self.filter_contours_output = None

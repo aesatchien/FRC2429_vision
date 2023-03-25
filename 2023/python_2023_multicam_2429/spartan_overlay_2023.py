@@ -27,7 +27,6 @@ class SpartanOverlay(GripPipeline):
         self.colors = colors
         self.color = None
         self.camera = camera
-
         self.image = None
         self.original_image = None
         self.start_time = 0
@@ -51,28 +50,33 @@ class SpartanOverlay(GripPipeline):
     def set_hsv(self):
         home = False
         if self.color == 'purple':  # 2023 purple cubes
-            self._hsv_threshold_hue = [116, 130]  # this is too close to blue...
+            self._hsv_threshold_hue = [118, 131]  # this is too close to blue...
             self._hsv_threshold_value = [60, 255]  # tends to be a bit dark
-            self._hsv_threshold_saturation = [100, 255]
+            self._hsv_threshold_saturation = [90, 255]
             if home:  # values at home
                 self._hsv_threshold_hue = [112, 125]  # this is too close to blue...
                 self._hsv_threshold_saturation = [95, 250]
                 self._hsv_threshold_value = [60, 250]  # tends to be a bit dark
             #self._filter_contours_solidity = [50.0, 100.0]
             #self._filter_contours_box_fill = [50.0, 95.0]
-            self._filter_contours_max_ratio = 5  # 1.5 for cube
-            self._filter_contours_min_ratio = 0.2  # .67 for cube
-            self._filter_contours_min_area = 30.0
+            self._filter_contours_max_ratio = 3  # 1.5 for cube
+            self._filter_contours_min_ratio = 0.33  # .67 for cube
+            self._filter_contours_min_area = 100.0
+            self._filter_contours_min_height = 20
+            self._filter_contours_min_width = 20
             # self._filter_contours_max_height = 60  # resolution dependent
 
         elif self.color == 'yellow':  # 2023 yellow cones
-            self._hsv_threshold_hue = [14, 22]
+            self._hsv_threshold_hue = [11, 22]
             self._hsv_threshold_saturation = [128, 255]
-            self._hsv_threshold_value = [120, 255]
+            self._hsv_threshold_value = [110, 255]
             if home:
                 self._hsv_threshold_hue = [14, 32]
             self._filter_contours_max_ratio = 5  # 2 h/w so still gets a tall cone
             self._filter_contours_min_ratio = 0.2  # 0.5 cone lying down
+            self._filter_contours_min_area = 100.0
+            self._filter_contours_min_height = 10
+            self._filter_contours_min_width = 10
             #self._filter_contours_solidity = [50.0, 100.0]
 
         elif self.color == 'yellow_balls':  # 2020 yellow balls
@@ -101,25 +105,27 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_max_ratio = 2.0
             self._filter_contours_max_height = 60
 
-        elif self.color == 'green':  # vision targets
-            self._hsv_threshold_hue = [78, 90]
+        elif self.color == 'green':  # vision targets for 2023 are small squares
+            self._hsv_threshold_hue = [78, 85]
             # self._hsv_threshold_hue = [80, 87]  # verified with lifecam 20220305 on training images
-            self._hsv_threshold_saturation = [110, 255]  # retroreflectors tough to get low sat so this removes lights
-            self._hsv_threshold_value = [150, 255]
+            self._hsv_threshold_saturation = [110, 254]  # retroreflectors tough to get low sat so this removes lights
+            self._hsv_threshold_value = [150, 254]
             if home:
                 self._hsv_threshold_hue = [68, 99]
                 self._hsv_threshold_saturation = [100, 255]
                 self._hsv_threshold_value = [100, 255]
+                self._filter_contours_min_width = 15
+                self._filter_contours_min_height = 15
             # in 2022 they are long and flat, so w/h >> 1.  small too.  min ratio is .5, max is 6
             # in 2023 they are tall and thin (4in tall) (2in wide?) ratio is w/h
-            self._filter_contours_min_ratio = 0.25
-            self._filter_contours_max_ratio = 1.
-            self._filter_contours_min_area = 10.0
-            self._filter_contours_min_width = 3
-            self._filter_contours_min_height = 3
             if not home:
                 self._filter_contours_max_width = 40
                 self._filter_contours_max_height = 80
+                self._filter_contours_min_area = 10.0
+                self._filter_contours_min_width = 4
+                self._filter_contours_min_height = 4
+                self._filter_contours_min_ratio = 0.25
+                self._filter_contours_max_ratio = 1.5
             #self.ignore_y = [0, 200]  # above or below this we ignore detections
         else:
             print('no valid color provided')
@@ -128,8 +134,7 @@ class SpartanOverlay(GripPipeline):
         x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
         t = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height,
                 x_center - width:x_center + width, :]
-        self.image = cv2.rectangle(self.image, (x_center - width, y_center - height),
-                                           (x_center + width, y_center + height), (255, 255, 255))
+        self.image = cv2.rectangle(self.image, (x_center - width, y_center - height), (x_center + width, y_center + height), (255, 255, 255))
         hue, sat, val = t[:, :, 0],  t[:, :, 1], t[:, :, 2]
         # h,s and v all seem to have zeros show up when saturated?  Replace zeros?
         replace_zeros = True
@@ -141,8 +146,9 @@ class SpartanOverlay(GripPipeline):
         val_mean, val_std = np.median(val), np.std(val)
         stats_width = 3 # 3 gives 99% of the bell curve area
         self.temp_hue = [max(np.floor(hue_mean-10), np.floor(hue_mean - stats_width * hue_std)), min(np.ceil(hue_mean+10), np.ceil(hue_mean + stats_width * hue_std))]
-        self.temp_sat = [min(60, np.floor(sat_mean - stats_width * sat_std)), min(np.ceil(sat_mean + stats_width * 1.5*sat_std), 255)]  # must have some color, but can't be too dark?
-        self.temp_val = [min(60, np.floor(val_mean - stats_width * val_std)), min(np.ceil(val_mean + stats_width * 1.5*val_std), 255)]
+        self.temp_sat = [max(50, min(90, np.floor(sat_mean - stats_width * sat_std))), min(np.ceil(sat_mean + stats_width * 1.5*sat_std), 255)]  # must have some color, but can't be too dark?
+        self.temp_val = [max(50, min(90, np.floor(val_mean - stats_width * val_std))), min(np.ceil(val_mean + stats_width * 1.5*val_std), 255)]
+
         self._hsv_threshold_hue = self.temp_hue
         self._hsv_threshold_saturation = self.temp_sat
         self._hsv_threshold_value = self.temp_val
@@ -156,7 +162,7 @@ class SpartanOverlay(GripPipeline):
         val_std = np.std(self.training_data[:, :, 2])
         hue_msg = f"hue min max mean std: {self.temp_hue[0]:.0f} {self.temp_hue[1]:.0f} {(self.temp_hue[1]+self.temp_hue[0])//2:.0f} {hue_std:.0f}"
         sat_msg = f"sat min max mean std: {self.temp_sat[0]:.0f} {self.temp_sat[1]:.0f}  {(self.temp_sat[1]+self.temp_sat[0])//2:.0f} {sat_std:.0f}"
-        val_msg = f"val min max meanstd : {self.temp_val[0]:.0f} {self.temp_val[1]:.0f}  {(self.temp_val[1]+self.temp_val[0])//2:.0f} {val_std:.0f}"
+        val_msg = f"val min max mean std : {self.temp_val[0]:.0f} {self.temp_val[1]:.0f}  {(self.temp_val[1]+self.temp_val[0])//2:.0f} {val_std:.0f}"
 
         # self.image = cv2.putText(self.image, hue_msg, (x_center, 2 * y_center - 34), 1, 0.9, (0, 255, 200), 1)
         # self.image = cv2.putText(self.image, sat_msg, (x_center, 2 * y_center - 20), 1, 0.9, (0, 255, 200), 1)
@@ -338,16 +344,16 @@ class SpartanOverlay(GripPipeline):
         if self.color != 'green':
             for ix, contour in enumerate(self.filter_contours_output):
                 if ix == 0:
-                    color = (0, 255, 0)  # green for our primary target
+                    color = (0, 255, 0) if self.color =='yellow' else (0, 0, 255) # green / red for our primary target
                     thickness = 2
                 else:
-                    color = (255, 255, 0)  # magenta for the other bogeys
+                    color = (255, 255, 0) if self.color == 'yellow' else (255, 0,  255)  # cyan / magenta for the other bogeys
                     thickness = 1
                 rect = cv2.boundingRect(contour)
                 x, y, w, h = rect
                 # print(rect)
-                if contours:
-                    self.image = cv2.drawContours(self.image, self.filter_contours_output, 0, color, thickness)
+                if contours or self.debug:
+                    self.image = cv2.drawContours(self.image, self.filter_contours_output, ix, color, thickness)
                 else:
                     self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
                                            (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
@@ -355,8 +361,9 @@ class SpartanOverlay(GripPipeline):
                 if self.debug:
                     box_fill, solidity = self.get_solidity(contour)
                     # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-                    self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5,
-                                             (0, 255, 255), 1, 1)
+                    # self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
+                    text_color = (0, 255, 255) if self.color == 'yellow' else (255, 0, 128)
+                    self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x), int(y)), 1, 1.5, text_color, 1, 1)
 
         elif self.color == 'green':
             for ix, contour in enumerate(self.filter_contours_output):
@@ -375,9 +382,8 @@ class SpartanOverlay(GripPipeline):
                 if self.debug:
                     box_fill, solidity = self.get_solidity(contour)
                     # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-                    self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5,
-                                             (0, 255, 255), 1, 1)
-
+                    #self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5, (0, 255, 0), 1, 1)
+                    self.image = cv2.putText(self.image, f'{w:03d},{h:03d}', (int(x), int(y)), 1, 1.5, (0, 255, 0), 1, 1)
 
     def simple_text_overlay(self, location='bottom', show_lines=False):
         """Write our object information to the image"""
@@ -580,14 +586,14 @@ if __name__ == "__main__":
         start_time = time.time()
         end_time = start_time
         pipeline = SpartanOverlay(colors=colors)
-        pipeline.debug = True
+        pipeline.debug = False
         cam = cv2.VideoCapture(usb_port, cv2.CAP_DSHOW)
         np.set_printoptions(precision=1)
         while end_time - start_time < video_seconds:  # take video for x seconds
             count += 1
             s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
             if s > 0:  # Found an image
-                im = cv2.resize(im.copy(), (640, 480), interpolation=cv2.INTER_AREA)
+                im = cv2.resize(im.copy(), (320, 240), interpolation=cv2.INTER_AREA)
                 pipeline.process(image=im, method='size', training=training)
 
                 if pipeline.training:

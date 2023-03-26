@@ -19,8 +19,10 @@ class GripPipeline:
         self._hsv_threshold_saturation = [128.4, 255.0]
         self._hsv_threshold_value = [100.8, 255.0]
 
-        self._blur_type = BlurType.Median_Filter
-        self._blur_radius = 5
+        self._blur_type = BlurType.Gaussian_Blur
+        # Bilateral_Filter (and MedianFilter, about half as much but still a pig) Blur is VERY expensive  - more than drawing and computing HSVs.
+        # Box and Gaussian is way faster.  Plus compression kinda does this for you anyway, so leave at 0 unless testing stuff
+        self._blur_radius = 3
         self.blur_output = None
 
         self._hsv_threshold_input = self.blur_output
@@ -33,11 +35,11 @@ class GripPipeline:
         self.find_contours_output = None
 
         self._filter_contours_contours = self.find_contours_output
-        self._filter_contours_min_area = 80.0
+        self._filter_contours_min_area = 100
         self._filter_contours_min_perimeter = 0.0
-        self._filter_contours_min_width = 8.0
+        self._filter_contours_min_width = 8
         self._filter_contours_max_width = 1000.0
-        self._filter_contours_min_height = 8.0
+        self._filter_contours_min_height = 8
         self._filter_contours_max_height = 1000
         self._filter_contours_solidity = [24.3, 100.0]
         self._filter_contours_box_fill = [1.0, 100.0]

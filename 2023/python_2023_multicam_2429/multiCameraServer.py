@@ -385,7 +385,7 @@ if __name__ == "__main__":
                         top_camera_dict[key]['distance_entry'].set(0)
                         top_camera_dict[key]['strafe_entry'].set(0)
                         top_camera_dict[key]['rotation_entry'].set(0)
-                ntinst.flush()
+                ntinst.flush()  # is this necessary?
 
                 # if we are connected to a robot, get its team color.  default to blue
                 if topcam_success_counter % 30 == 0:  # check every few seconds for a camera selection update

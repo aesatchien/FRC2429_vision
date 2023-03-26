@@ -19,6 +19,7 @@ class SpartanOverlay(GripPipeline):
     def __init__(self, colors=['yellow', 'purple', 'green'], camera='lifecam'):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
+        self.hardcore = True  # if debugging, show even more info on HSV of detected contours
         self.training = False  # mode to reveal object colors for quick training,  need to pass this to process
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
@@ -48,15 +49,11 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def set_hsv(self):
-        home = False
+        home = True
         if self.color == 'purple':  # 2023 purple cubes
             self._hsv_threshold_hue = [118, 131]  # this is too close to blue...
-            self._hsv_threshold_value = [60, 255]  # tends to be a bit dark
+            self._hsv_threshold_value = [90, 255]  # tends to be a bit dark
             self._hsv_threshold_saturation = [90, 255]
-            if home:  # values at home
-                self._hsv_threshold_hue = [112, 125]  # this is too close to blue...
-                self._hsv_threshold_saturation = [95, 250]
-                self._hsv_threshold_value = [60, 250]  # tends to be a bit dark
             #self._filter_contours_solidity = [50.0, 100.0]
             #self._filter_contours_box_fill = [50.0, 95.0]
             self._filter_contours_max_ratio = 3  # 1.5 for cube
@@ -65,6 +62,10 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_min_height = 20
             self._filter_contours_min_width = 20
             # self._filter_contours_max_height = 60  # resolution dependent
+            if home:  # values at home
+                self._hsv_threshold_hue = [118, 123]  # this is too close to blue...
+                self._hsv_threshold_saturation = [125, 210]
+                self._hsv_threshold_value = [60, 240]  # tends to be a bit dark
 
         elif self.color == 'yellow':  # 2023 yellow cones
             self._hsv_threshold_hue = [11, 22]
@@ -72,11 +73,13 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_value = [110, 255]
             if home:
                 self._hsv_threshold_hue = [14, 32]
+                self._hsv_threshold_saturation = [60, 255]
+                self._hsv_threshold_value = [90, 255]
             self._filter_contours_max_ratio = 5  # 2 h/w so still gets a tall cone
             self._filter_contours_min_ratio = 0.2  # 0.5 cone lying down
             self._filter_contours_min_area = 100.0
-            self._filter_contours_min_height = 10
-            self._filter_contours_min_width = 10
+            self._filter_contours_min_height = 20
+            self._filter_contours_min_width = 20
             #self._filter_contours_solidity = [50.0, 100.0]
 
         elif self.color == 'yellow_balls':  # 2020 yellow balls
@@ -112,10 +115,10 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_value = [150, 254]
             if home:
                 self._hsv_threshold_hue = [68, 99]
-                self._hsv_threshold_saturation = [100, 255]
-                self._hsv_threshold_value = [100, 255]
-                self._filter_contours_min_width = 15
-                self._filter_contours_min_height = 15
+                self._hsv_threshold_saturation = [80, 250]
+                self._hsv_threshold_value = [80, 250]
+                self._filter_contours_min_width = 20
+                self._filter_contours_min_height = 20
             # in 2022 they are long and flat, so w/h >> 1.  small too.  min ratio is .5, max is 6
             # in 2023 they are tall and thin (4in tall) (2in wide?) ratio is w/h
             if not home:
@@ -146,8 +149,8 @@ class SpartanOverlay(GripPipeline):
         val_mean, val_std = np.median(val), np.std(val)
         stats_width = 3 # 3 gives 99% of the bell curve area
         self.temp_hue = [max(np.floor(hue_mean-10), np.floor(hue_mean - stats_width * hue_std)), min(np.ceil(hue_mean+10), np.ceil(hue_mean + stats_width * hue_std))]
-        self.temp_sat = [max(50, min(90, np.floor(sat_mean - stats_width * sat_std))), min(np.ceil(sat_mean + stats_width * 1.5*sat_std), 255)]  # must have some color, but can't be too dark?
-        self.temp_val = [max(50, min(90, np.floor(val_mean - stats_width * val_std))), min(np.ceil(val_mean + stats_width * 1.5*val_std), 255)]
+        self.temp_sat = [max(50, min(90, np.floor(sat_mean - stats_width * sat_std))), min(np.ceil(sat_mean + stats_width * sat_std), 255)]  # must have some color, but can't be too dark?
+        self.temp_val = [max(50, min(90, np.floor(val_mean - stats_width * val_std))), min(np.ceil(val_mean + stats_width * val_std), 255)]
 
         self._hsv_threshold_hue = self.temp_hue
         self._hsv_threshold_saturation = self.temp_sat
@@ -173,7 +176,7 @@ class SpartanOverlay(GripPipeline):
         self.image = cv2.putText(self.image, sat_msg, (2, 21), 1, 0.8, (0, 255, 200), 1)
         self.image = cv2.putText(self.image, val_msg, (2, 32), 1, 0.8, (0, 255, 200), 1)
 
-    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False):
+    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False, skip_overlay=False):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -183,21 +186,26 @@ class SpartanOverlay(GripPipeline):
            """
 
         self.training = training  # boolean to see of we switch to training mode
+        # self.debug = True if self.training else False  # do I really want to limit it like this ?
+
         self.start_time = time.time()
         self.image = image
         self.original_image = image.copy()  # expensive, but if we need it later
         self.y_resolution, self.x_resolution, self.channels = self.image.shape
 
-        for color in self.colors:
+        for idx, color in enumerate(self.colors):
             self.color = color
-            if self.training:
-                self.get_center_hsv()
-            elif reset_hsv:
-                self.set_hsv()  # otherwise this does not allow us to pass in or set the hsv externally
-
             self.results.update({color: {'targets': 0, 'previous_targets': self.results[color]['targets'], 'distances': [],
                                         'strafes': [], 'heights': [], 'rotations':[], 'contours':[]}})
             self.contours.update({color: {'contours': []}})
+
+            if self.training and idx==0:
+                self.get_center_hsv()
+            elif self.training and idx>0:
+                continue
+            elif reset_hsv:
+                self.set_hsv()  # otherwise this does not allow us to pass in or set the hsv externally
+
             # maybe be I should rename this as not overloading the parent, it's not pythonic
             super(self.__class__, self).process(self.original_image)
             # update targets for a given color
@@ -211,21 +219,23 @@ class SpartanOverlay(GripPipeline):
                 self.get_target_attributes()  # updates self.results
 
         targets_found = [self.results[c]['targets'] > 0 for c in self.colors]
-        if any(targets_found):
-            for color in self.colors:
-                if draw_overlay:
-                    self.color = color
-                    self.filter_contours_output = self.contours[self.color]['contours']
-                    self.overlay_bounding_boxes()  # needs to know the color
-        else:
-            pass
 
-        if len(self.colors) != 1:
-            self.simple_text_overlay()  # designed for multiple colors
-        else:
-            self.overlay_text()
-        if self.training:
-            self.overlay_color_stats()
+        if not skip_overlay:  # how much time does this cost us, esp since nobody looks anyway?  Seems like it's not the bottleneck
+            if any(targets_found):
+                for color in self.colors:
+                    if draw_overlay:
+                        self.color = color
+                        self.filter_contours_output = self.contours[self.color]['contours']
+                        self.overlay_bounding_boxes()  # needs to know the color
+            else:
+                pass
+
+            if len(self.colors) != 1:
+                self.simple_text_overlay()  # designed for multiple colors
+            else:
+                self.overlay_text()
+            if self.training:
+                self.overlay_color_stats()
 
         return self.results
 
@@ -341,49 +351,45 @@ class SpartanOverlay(GripPipeline):
 
     def overlay_bounding_boxes(self, contours=False):
         """Draw a box around all of our contours with the main one emphasized"""
-        if self.color != 'green':
-            for ix, contour in enumerate(self.filter_contours_output):
-                if ix == 0:
-                    color = (0, 255, 0) if self.color =='yellow' else (0, 0, 255) # green / red for our primary target
-                    thickness = 2
+
+        for ix, contour in enumerate(self.filter_contours_output):
+            primary_colors = {'yellow': (0, 255, 0), 'purple':(0, 0, 255), 'green':(255, 255, 255)}
+            secondary_colors = {'yellow': (255, 255, 0), 'purple':(255, 0, 255), 'green':(255, 255, 255)}
+            text_colors = {'yellow': (0, 255, 255), 'purple':(255, 255, 0), 'green':(255, 255, 255)}
+            if ix == 0:
+                box_color = primary_colors[self.color] if self.color in primary_colors.keys() else (255, 255, 127)
+                thickness = 2
+            else:
+                box_color = secondary_colors[self.color] if self.color in secondary_colors.keys() else (255, 255, 127)
+                thickness = 1  # maybe make thicker for green?
+            rect = cv2.boundingRect(contour)
+            x, y, w, h = rect
+            # print(rect)
+            if contours or self.debug:
+                self.image = cv2.drawContours(self.image, self.filter_contours_output, ix, box_color, thickness)
+            else:
+                self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
+                                       (int(rect[0] + rect[2]), int(rect[1] + rect[3])), box_color, thickness)
+            # test fill percent and solidity
+            if self.debug:
+                box_fill, solidity = self.get_solidity(contour)
+                # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
+                # self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
+                text_color = text_colors[self.color] if self.color in text_colors.keys() else (255, 255, 127)
+
+                if self.hardcore:
+                    mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
+                    mask = cv2.drawContours(mask, self.filter_contours_output, ix, (0, 0, 0), -1)  # False (zero) inside the contour
+                    mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=3)  # have to cut off the edges a bit (grow the True region)
+                    t = np.ma.masked_where(mask == 1, cv2.cvtColor(self.original_image, cv2.COLOR_BGR2HSV))  # data is valid if mask is False
+                    hue = t[:, :, 0].compressed().mean();
+                    sat = t[:, :, 1].compressed().mean();
+                    val = t[:, :, 2].compressed().mean();  # don't want messages about masked format strings
+                    self.image = cv2.putText(self.image, f'{hue:.0f},{sat:.0f},{val:.0f}', (int(x), int(y)), 1, 1, text_color, 1, 1)
+                    self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x), min(self.y_resolution, int(y+h+10))), 1, 1, text_color, 1, 1)
                 else:
-                    color = (255, 255, 0) if self.color == 'yellow' else (255, 0,  255)  # cyan / magenta for the other bogeys
-                    thickness = 1
-                rect = cv2.boundingRect(contour)
-                x, y, w, h = rect
-                # print(rect)
-                if contours or self.debug:
-                    self.image = cv2.drawContours(self.image, self.filter_contours_output, ix, color, thickness)
-                else:
-                    self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
-                                           (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
-                # test fill percent and solidity
-                if self.debug:
-                    box_fill, solidity = self.get_solidity(contour)
-                    # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-                    # self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-                    text_color = (0, 255, 255) if self.color == 'yellow' else (255, 0, 128)
                     self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x), int(y)), 1, 1.5, text_color, 1, 1)
 
-        elif self.color == 'green':
-            for ix, contour in enumerate(self.filter_contours_output):
-                if ix == 0:
-                    color = (0, 0, 255)  # red for our primary target
-                    thickness = 2
-                else:
-                    color = (0, 255, 255)  # yellow for the other bogeys
-                    thickness = 2
-
-                rect = cv2.boundingRect(contour)
-                x, y, w, h = rect
-                # print(rect)
-                self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
-                                           (int(rect[0] + rect[2]), int(rect[1] + rect[3])), color, thickness)
-                if self.debug:
-                    box_fill, solidity = self.get_solidity(contour)
-                    # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-                    #self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5, (0, 255, 0), 1, 1)
-                    self.image = cv2.putText(self.image, f'{w:03d},{h:03d}', (int(x), int(y)), 1, 1.5, (0, 255, 0), 1, 1)
 
     def simple_text_overlay(self, location='bottom', show_lines=False):
         """Write our object information to the image"""

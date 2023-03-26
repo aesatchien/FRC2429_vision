@@ -49,21 +49,21 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def set_hsv(self):
-        home = True
+        home = False
         if self.color == 'purple':  # 2023 purple cubes
             self._hsv_threshold_hue = [118, 131]  # this is too close to blue...
             self._hsv_threshold_value = [90, 255]  # tends to be a bit dark
             self._hsv_threshold_saturation = [90, 255]
             #self._filter_contours_solidity = [50.0, 100.0]
             #self._filter_contours_box_fill = [50.0, 95.0]
-            self._filter_contours_max_ratio = 3  # 1.5 for cube
-            self._filter_contours_min_ratio = 0.33  # .67 for cube
+            self._filter_contours_max_ratio = 1.5  # 1.5 for cube - need to cut false positives
+            self._filter_contours_min_ratio = 0.67  # .67 for cube
             self._filter_contours_min_area = 100.0
             self._filter_contours_min_height = 20
             self._filter_contours_min_width = 20
             # self._filter_contours_max_height = 60  # resolution dependent
             if home:  # values at home
-                self._hsv_threshold_hue = [118, 123]  # this is too close to blue...
+                self._hsv_threshold_hue = [118, 123]  # this is too close to blue... and shadowy carpet, i guess
                 self._hsv_threshold_saturation = [125, 210]
                 self._hsv_threshold_value = [60, 240]  # tends to be a bit dark
 
@@ -72,7 +72,7 @@ class SpartanOverlay(GripPipeline):
             self._hsv_threshold_saturation = [128, 255]
             self._hsv_threshold_value = [110, 255]
             if home:
-                self._hsv_threshold_hue = [14, 32]
+                self._hsv_threshold_hue = [11, 28]
                 self._hsv_threshold_saturation = [60, 255]
                 self._hsv_threshold_value = [90, 255]
             self._filter_contours_max_ratio = 5  # 2 h/w so still gets a tall cone
@@ -148,7 +148,7 @@ class SpartanOverlay(GripPipeline):
         sat_mean, sat_std = np.median(sat), np.std(sat)
         val_mean, val_std = np.median(val), np.std(val)
         stats_width = 3 # 3 gives 99% of the bell curve area
-        self.temp_hue = [max(np.floor(hue_mean-10), np.floor(hue_mean - stats_width * hue_std)), min(np.ceil(hue_mean+10), np.ceil(hue_mean + stats_width * hue_std))]
+        self.temp_hue = [max(np.floor(hue_mean-3), np.floor(hue_mean - stats_width * hue_std)), min(np.ceil(hue_mean+3), np.ceil(hue_mean + stats_width * hue_std))]
         self.temp_sat = [max(50, min(90, np.floor(sat_mean - stats_width * sat_std))), min(np.ceil(sat_mean + stats_width * sat_std), 255)]  # must have some color, but can't be too dark?
         self.temp_val = [max(50, min(90, np.floor(val_mean - stats_width * val_std))), min(np.ceil(val_mean + stats_width * val_std), 255)]
 

@@ -21,6 +21,8 @@ class SpartanOverlay(GripPipeline):
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
         self.training = False  # mode to reveal object colors for quick training,  need to pass this to process
+        self.replace_zeros = True  # seems like purple in particular is susceptible to getting zeros in the image
+        # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
         # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it? Need color-specific stuff though
@@ -49,37 +51,43 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def set_hsv(self):
+        # do not change a value in one color that is not changed in another - so should make this a dictionary to clean
         home = False
         if self.color == 'purple':  # 2023 purple cubes
-            self._hsv_threshold_hue = [118, 131]  # this is too close to blue...
-            self._hsv_threshold_value = [90, 255]  # tends to be a bit dark
-            self._hsv_threshold_saturation = [90, 255]
+            self._hsv_threshold_hue = [117, 126]  # this is too close to blue...
+            self._hsv_threshold_saturation = [110, 255]
+            self._hsv_threshold_value = [130, 255]  # tends to be a bit dark
+            self._blur_radius = 3  # do i need to blur more or less?  i hate purple
             #self._filter_contours_solidity = [50.0, 100.0]
             #self._filter_contours_box_fill = [50.0, 95.0]
-            self._filter_contours_max_ratio = 1.5  # 1.5 for cube - need to cut false positives
-            self._filter_contours_min_ratio = 0.67  # .67 for cube
+            self._filter_contours_max_ratio = 2  # 1.5 for cube - need to cut false positives
+            self._filter_contours_min_ratio = 0.5  # .67 for cube
             self._filter_contours_min_area = 100.0
-            self._filter_contours_min_height = 20
-            self._filter_contours_min_width = 20
+            self._filter_contours_min_height = 12
+            self._filter_contours_min_width = 12
+            self._filter_contours_max_width = 200
+            self._filter_contours_max_height = 200
             # self._filter_contours_max_height = 60  # resolution dependent
             if home:  # values at home
                 self._hsv_threshold_hue = [118, 123]  # this is too close to blue... and shadowy carpet, i guess
                 self._hsv_threshold_saturation = [125, 210]
-                self._hsv_threshold_value = [60, 240]  # tends to be a bit dark
+                self._hsv_threshold_value = [130, 255]  # tends to be a bit dark
 
         elif self.color == 'yellow':  # 2023 yellow cones
-            self._hsv_threshold_hue = [11, 22]
+            self._hsv_threshold_hue = [11, 26]
             self._hsv_threshold_saturation = [128, 255]
             self._hsv_threshold_value = [110, 255]
             if home:
                 self._hsv_threshold_hue = [11, 28]
-                self._hsv_threshold_saturation = [60, 255]
+                self._hsv_threshold_saturation = [90, 255]
                 self._hsv_threshold_value = [90, 255]
             self._filter_contours_max_ratio = 5  # 2 h/w so still gets a tall cone
             self._filter_contours_min_ratio = 0.2  # 0.5 cone lying down
             self._filter_contours_min_area = 100.0
-            self._filter_contours_min_height = 20
-            self._filter_contours_min_width = 20
+            self._filter_contours_min_height = 12
+            self._filter_contours_min_width = 12
+            self._filter_contours_max_width = 200
+            self._filter_contours_max_height = 200
             #self._filter_contours_solidity = [50.0, 100.0]
 
         elif self.color == 'yellow_balls':  # 2020 yellow balls
@@ -113,17 +121,16 @@ class SpartanOverlay(GripPipeline):
             # self._hsv_threshold_hue = [80, 87]  # verified with lifecam 20220305 on training images
             self._hsv_threshold_saturation = [110, 254]  # retroreflectors tough to get low sat so this removes lights
             self._hsv_threshold_value = [150, 254]
-            if home:
+            if home:  # should not make green special here - will cause problems
                 self._hsv_threshold_hue = [68, 99]
                 self._hsv_threshold_saturation = [80, 250]
                 self._hsv_threshold_value = [80, 250]
                 self._filter_contours_min_width = 20
                 self._filter_contours_min_height = 20
+                self._filter_contours_max_width = 80
+                self._filter_contours_max_height = 80
             # in 2022 they are long and flat, so w/h >> 1.  small too.  min ratio is .5, max is 6
             # in 2023 they are tall and thin (4in tall) (2in wide?) ratio is w/h
-            if not home:
-                self._filter_contours_max_width = 40
-                self._filter_contours_max_height = 80
                 self._filter_contours_min_area = 10.0
                 self._filter_contours_min_width = 4
                 self._filter_contours_min_height = 4
@@ -140,17 +147,17 @@ class SpartanOverlay(GripPipeline):
         self.image = cv2.rectangle(self.image, (x_center - width, y_center - height), (x_center + width, y_center + height), (255, 255, 255))
         hue, sat, val = t[:, :, 0],  t[:, :, 1], t[:, :, 2]
         # h,s and v all seem to have zeros show up when saturated?  Replace zeros?
-        replace_zeros = True
-        if replace_zeros:
+
+        if self.replace_zeros:  # i think this kills saturated pixels well
             for channel in [hue, sat, val]:
                 channel[channel == 0] = np.median(channel[channel > 0])
         hue_mean, hue_std = np.median(hue), np.std(hue)  # median works better
         sat_mean, sat_std = np.median(sat), np.std(sat)
         val_mean, val_std = np.median(val), np.std(val)
-        stats_width = 3 # 3 gives 99% of the bell curve area
+        stats_width = 2 # 3 gives 99% of the bell curve area
         self.temp_hue = [max(np.floor(hue_mean-3), np.floor(hue_mean - stats_width * hue_std)), min(np.ceil(hue_mean+3), np.ceil(hue_mean + stats_width * hue_std))]
-        self.temp_sat = [max(50, min(90, np.floor(sat_mean - stats_width * sat_std))), min(np.ceil(sat_mean + stats_width * sat_std), 255)]  # must have some color, but can't be too dark?
-        self.temp_val = [max(50, min(90, np.floor(val_mean - stats_width * val_std))), min(np.ceil(val_mean + stats_width * val_std), 255)]
+        self.temp_sat = [max(50, min(100, np.floor(sat_mean - stats_width * sat_std))), min(np.ceil(sat_mean + stats_width * sat_std), 255)]  # must have some color, but can't be too dark?
+        self.temp_val = [max(50, min(100, np.floor(val_mean - stats_width * val_std))), min(np.ceil(val_mean + stats_width * val_std), 255)]
 
         self._hsv_threshold_hue = self.temp_hue
         self._hsv_threshold_saturation = self.temp_sat
@@ -176,7 +183,7 @@ class SpartanOverlay(GripPipeline):
         self.image = cv2.putText(self.image, sat_msg, (2, 21), 1, 0.8, (0, 255, 200), 1)
         self.image = cv2.putText(self.image, val_msg, (2, 32), 1, 0.8, (0, 255, 200), 1)
 
-    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False, skip_overlay=False):
+    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False, skip_overlay=False, debug=False):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -186,8 +193,7 @@ class SpartanOverlay(GripPipeline):
            """
 
         self.training = training  # boolean to see of we switch to training mode
-        # self.debug = True if self.training else False  # do I really want to limit it like this ?
-
+        self.debug = debug
         self.start_time = time.time()
         self.image = image
         self.original_image = image.copy()  # expensive, but if we need it later
@@ -365,13 +371,13 @@ class SpartanOverlay(GripPipeline):
             rect = cv2.boundingRect(contour)
             x, y, w, h = rect
             # print(rect)
-            if contours or self.debug:
+            if contours or self.debug or self.training:
                 self.image = cv2.drawContours(self.image, self.filter_contours_output, ix, box_color, thickness)
             else:
                 self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
                                        (int(rect[0] + rect[2]), int(rect[1] + rect[3])), box_color, thickness)
             # test fill percent and solidity
-            if self.debug:
+            if self.debug or self.training:
                 box_fill, solidity = self.get_solidity(contour)
                 # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
                 # self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)

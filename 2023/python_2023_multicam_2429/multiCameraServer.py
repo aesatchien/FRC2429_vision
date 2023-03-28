@@ -301,6 +301,10 @@ if __name__ == "__main__":
     training_topic_publisher.set(False)
     training_topic_subscriber = top_table.getBooleanTopic('training').subscribe(False)
 
+    debug_topic_publisher = top_table.getBooleanTopic('debug').publish()  # is it really this annoying?
+    debug_topic_publisher.set(False)
+    debug_topic_subscriber = top_table.getBooleanTopic('debug').subscribe(False)
+
     training_color = top_table.getStringTopic('training_color').publish()
     top_frames = top_table.getDoubleTopic('frames').publish()
     top_colors = top_table.getStringArrayTopic('colors').publish()
@@ -366,13 +370,14 @@ if __name__ == "__main__":
 
 
     training = False  # for pipeline.process - are we in training mode
+    debug = False # for pipeline process - do we want to see contours
     while True and failure_counter < 100:
 
         if len(cameras) >= 1:
             # get the armcam images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
-                results = top_pipeline.process(captured_img.copy(), method='size',  training=training)
+                results = top_pipeline.process(captured_img.copy(), method='size',  training=training, debug=debug)
                 for key in top_pipeline.colors:  # doing all colors !
                     #targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']
@@ -390,6 +395,7 @@ if __name__ == "__main__":
                 # if we are connected to a robot, get its team color.  default to blue
                 if topcam_success_counter % 30 == 0:  # check every few seconds for a camera selection update
                     training = training_topic_subscriber.get()  # update if the dash has selected training mode
+                    debug = debug_topic_subscriber.get()
                     top_frames.set(topcam_success_counter)
                     if ntinst.getTable('SmartDashboard').getEntry('StationNumber').getInteger(0) == 1:
                         pass

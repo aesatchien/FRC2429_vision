@@ -74,7 +74,7 @@ class SpartanOverlay(GripPipeline):
                 self._hsv_threshold_value = [130, 255]  # tends to be a bit dark
 
         elif self.color == 'yellow':  # 2023 yellow cones
-            self._hsv_threshold_hue = [11, 26]
+            self._hsv_threshold_hue = [14, 21]
             self._hsv_threshold_saturation = [128, 255]
             self._hsv_threshold_value = [110, 255]
             if home:
@@ -84,8 +84,8 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_max_ratio = 5  # 2 h/w so still gets a tall cone
             self._filter_contours_min_ratio = 0.2  # 0.5 cone lying down
             self._filter_contours_min_area = 100.0
-            self._filter_contours_min_height = 12
-            self._filter_contours_min_width = 12
+            self._filter_contours_min_height = 15
+            self._filter_contours_min_width = 15
             self._filter_contours_max_width = 200
             self._filter_contours_max_height = 200
             #self._filter_contours_solidity = [50.0, 100.0]
@@ -117,10 +117,15 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_max_height = 60
 
         elif self.color == 'green':  # vision targets for 2023 are small squares
-            self._hsv_threshold_hue = [78, 85]
+            self._hsv_threshold_hue = [80, 88]
             # self._hsv_threshold_hue = [80, 87]  # verified with lifecam 20220305 on training images
             self._hsv_threshold_saturation = [110, 254]  # retroreflectors tough to get low sat so this removes lights
             self._hsv_threshold_value = [150, 254]
+            self._filter_contours_min_width = 5
+            self._filter_contours_min_height = 5
+            self._filter_contours_min_ratio = 0.2
+            self._filter_contours_max_ratio = 3
+
             if home:  # should not make green special here - will cause problems
                 self._hsv_threshold_hue = [68, 99]
                 self._hsv_threshold_saturation = [80, 250]
@@ -131,16 +136,13 @@ class SpartanOverlay(GripPipeline):
                 self._filter_contours_max_height = 80
             # in 2022 they are long and flat, so w/h >> 1.  small too.  min ratio is .5, max is 6
             # in 2023 they are tall and thin (4in tall) (2in wide?) ratio is w/h
-                self._filter_contours_min_area = 10.0
-                self._filter_contours_min_width = 4
-                self._filter_contours_min_height = 4
-                self._filter_contours_min_ratio = 0.25
-                self._filter_contours_max_ratio = 1.5
+                #self._filter_contours_min_area = 10.0
+
             #self.ignore_y = [0, 200]  # above or below this we ignore detections
         else:
             print('no valid color provided')
 
-    def get_center_hsv(self, width=20, height=20):  # attempt to train hsv detector with center objects
+    def get_center_hsv(self, width=5, height=10):  # attempt to train hsv detector with center objects
         x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
         t = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height,
                 x_center - width:x_center + width, :]

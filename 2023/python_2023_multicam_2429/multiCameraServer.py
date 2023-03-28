@@ -277,7 +277,7 @@ if __name__ == "__main__":
         vm = cameras[ix].getVideoMode()
         x_resolution = vm.width
         y_resolution = vm.height
-        stream_fps = 30
+        stream_fps = 20
         image_source[ix] = CvSource(f"{stream_labels[ix]} CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
         # start a stream
         cvStream[ix] = MjpegServer(f"{stream_labels[ix]} CV Image Stream", processed_ports[ix])

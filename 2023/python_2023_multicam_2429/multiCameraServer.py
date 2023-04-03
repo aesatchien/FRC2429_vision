@@ -309,7 +309,7 @@ if __name__ == "__main__":
     top_frames = top_table.getDoubleTopic('frames').publish()
     top_colors = top_table.getStringArrayTopic('colors').publish()
     # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
-    top_camera_dict = {'yellow': {}, 'purple': {}, 'green': {}}  # the colors we need to check for
+    top_camera_dict = {'yellow': {}, 'purple': {}, 'green': {}, 'tags': {}}  # the colors we need to check for
     bottom_camera_dict = {'yellow': {}, 'purple': {}}
     # set up network tables and pipelines, one for each color
     for key in top_camera_dict.keys():
@@ -324,7 +324,8 @@ if __name__ == "__main__":
         bottom_camera_dict[key].update({'strafe_entry': ground_table.getDoubleTopic(f"/{key}/strafe").publish()})
     ntinst.flush()
     # set up a pipeline for each camera
-    top_pipeline = SpartanOverlay(colors=list(top_camera_dict.keys()), camera='lifecam')
+    actual_colors = [key for key in top_camera_dict.keys() if key!='tags']
+    top_pipeline = SpartanOverlay(colors=actual_colors, camera='lifecam')
     bottom_pipeline = SpartanOverlay(colors=list(bottom_camera_dict.keys()), camera='lifecam')
     top_colors.set(top_pipeline.colors)  # announce to NT that we have the right colors
 
@@ -378,7 +379,7 @@ if __name__ == "__main__":
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
                 results = top_pipeline.process(captured_img.copy(), method='size',  training=training, debug=debug)
-                for key in top_pipeline.colors:  # doing all colors !
+                for key in top_camera_dict.keys():  # doing all colors and tags !
                     #targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']
                     top_camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner

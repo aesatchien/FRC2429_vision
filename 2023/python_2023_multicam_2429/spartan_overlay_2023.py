@@ -8,6 +8,7 @@ import math
 import cv2
 import numpy as np
 from grip import GripPipeline  # put your GRIP generated grip.py in the same folder - this is our parent class
+import robotpy_apriltag as ra
 
 from ntcore import NetworkTableInstance
 from ntcore import NetworkTable
@@ -36,6 +37,13 @@ class SpartanOverlay(GripPipeline):
         self.end_time = 0
         self.camera_shift = 0
 
+        # set up an apriltag detector
+        self.detector = ra.AprilTagDetector()
+        self.detector.addFamily('tag16h5')
+        # need to calculate this based on camera and resolution
+        self.estimator = ra.AprilTagPoseEstimator(
+            ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
+
         # define what we send back at the end of the pipeline
         self.results = {}  # new in 2023
         self.contours = {}
@@ -49,6 +57,28 @@ class SpartanOverlay(GripPipeline):
         self.strafe_to_target = 0
         self.height = 0
         self.rotation_to_target = 0
+
+    def find_apriltags(self, draw_tags=True, decision_margin=10):
+        self.results.update({'tags': {'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
+        grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
+        tags = self.detector.detect(grey_image)
+        tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
+        poses = [self.estimator.estimate(tag) for tag in tags]
+        # todo - sort tags based on distance from center?
+        tag_count = len(tags)
+        distances = [pose.z for pose in poses]
+        strafes = [pose.x for pose in poses]
+        rotations = [pose.rotation().y_degrees for pose in poses]
+        self.results.update({'tags': {'targets': tag_count, 'distances': distances, 'strafes': strafes, 'rotations': rotations}})
+
+        if draw_tags:
+            for idy, tag in enumerate(tags):
+                color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors
+                center = tag.getCenter()
+                center = [int(center.x), int(center.y)]
+                self.image = cv2.putText(self.image, f'{tag.getId():2d}', center, cv2.FONT_HERSHEY_SIMPLEX, 1, color,2)
+                corners = np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.int32)
+                self.image = cv2.polylines(self.image, [corners], isClosed=True, color=color, thickness=2)
 
     def set_hsv(self):
         # do not change a value in one color that is not changed in another - so should make this a dictionary to clean
@@ -185,7 +215,8 @@ class SpartanOverlay(GripPipeline):
         self.image = cv2.putText(self.image, sat_msg, (2, 21), 1, 0.8, (0, 255, 200), 1)
         self.image = cv2.putText(self.image, val_msg, (2, 32), 1, 0.8, (0, 255, 200), 1)
 
-    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False, skip_overlay=False, debug=False):
+    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
+                skip_overlay=False, debug=False, find_tags=True):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -227,6 +258,11 @@ class SpartanOverlay(GripPipeline):
                 self.get_target_attributes()  # updates self.results
 
         targets_found = [self.results[c]['targets'] > 0 for c in self.colors]
+
+        if find_tags:
+            self.find_apriltags(draw_tags=draw_overlay)
+
+        targets_found.append(self.results['tags']['targets'] > 0)  # append the apriltag search results
 
         if not skip_overlay:  # how much time does this cost us, esp since nobody looks anyway?  Seems like it's not the bottleneck
             if any(targets_found):
@@ -424,6 +460,8 @@ class SpartanOverlay(GripPipeline):
         for idx, color in enumerate(self.colors):
             targets = self.results[color]['targets']
             target_count_message = target_count_message + f'{color[0].upper()}:{targets} '
+        target_count_message = target_count_message + f'T:{self.results["tags"]["targets"]} '
+
         cv2.putText(self.image, target_count_message, target_area_text_location, 1, 0.9, target_text_color, 1)
 
         self.end_time = time.time()

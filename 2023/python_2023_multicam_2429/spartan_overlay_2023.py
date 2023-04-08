@@ -76,9 +76,9 @@ class SpartanOverlay(GripPipeline):
                 color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors
                 center = tag.getCenter()
                 center = [int(center.x), int(center.y)]
-                self.image = cv2.putText(self.image, f'{tag.getId():2d}', center, cv2.FONT_HERSHEY_SIMPLEX, 1, color,2)
                 corners = np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.int32)
                 self.image = cv2.polylines(self.image, [corners], isClosed=True, color=color, thickness=2)
+                self.image = cv2.putText(self.image, f'{tag.getId():2d}', center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     def set_hsv(self):
         # do not change a value in one color that is not changed in another - so should make this a dictionary to clean

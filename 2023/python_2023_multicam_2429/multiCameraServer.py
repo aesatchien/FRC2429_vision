@@ -313,15 +313,15 @@ if __name__ == "__main__":
     bottom_camera_dict = {'yellow': {}, 'purple': {}}
     # set up network tables and pipelines, one for each color
     for key in top_camera_dict.keys():
-        top_camera_dict[key].update({'targets_entry': top_table.getDoubleTopic(f"/{key}/targets").publish()})
-        top_camera_dict[key].update({'distance_entry': top_table.getDoubleTopic(f"/{key}/distance").publish()})
-        top_camera_dict[key].update({'rotation_entry': top_table.getDoubleTopic(f"/{key}/rotation").publish()})
-        top_camera_dict[key].update({'strafe_entry': top_table.getDoubleTopic(f"/{key}/strafe").publish()})
+        top_camera_dict[key].update({'targets_entry': top_table.getDoubleTopic(f"{key}/targets").publish()})
+        top_camera_dict[key].update({'distance_entry': top_table.getDoubleTopic(f"{key}/distance").publish()})
+        top_camera_dict[key].update({'rotation_entry': top_table.getDoubleTopic(f"{key}/rotation").publish()})
+        top_camera_dict[key].update({'strafe_entry': top_table.getDoubleTopic(f"{key}/strafe").publish()})
     for key in bottom_camera_dict.keys():
-        bottom_camera_dict[key].update({'targets_entry': ground_table.getDoubleTopic(f"/{key}/targets").publish()})
-        bottom_camera_dict[key].update({'distance_entry': ground_table.getDoubleTopic(f"/{key}/distance").publish()})
-        bottom_camera_dict[key].update({'rotation_entry': ground_table.getDoubleTopic(f"/{key}/rotation").publish()})
-        bottom_camera_dict[key].update({'strafe_entry': ground_table.getDoubleTopic(f"/{key}/strafe").publish()})
+        bottom_camera_dict[key].update({'targets_entry': ground_table.getDoubleTopic(f"{key}/targets").publish()})
+        bottom_camera_dict[key].update({'distance_entry': ground_table.getDoubleTopic(f"{key}/distance").publish()})
+        bottom_camera_dict[key].update({'rotation_entry': ground_table.getDoubleTopic(f"{key}/rotation").publish()})
+        bottom_camera_dict[key].update({'strafe_entry': ground_table.getDoubleTopic(f"{key}/strafe").publish()})
     ntinst.flush()
     # set up a pipeline for each camera
     actual_colors = [key for key in top_camera_dict.keys() if key!='tags']

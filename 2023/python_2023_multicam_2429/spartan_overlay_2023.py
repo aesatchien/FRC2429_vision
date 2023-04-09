@@ -41,8 +41,12 @@ class SpartanOverlay(GripPipeline):
         self.detector = ra.AprilTagDetector()
         self.detector.addFamily('tag16h5')
         # need to calculate this based on camera and resolution
-        self.estimator = ra.AprilTagPoseEstimator(
-            ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
+        if self.camera == 'lifecam':
+            self.estimator = ra.AprilTagPoseEstimator(
+                ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
+        else:
+            self.estimator = ra.AprilTagPoseEstimator(
+                ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=114.3, fy=135.9, cx=352/2, cy=288/2))  # 6 inches is 0.15m
 
         # define what we send back at the end of the pipeline
         self.results = {}  # new in 2023
@@ -361,7 +365,7 @@ class SpartanOverlay(GripPipeline):
             camera_fov = 55  # Lifecam 320x240
         elif self.camera == 'geniuscam':
             camera_fov = 118  # Genius 120 352x288
-            self.camera_shift = 14  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
+            self.camera_shift = 0 # 14  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
         elif self.camera == 'c270':
             camera_fov = 59  # Logitech C290 432x240
         elif self.camera == 'elp100':

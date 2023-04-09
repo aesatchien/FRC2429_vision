@@ -310,7 +310,7 @@ if __name__ == "__main__":
     top_colors = top_table.getStringArrayTopic('colors').publish()
     # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
     top_camera_dict = {'yellow': {}, 'purple': {}, 'green': {}, 'tags': {}}  # the colors we need to check for
-    bottom_camera_dict = {'yellow': {}, 'purple': {}}
+    bottom_camera_dict = {'yellow': {}, 'purple': {}, 'tags':{}}
     # set up network tables and pipelines, one for each color
     for key in top_camera_dict.keys():
         top_camera_dict[key].update({'targets_entry': top_table.getDoubleTopic(f"{key}/targets").publish()})
@@ -326,7 +326,7 @@ if __name__ == "__main__":
     # set up a pipeline for each camera
     actual_colors = [key for key in top_camera_dict.keys() if key!='tags']
     top_pipeline = SpartanOverlay(colors=actual_colors, camera='lifecam')
-    bottom_pipeline = SpartanOverlay(colors=list(bottom_camera_dict.keys()), camera='lifecam')
+    bottom_pipeline = SpartanOverlay(colors=list(bottom_camera_dict.keys()), camera='geniuscam')
     top_colors.set(top_pipeline.colors)  # announce to NT that we have the right colors
 
     cs = CameraServer #  .getInstance()  # already taken care of above, but if i comment it out above this is necessary
@@ -363,11 +363,16 @@ if __name__ == "__main__":
         except Exception as e:
             pass
 
-    bright_list = [item.config["brightness"] for item in cameraConfigs]
-    cameras[0].setBrightness(bright_list[0]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
-    time.sleep(0.25)
-    print(f'Resetting brightness on cam 0 to {bright_list[0]}')
-    cameras[0].setBrightness(bright_list[0])
+    # seems to only work with one camera
+    one_camera = False  # better to do with length of camera configs?
+    if one_camera:
+        bright_list = [item.config["brightness"] for item in cameraConfigs]
+        cameras[0].setBrightness(bright_list[0]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
+        time.sleep(0.25)
+        print(f'Resetting brightness on cam 0 to {bright_list[0]}')
+        cameras[0].setBrightness(bright_list[0])
+    else:
+        pass
 
 
     training = False  # for pipeline.process - are we in training mode
@@ -418,7 +423,7 @@ if __name__ == "__main__":
                 previous_groundcam_counts = groundcam_success_counter
                 previous_time = now
 
-        process_bottom_cam = False  # do we want to recognize targets on the bottom camera?
+        process_bottom_cam = True  # do we want to recognize targets on the bottom camera?
         if len(cameras) >= 2:
             # get the shooter target images - green stuff
             image_time, captured_img2 = sink_2.grabFrame(img2)  # default time out is about 4 FPS

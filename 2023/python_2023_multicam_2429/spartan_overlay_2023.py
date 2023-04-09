@@ -45,8 +45,10 @@ class SpartanOverlay(GripPipeline):
             self.estimator = ra.AprilTagPoseEstimator(
                 ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
         else:
+            # the genius cam may have it's x center messed up.
+            camera_x_shift = -14  # this seems to fix the camera center as best we can
             self.estimator = ra.AprilTagPoseEstimator(
-                ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=114.3, fy=135.9, cx=352/2, cy=288/2))  # 6 inches is 0.15m
+                ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=114.3, fy=135.9, cx=352/2 - camera_x_shift, cy=288/2))  # 6 inches is 0.15m
 
         # define what we send back at the end of the pipeline
         self.results = {}  # new in 2023
@@ -62,11 +64,11 @@ class SpartanOverlay(GripPipeline):
         self.height = 0
         self.rotation_to_target = 0
 
-    def find_apriltags(self, draw_tags=True, decision_margin=10):
+    def find_apriltags(self, draw_tags=True, decision_margin=20):
         self.results.update({'tags': {'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
         grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
         tags = self.detector.detect(grey_image)
-        tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
+        tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 1]
         poses = [self.estimator.estimate(tag) for tag in tags]
         # todo - sort tags based on distance from center?
         tag_count = len(tags)

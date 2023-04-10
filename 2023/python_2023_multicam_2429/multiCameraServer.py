@@ -363,9 +363,9 @@ if __name__ == "__main__":
         except Exception as e:
             pass
 
-    # seems to only work with one camera
-    one_camera = False  # better to do with length of camera configs?
-    if one_camera:
+    # geniuscam seems to work, but mainly because you can't tell it anything.  lifecam needs brightness updated
+    fix_lifecam_brightness = True  # better to do with length of camera configs?
+    if fix_lifecam_brightness:
         bright_list = [item.config["brightness"] for item in cameraConfigs]
         cameras[0].setBrightness(bright_list[0]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
         time.sleep(0.25)

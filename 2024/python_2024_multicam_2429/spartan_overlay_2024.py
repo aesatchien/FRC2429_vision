@@ -17,13 +17,12 @@ from ntcore import NetworkTable
 class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
 
-    def __init__(self, colors=['yellow', 'purple', 'green'], camera='lifecam'):
+    def __init__(self, colors=['orange'], camera='lifecam'):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
         self.training = False  # mode to reveal object colors for quick training,  need to pass this to process
         self.replace_zeros = True  # seems like purple in particular is susceptible to getting zeros in the image
-        # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # updated the GRIP pipeline to take multiple colors - note, have to change it to unmangle __ variables
         # can override the GRIP parameters here if we need to
         # ToDo: pass the HSV in here so we can set it (config file) instead of hard-coding it? Need color-specific stuff though
@@ -37,21 +36,25 @@ class SpartanOverlay(GripPipeline):
         self.end_time = 0
         self.camera_shift = 0
 
-        # set up an apriltag detector
+        # set up an apriltag detector, and try to get the poses
         self.detector = ra.AprilTagDetector()
         self.detector.addFamily('tag16h5')
         # need to calculate this based on camera and resolution
         if self.camera == 'lifecam':
             self.estimator = ra.AprilTagPoseEstimator(
                 ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
+        elif self.camera == 'c920':
+            self.estimator = ra.AprilTagPoseEstimator(
+                ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=439.5, fy=439.9, cx=640/2, cy=360/2))  # logitech at 640x360
         else:
-            # the genius cam may have it's x center messed up.
+            # the genius cam may have its x center messed up.
             camera_x_shift = -14  # this seems to fix the camera center as best we can
             self.estimator = ra.AprilTagPoseEstimator(
                 ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=114.3, fy=135.9, cx=352/2 - camera_x_shift, cy=288/2))  # 6 inches is 0.15m
 
         # define what we send back at the end of the pipeline
         self.results = {}  # new in 2023
+        self.tags = {}  # new in 2024
         self.contours = {}
         for color in self.colors:
             self.results.update({color:{'targets': 0, 'previous_targets': 0, 'distances': [],
@@ -66,9 +69,11 @@ class SpartanOverlay(GripPipeline):
 
     def find_apriltags(self, draw_tags=True, decision_margin=20):
         self.results.update({'tags': {'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
+        self.tags = {}
         grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
         tags = self.detector.detect(grey_image)
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 1]
+        # we have a 3D translation and a 3D rotation coming from each detection
         poses = [self.estimator.estimate(tag) for tag in tags]
         # todo - sort tags based on distance from center?
         tag_count = len(tags)
@@ -76,9 +81,16 @@ class SpartanOverlay(GripPipeline):
         strafes = [pose.x for pose in poses]
         rotations = [pose.rotation().y_degrees for pose in poses]
         self.results.update({'tags': {'targets': tag_count, 'distances': distances, 'strafes': strafes, 'rotations': rotations}})
+        # for tag in tags:
+        #     self.tags.update({tag.getId(): {'id': tag.getId(), 'center': tag.getCenter(),
+        #                                     'homography': tag.getHomography(), 'corners': tag.getCorners()}})
 
         if draw_tags:
             for idy, tag in enumerate(tags):
+                print_tag_labels = True
+                if print_tag_labels:
+                    self.image = cv2.putText(self.image, f'ID: {tag.getId():02d} pose t:{str(poses[idy].translation())}', (self.x_resolution//20, 20 * (idy+1)), 1, 0.7,(255, 255, 200), 1)
+                    self.image = cv2.putText(self.image,f'     pose r:{str(poses[idy].rotation())}',(self.x_resolution // 20, 10+ 20 * (idy + 1)), 1, 0.7, (255, 255, 200), 1)
                 color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors
                 center = tag.getCenter()
                 center = [int(center.x), int(center.y)]
@@ -89,7 +101,23 @@ class SpartanOverlay(GripPipeline):
     def set_hsv(self):
         # do not change a value in one color that is not changed in another - so should make this a dictionary to clean
         home = False
-        if self.color == 'purple':  # 2023 purple cubes
+
+        if self.color == 'orange':  # 2024 orange rings - started 20240305
+            self._hsv_threshold_hue = [165, 179]  # unknown
+            self._hsv_threshold_saturation = [110, 255]  # unknown
+            self._hsv_threshold_value = [130, 255]  # unknown
+            self._blur_radius = 3  # do i need to blur more or less?
+            self._filter_contours_max_ratio = 5
+            self._filter_contours_min_ratio = 0.2
+            self._filter_contours_min_area = 100.0
+            self._filter_contours_min_height = 15
+            self._filter_contours_min_width = 15
+            self._filter_contours_max_width = 200
+            self._filter_contours_max_height = 200
+            self._filter_contours_solidity = [10.0, 100.0]
+            self._filter_contours_box_fill = [10.0, 95.0]
+
+        elif self.color == 'purple':  # 2023 purple cubes
             self._hsv_threshold_hue = [117, 126]  # this is too close to blue...
             self._hsv_threshold_saturation = [110, 255]
             self._hsv_threshold_value = [130, 255]  # tends to be a bit dark
@@ -356,6 +384,8 @@ class SpartanOverlay(GripPipeline):
         elif self.color == 'green':
             # ToDo: have to update this to do the 2023 distance differently - use height, not width
             object_width = 2 * 0.0254  # 2022 big tennis ball, 9.5 inches to meters
+        elif self.color == 'orange':
+            object_width = 14 * 0.0254  # 2024 ring is 14" wide, and should present that way (wide)
         else:
             object_width = 9.5 * 0.0254  # default for now
 
@@ -365,6 +395,8 @@ class SpartanOverlay(GripPipeline):
         camera_height = 33  # camera vertical distance above ground, use when cam looking at objects on ground
         if self.camera == 'lifecam':
             camera_fov = 55  # Lifecam 320x240
+        elif self.camera == 'c920':
+            camera_fov = 77  # logitech c920 in wide mode
         elif self.camera == 'geniuscam':
             camera_fov = 118  # Genius 120 352x288
             self.camera_shift = 0 # 14  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
@@ -372,6 +404,8 @@ class SpartanOverlay(GripPipeline):
             camera_fov = 59  # Logitech C290 432x240
         elif self.camera == 'elp100':
             camera_fov = 100  # little elp
+        else:
+            raise ValueError(f'Invalid camera specification {self.camera}')
 
         # let's just do the calculations on the closest one for now; we could loop through them all easily enough
         for bbox in self.bounding_boxes:

@@ -262,14 +262,14 @@ if __name__ == "__main__":
 
     #  -------   2429 CJH  stuff - add this to get networktables and processed stream  ------------
 
-    top_table = ntinst.getTable("ArmCam")  # the network table served by the pi
-    ground_table = ntinst.getTable("BottomCam")  # the network table served by the pi
+    base_table = ntinst.getTable("Basecam")  # the network table served by the pi
+    shooter_table = ntinst.getTable("Shootercam")  # the network table served by the pi
 
     # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS
     # except for how it reports, and the actual speed is determined by the rate the code puts images to the sink
 
     processed_ports = [1186, 1187]   # allow for multiple cameras on 1181-1185
-    stream_labels = ['ArmCam', 'BottomCam']
+    stream_labels = ['Basecam', 'Shootercam']
     image_source = [None, None]
     cvStream = [None, None]
     cams = [None, None]
@@ -297,35 +297,35 @@ if __name__ == "__main__":
 
     #  ----------------  start a vision thread (CJH)  --------------------
     # TODO - turn this into a thread running in the background
-    training_topic_publisher = top_table.getBooleanTopic('training').publish()  # is it really this annoying?
+    training_topic_publisher = base_table.getBooleanTopic('training').publish()  # is it really this annoying?
     training_topic_publisher.set(False)
-    training_topic_subscriber = top_table.getBooleanTopic('training').subscribe(False)
+    training_topic_subscriber = base_table.getBooleanTopic('training').subscribe(False)
 
-    debug_topic_publisher = top_table.getBooleanTopic('debug').publish()  # is it really this annoying?
+    debug_topic_publisher = base_table.getBooleanTopic('debug').publish()  # is it really this annoying?
     debug_topic_publisher.set(False)
-    debug_topic_subscriber = top_table.getBooleanTopic('debug').subscribe(False)
+    debug_topic_subscriber = base_table.getBooleanTopic('debug').subscribe(False)
 
-    training_color = top_table.getStringTopic('training_color').publish()
-    top_frames = top_table.getDoubleTopic('frames').publish()
-    top_colors = top_table.getStringArrayTopic('colors').publish()
+    training_color = base_table.getStringTopic('training_color').publish()
+    top_frames = base_table.getDoubleTopic('frames').publish()
+    top_colors = base_table.getStringArrayTopic('colors').publish()
     # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
-    top_camera_dict = {'yellow': {}, 'purple': {}, 'green': {}, 'tags': {}}  # the colors we need to check for
-    bottom_camera_dict = {'yellow': {}, 'purple': {}, 'tags':{}}
+    base_camera_dict = {'orange': {}, 'tags': {}}  # the colors we need to check for
+    bottom_camera_dict = {'orange': {}, 'tags': {}}
     # set up network tables and pipelines, one for each color
-    for key in top_camera_dict.keys():
-        top_camera_dict[key].update({'targets_entry': top_table.getDoubleTopic(f"{key}/targets").publish()})
-        top_camera_dict[key].update({'distance_entry': top_table.getDoubleTopic(f"{key}/distance").publish()})
-        top_camera_dict[key].update({'rotation_entry': top_table.getDoubleTopic(f"{key}/rotation").publish()})
-        top_camera_dict[key].update({'strafe_entry': top_table.getDoubleTopic(f"{key}/strafe").publish()})
+    for key in base_camera_dict.keys():
+        base_camera_dict[key].update({'targets_entry': base_table.getDoubleTopic(f"{key}/targets").publish()})
+        base_camera_dict[key].update({'distance_entry': base_table.getDoubleTopic(f"{key}/distance").publish()})
+        base_camera_dict[key].update({'rotation_entry': base_table.getDoubleTopic(f"{key}/rotation").publish()})
+        base_camera_dict[key].update({'strafe_entry': base_table.getDoubleTopic(f"{key}/strafe").publish()})
     for key in bottom_camera_dict.keys():
-        bottom_camera_dict[key].update({'targets_entry': ground_table.getDoubleTopic(f"{key}/targets").publish()})
-        bottom_camera_dict[key].update({'distance_entry': ground_table.getDoubleTopic(f"{key}/distance").publish()})
-        bottom_camera_dict[key].update({'rotation_entry': ground_table.getDoubleTopic(f"{key}/rotation").publish()})
-        bottom_camera_dict[key].update({'strafe_entry': ground_table.getDoubleTopic(f"{key}/strafe").publish()})
+        bottom_camera_dict[key].update({'targets_entry': shooter_table.getDoubleTopic(f"{key}/targets").publish()})
+        bottom_camera_dict[key].update({'distance_entry': shooter_table.getDoubleTopic(f"{key}/distance").publish()})
+        bottom_camera_dict[key].update({'rotation_entry': shooter_table.getDoubleTopic(f"{key}/rotation").publish()})
+        bottom_camera_dict[key].update({'strafe_entry': shooter_table.getDoubleTopic(f"{key}/strafe").publish()})
     ntinst.flush()
     # set up a pipeline for each camera
-    actual_colors = [key for key in top_camera_dict.keys() if key!='tags']
-    top_pipeline = SpartanOverlay(colors=actual_colors, camera='lifecam')
+    actual_colors = [key for key in base_camera_dict.keys() if key != 'tags']
+    top_pipeline = SpartanOverlay(colors=actual_colors, camera='c920')  # skipping lifecam for now
     bottom_pipeline = SpartanOverlay(colors=list(bottom_camera_dict.keys()), camera='geniuscam')
     top_colors.set(top_pipeline.colors)  # announce to NT that we have the right colors
 
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
 
-    server_dict = {'armcam' : True, 'bottomcam' : True}
+    server_dict = {'basecam' : True, 'bottomcam' : True}
 
     # make a folder to keep track of images  TODO - just do this on the driverstation in a notebook? Turn on from dash?
     save_images = False
@@ -380,22 +380,22 @@ if __name__ == "__main__":
     while True and failure_counter < 100:
 
         if len(cameras) >= 1:
-            # get the armcam images
+            # get the basecam images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
                 results = top_pipeline.process(captured_img.copy(), method='size',  training=training, debug=debug)
-                for key in top_camera_dict.keys():  # doing all colors and tags !
+                for key in base_camera_dict.keys():  # doing all colors and tags !
                     #targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']
-                    top_camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
+                    base_camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
                     if targets > 0:
-                        top_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
-                        top_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
-                        top_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
+                        base_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
+                        base_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
+                        base_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
                     else:
-                        top_camera_dict[key]['distance_entry'].set(0)
-                        top_camera_dict[key]['strafe_entry'].set(0)
-                        top_camera_dict[key]['rotation_entry'].set(0)
+                        base_camera_dict[key]['distance_entry'].set(0)
+                        base_camera_dict[key]['strafe_entry'].set(0)
+                        base_camera_dict[key]['rotation_entry'].set(0)
                 ntinst.flush()  # is this necessary?
 
                 # if we are connected to a robot, get its team color.  default to blue
@@ -406,7 +406,7 @@ if __name__ == "__main__":
                     if ntinst.getTable('SmartDashboard').getEntry('StationNumber').getInteger(0) == 1:
                         pass
                     # print(f'At frame {success_counter} team key is {team_key}')
-                if server_dict['armcam']:
+                if server_dict['basecam']:
                     image_source[0].putFrame(top_pipeline.image)  # feeds the Http camera with a new image
                 topcam_success_counter += 1
 

@@ -245,7 +245,7 @@ if __name__ == "__main__":
         ntinst.startServer()
     else:
         print("Setting up NetworkTables client for team {}".format(team))
-        ntinst.startClient4("wpilibpi")
+        ntinst.startClient4("wpilibpi2024")
         ntinst.setServerTeam(team)
         ntinst.startDSClient()
 
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
 
-    server_dict = {'basecam' : True, 'bottomcam' : True}
+    server_dict = {'basecam' : True, 'shootercam' : True}
 
     # make a folder to keep track of images  TODO - just do this on the driverstation in a notebook? Turn on from dash?
     save_images = False

@@ -9,6 +9,8 @@ import cv2
 import numpy as np
 from grip import GripPipeline  # put your GRIP generated grip.py in the same folder - this is our parent class
 import robotpy_apriltag as ra
+import wpimath.geometry as geo
+# from wpimath import objectToRobotPose  # 2024 version
 
 
 from ntcore import NetworkTableInstance
@@ -17,6 +19,10 @@ from ntcore import NetworkTable
 
 class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
+
+    # set up all the tag positions
+    # field = ra.AprilTagField.k2024Crescendo
+    # layout = ra.loadAprilTagLayoutField(field=field)
 
     def __init__(self, colors=['orange'], camera='lifecam'):
         super().__init__()
@@ -85,6 +91,25 @@ class SpartanOverlay(GripPipeline):
         # for tag in tags:
         #     self.tags.update({tag.getId(): {'id': tag.getId(), 'center': tag.getCenter(),
         #                                     'homography': tag.getHomography(), 'corners': tag.getCorners()}})
+        # translating poses into field coordinates
+        if len(tags) > 1:
+            for tag in tags:
+                pose = self.estimator.estimate(tag)
+                pose_camera = geo.Transform3d(
+                    geo.Translation3d(pose.x, pose.y, pose.z),
+                    geo.Rotation3d(-pose.rotation().x - np.pi, -pose.rotation().y, pose.rotation().z - np.pi))
+                pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(),
+                                                        geo.CoordinateSystem.NWU())
+                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.2, 0, 0.15), geo.Rotation3d(0, 0, 0))
+                # waiting for python update
+                # tag_in_field_frame = self.layout.getTagPose(tag.getId())
+                # robot_in_field_frame = objectToRobotPose(objectInField=tag_in_field_frame, cameraToObject=pose_nwu, robotToCamera=camera_in_robot_frame)
+                # rft = robot_in_field_frame.translation()
+                # rfr = robot_in_field_frame.rotation()
+                # tx, ty, tz = rft.x, rft.y, rft.z
+                # rx, ry, rz = rfr.x, rfr.y, rfr.z
+                # self.results.update({'tags': {'id': tag.getId(), 'rotation': pose.rotation().x, 'distance': pose.z,
+                #                               'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
 
         if draw_tags:
             for idy, tag in enumerate(tags):
@@ -108,9 +133,9 @@ class SpartanOverlay(GripPipeline):
         home = False
 
         if self.color == 'orange':  # 2024 orange rings - started 20240305
-            self._hsv_threshold_hue = [165, 179]  # unknown
-            self._hsv_threshold_saturation = [110, 255]  # unknown
-            self._hsv_threshold_value = [130, 255]  # unknown
+            self._hsv_threshold_hue = [-2, 4]  # unknown - probably need to wrap around this year - too close to red
+            self._hsv_threshold_saturation = [100, 254]  # unknown
+            self._hsv_threshold_value = [100, 254]  # unknown
             self._blur_radius = 3  # do i need to blur more or less?
             self._filter_contours_max_ratio = 5
             self._filter_contours_min_ratio = 0.2
@@ -227,8 +252,10 @@ class SpartanOverlay(GripPipeline):
         val_mean, val_std = np.median(val), np.std(val)
         stats_width = 2 # 3 gives 99% of the bell curve area
         self.temp_hue = [max(np.floor(hue_mean-3), np.floor(hue_mean - stats_width * hue_std)), min(np.ceil(hue_mean+3), np.ceil(hue_mean + stats_width * hue_std))]
-        self.temp_sat = [max(50, min(100, np.floor(sat_mean - stats_width * sat_std))), min(np.ceil(sat_mean + stats_width * sat_std), 255)]  # must have some color, but can't be too dark?
-        self.temp_val = [max(50, min(100, np.floor(val_mean - stats_width * val_std))), min(np.ceil(val_mean + stats_width * val_std), 255)]
+        # why did i do these mins and maxes?
+        min_allowed, max_allowed = 20, 50
+        self.temp_sat = [max(min_allowed, min(max_allowed, np.floor(sat_mean - stats_width * sat_std))), min(np.ceil(sat_mean + stats_width * sat_std), 255)]  # must have some color, but can't be too dark?
+        self.temp_val = [max(min_allowed, min(max_allowed, np.floor(val_mean - stats_width * val_std))), min(np.ceil(val_mean + stats_width * val_std), 255)]
 
         self._hsv_threshold_hue = self.temp_hue
         self._hsv_threshold_saturation = self.temp_sat
@@ -461,10 +488,11 @@ class SpartanOverlay(GripPipeline):
                                        (int(rect[0] + rect[2]), int(rect[1] + rect[3])), box_color, thickness)
             # test fill percent and solidity
             if self.debug or self.training:
-                box_fill, solidity = self.get_solidity(contour)
-                # self.image = cv2.putText(self.image, f'{int(box_fill)}, {int(solidity)}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
-                # self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)), 1, 1.5, (0, 255, 255), 1, 1)
                 text_color = text_colors[self.color] if self.color in text_colors.keys() else (255, 255, 127)
+
+                box_fill, solidity = self.get_solidity(contour)
+                self.image = cv2.putText(self.image, f'bf {int(box_fill)}, sol {int(solidity)}', (int(x), int(y)-17), 1, 1, text_color, 1, 1)
+                # self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)-20), 1, 1, text_color, 1, 1)
 
                 if self.hardcore:
                     mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
@@ -474,8 +502,8 @@ class SpartanOverlay(GripPipeline):
                     hue = t[:, :, 0].compressed().mean();
                     sat = t[:, :, 1].compressed().mean();
                     val = t[:, :, 2].compressed().mean();  # don't want messages about masked format strings
-                    self.image = cv2.putText(self.image, f'{hue:.0f},{sat:.0f},{val:.0f}', (int(x), int(y)), 1, 1, text_color, 1, 1)
-                    self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x), min(self.y_resolution, int(y+h+10))), 1, 1, text_color, 1, 1)
+                    self.image = cv2.putText(self.image, f'hsv {hue:.0f},{sat:.0f},{val:.0f}', (int(x), int(y)-3), 1, 1, text_color, 1, 1)
+                    self.image = cv2.putText(self.image, f'wh {w:02d},{h:02d}', (int(x), min(self.y_resolution, int(y+h+10))), 1, 1, text_color, 1, 1)
                 else:
                     self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x), int(y)), 1, 1.5, text_color, 1, 1)
 
@@ -565,11 +593,11 @@ class SpartanOverlay(GripPipeline):
 
                 if len(self.hue_stats) > 0:
                     self.image = cv2.putText(self.image, f"hue min max mean: {self.hue_stats.min()} {self.hue_stats.max()} {self.hue_stats.mean():.1f}",
-                                             (x_center // 2, 2 * y_center - 30), 1, 0.9, (0, 255, 200), 1)
+                                             (x_center // 20, y_center - 30), 1, 0.9, (0, 255, 200), 1)
                     self.image = cv2.putText(self.image, f"sat min max mean: {self.sat_stats.min()} {self.sat_stats.max()} {self.sat_stats.mean():.1f}",
-                                             (x_center // 2, 2 * y_center - 20), 1, 0.9, (0, 255, 200), 1)
+                                             (x_center // 20, y_center - 20), 1, 0.9, (0, 255, 200), 1)
                     self.image = cv2.putText(self.image, f"val min max mean: {self.val_stats.min()} {self.val_stats.max()} {self.val_stats.mean():.1f}",
-                                             (x_center // 2, 2 * y_center - 10), 1, 0.9, (0, 255, 200), 1)
+                                             (x_center // 20, y_center - 10), 1, 0.9, (0, 255, 200), 1)
         else:  # no contours
             # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
             # TODO - add decorations for when we do not have a target
@@ -661,8 +689,8 @@ if __name__ == "__main__":
     run_time = 1
     methods = ['top-down', 'bottom-up', 'right-to-left', 'left-to-right', 'size']
     methods = ['size', 'left-to-right']
-    usb_port = 0
-    w, h = 648, 480
+    usb_port = 1
+    w, h = 640, 360
 
     sort_test = False  # test the sorting methods of bounding boxes
     if sort_test:

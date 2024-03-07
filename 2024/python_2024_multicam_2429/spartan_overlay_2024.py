@@ -10,6 +10,7 @@ import numpy as np
 from grip import GripPipeline  # put your GRIP generated grip.py in the same folder - this is our parent class
 import robotpy_apriltag as ra
 
+
 from ntcore import NetworkTableInstance
 from ntcore import NetworkTable
 
@@ -89,9 +90,13 @@ class SpartanOverlay(GripPipeline):
             for idy, tag in enumerate(tags):
                 print_tag_labels = True
                 if print_tag_labels:
+                    # these line do something else
+                    # these lines print the camera to tag pose translation and rotation - just for debugging
                     self.image = cv2.putText(self.image, f'ID: {tag.getId():02d} pose t:{str(poses[idy].translation())}', (self.x_resolution//20, 20 * (idy+1)), 1, 0.7,(255, 255, 200), 1)
                     self.image = cv2.putText(self.image,f'     pose r:{str(poses[idy].rotation())}',(self.x_resolution // 20, 10+ 20 * (idy + 1)), 1, 0.7, (255, 255, 200), 1)
-                color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors
+                # color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors if we want them
+                color = (255, 75, 0) if tag.getId() in [1, 2, 6, 7, 8, 14, 15, 16] else (0, 0, 255)  # blue and red tags - opencv is BGR
+
                 center = tag.getCenter()
                 center = [int(center.x), int(center.y)]
                 corners = np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.int32)

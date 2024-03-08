@@ -307,6 +307,7 @@ if __name__ == "__main__":
     debug_topic_publisher = base_table.getBooleanTopic('debug').publish()  # is it really this annoying?
     debug_topic_publisher.set(False)
     debug_topic_subscriber = base_table.getBooleanTopic('debug').subscribe(False)
+    timestamp_subscriber = ntinst.getDoubleTopic('/SmartDashboard/_timestamp').subscribe(0)
 
     training_color = base_table.getStringTopic('training_color').publish()
     top_frames = base_table.getDoubleTopic('frames').publish()
@@ -408,20 +409,21 @@ if __name__ == "__main__":
                         base_camera_dict[key]['strafe_entry'].set(0)
                         base_camera_dict[key]['rotation_entry'].set(0)
                 # put the tag poses an info to NT
+                ts = timestamp_subscriber.get()  # find out what time it is
                 if len(tags) > 0:
                     # self.tags.update({f'tag{tag.getId():02d}': {'id': tag.getId(), 'rotation': pose.rotation().x,
                     #   'distance': pose.z, 'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
                     for idx, key in enumerate(tags.keys()):
-                        data = [tags[key]['id'], tags[key]['tx'], tags[key]['ty'], tags[key]['tz'], tags[key]['rx'], tags[key]['ry'], tags[key]['rz']]
+                        data = [ts, tags[key]['id'], tags[key]['tx'], tags[key]['ty'], tags[key]['tz'], tags[key]['rx'], tags[key]['ry'], tags[key]['rz']]
                         try:
                             tag_entries[idx].set(data)
                         except IndexError:
                             pass
                     if idx < 1:
-                        tag_entries[1].set([0] * 7)
+                        tag_entries[1].set([ts] + [0] * 7)
                 else:
                     for tag_entry in tag_entries:
-                        tag_entry.set([0]*7)
+                        tag_entry.set([ts] + [0]*7)
                 ntinst.flush()  # is this necessary?
 
                 # if we are connected to a robot, get its team color.  default to blue

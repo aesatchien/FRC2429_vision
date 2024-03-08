@@ -84,8 +84,9 @@ class SpartanOverlay(GripPipeline):
         poses = [self.estimator.estimate(tag) for tag in tags]
 
         # sort the tags based on their distance from the camera - this comes from the pose
-        sorted_lists = sorted(zip(poses, tags), key=lambda x: x[0].translation().z)
-        poses, tags = zip(*sorted_lists)
+        if len(tags) > 1:
+            sorted_lists = sorted(zip(poses, tags), key=lambda x: x[0].translation().z)
+            poses, tags = zip(*sorted_lists)
 
         tag_count = len(tags)
         ids = [tag.getId() for tag in tags]
@@ -108,13 +109,16 @@ class SpartanOverlay(GripPipeline):
                 camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.2, 0, 0.15), geo.Rotation3d(0, 0, 0))
                 # 2024 additions
                 tag_in_field_frame = self.layout.getTagPose(tag.getId())
-                robot_in_field_frame = objectToRobotPose(objectInField=tag_in_field_frame, cameraToObject=pose_nwu, robotToCamera=camera_in_robot_frame)
-                rft = robot_in_field_frame.translation()
-                rfr = robot_in_field_frame.rotation()
-                tx, ty, tz = rft.x, rft.y, rft.z
-                rx, ry, rz = rfr.x, rfr.y, rfr.z
-                self.tags.update({f'tag{tag.getId():02d}': {'id': tag.getId(), 'rotation': pose.rotation().x, 'distance': pose.z,
-                                              'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
+                try:
+                    robot_in_field_frame = objectToRobotPose(objectInField=tag_in_field_frame, cameraToObject=pose_nwu, robotToCamera=camera_in_robot_frame)
+                    rft = robot_in_field_frame.translation()
+                    rfr = robot_in_field_frame.rotation()
+                    tx, ty, tz = rft.x, rft.y, rft.z
+                    rx, ry, rz = rfr.x, rfr.y, rfr.z
+                    self.tags.update({f'tag{tag.getId():02d}': {'id': tag.getId(), 'rotation': pose.rotation().x, 'distance': pose.z,
+                                                  'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
+                except Exception as e:
+                    print(f'Attempted to get field frame but got error {e} on tag id {tag.getId()}')
 
         if draw_tags:
             for idy, tag in enumerate(tags):
@@ -517,7 +521,6 @@ class SpartanOverlay(GripPipeline):
     def simple_text_overlay(self, location='bottom', show_lines=False):
         """Write our object information to the image"""
 
-        location = location
         if location == 'top':
             info_text_location = (2, 10)
             target_text_location = (int(0.7 * self.x_resolution), 13)
@@ -551,7 +554,6 @@ class SpartanOverlay(GripPipeline):
     def overlay_text(self, location='bottom', show_lines=False):
         """Write our object information to the image"""
         self.end_time = time.time()
-        location = location
         if location == 'top':
             info_text_location = (int(0.035 * self.x_resolution), 12)
             target_text_location = (int(0.7 * self.x_resolution), 13)
@@ -627,7 +629,7 @@ class SpartanOverlay(GripPipeline):
                             target_area_text_location, 1, 0.9, info_text_color, 1)
 
         cv2.putText(self.image,
-                    f"MS: {1000 * (self.end_time - self.start_time):.1f} {self.color} bogeys: {len(self.filter_contours_output)}",
+                    f"MS: {1000 * (self.end_time - self.start_time):.1f} {self.color} bogeys: {len(self.filter_contours_output)}  tags:{self.results['tags']['targets']}",
                     info_text_location, 1, 0.9, info_text_color, 1)
 
 

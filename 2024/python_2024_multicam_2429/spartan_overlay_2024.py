@@ -10,7 +10,7 @@ import numpy as np
 from grip import GripPipeline  # put your GRIP generated grip.py in the same folder - this is our parent class
 import robotpy_apriltag as ra
 import wpimath.geometry as geo
-# from wpimath import objectToRobotPose  # 2024 version
+from wpimath import objectToRobotPose  # 2024 version
 
 
 from ntcore import NetworkTableInstance
@@ -21,8 +21,8 @@ class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
 
     # set up all the tag positions
-    # field = ra.AprilTagField.k2024Crescendo
-    # layout = ra.loadAprilTagLayoutField(field=field)
+    field = ra.AprilTagField.k2024Crescendo
+    layout = ra.loadAprilTagLayoutField(field=field)
 
     def __init__(self, colors=['orange'], camera='lifecam'):
         super().__init__()
@@ -64,7 +64,7 @@ class SpartanOverlay(GripPipeline):
         self.tags = {}  # new in 2024
         self.contours = {}
         for color in self.colors:
-            self.results.update({color:{'targets': 0, 'previous_targets': 0, 'distances': [],
+            self.results.update({color:{'targets': 0, 'previous_targets': 0, 'ids':[], 'distances': [],
                                         'strafes': [], 'heights': [], 'rotations':[], 'contours':[]}})
             self.contours.update({color: {'contours': []}})
 
@@ -75,24 +75,29 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def find_apriltags(self, draw_tags=True, decision_margin=20):
-        self.results.update({'tags': {'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
+        self.results.update({'tags': {'ids':[], 'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
         self.tags = {}
         grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
         tags = self.detector.detect(grey_image)
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 1]
         # we have a 3D translation and a 3D rotation coming from each detection
         poses = [self.estimator.estimate(tag) for tag in tags]
-        # todo - sort tags based on distance from center?
+
+        # sort the tags based on their distance from the camera - this comes from the pose
+        sorted_lists = sorted(zip(poses, tags), key=lambda x: x[0].translation().z)
+        poses, tags = zip(*sorted_lists)
+
         tag_count = len(tags)
+        ids = [tag.getId() for tag in tags]
         distances = [pose.z for pose in poses]
         strafes = [pose.x for pose in poses]
         rotations = [pose.rotation().y_degrees for pose in poses]
-        self.results.update({'tags': {'targets': tag_count, 'distances': distances, 'strafes': strafes, 'rotations': rotations}})
+        self.results.update({'tags': {'ids':ids, 'targets': tag_count, 'distances': distances, 'strafes': strafes, 'rotations': rotations}})
         # for tag in tags:
         #     self.tags.update({tag.getId(): {'id': tag.getId(), 'center': tag.getCenter(),
         #                                     'homography': tag.getHomography(), 'corners': tag.getCorners()}})
         # translating poses into field coordinates
-        if len(tags) > 1:
+        if len(tags) > 0:
             for tag in tags:
                 pose = self.estimator.estimate(tag)
                 pose_camera = geo.Transform3d(
@@ -101,19 +106,19 @@ class SpartanOverlay(GripPipeline):
                 pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(),
                                                         geo.CoordinateSystem.NWU())
                 camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.2, 0, 0.15), geo.Rotation3d(0, 0, 0))
-                # waiting for python update
-                # tag_in_field_frame = self.layout.getTagPose(tag.getId())
-                # robot_in_field_frame = objectToRobotPose(objectInField=tag_in_field_frame, cameraToObject=pose_nwu, robotToCamera=camera_in_robot_frame)
-                # rft = robot_in_field_frame.translation()
-                # rfr = robot_in_field_frame.rotation()
-                # tx, ty, tz = rft.x, rft.y, rft.z
-                # rx, ry, rz = rfr.x, rfr.y, rfr.z
-                # self.results.update({'tags': {'id': tag.getId(), 'rotation': pose.rotation().x, 'distance': pose.z,
-                #                               'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
+                # 2024 additions
+                tag_in_field_frame = self.layout.getTagPose(tag.getId())
+                robot_in_field_frame = objectToRobotPose(objectInField=tag_in_field_frame, cameraToObject=pose_nwu, robotToCamera=camera_in_robot_frame)
+                rft = robot_in_field_frame.translation()
+                rfr = robot_in_field_frame.rotation()
+                tx, ty, tz = rft.x, rft.y, rft.z
+                rx, ry, rz = rfr.x, rfr.y, rfr.z
+                self.tags.update({f'tag{tag.getId():02d}': {'id': tag.getId(), 'rotation': pose.rotation().x, 'distance': pose.z,
+                                              'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
 
         if draw_tags:
             for idy, tag in enumerate(tags):
-                print_tag_labels = True
+                print_tag_labels = False
                 if print_tag_labels:
                     # these line do something else
                     # these lines print the camera to tag pose translation and rotation - just for debugging
@@ -300,7 +305,7 @@ class SpartanOverlay(GripPipeline):
 
         for idx, color in enumerate(self.colors):
             self.color = color
-            self.results.update({color: {'targets': 0, 'previous_targets': self.results[color]['targets'], 'distances': [],
+            self.results.update({color: {'targets': 0, 'previous_targets': self.results[color]['targets'], 'ids':[], 'distances': [],
                                         'strafes': [], 'heights': [], 'rotations':[], 'contours':[]}})
             self.contours.update({color: {'contours': []}})
 
@@ -347,7 +352,7 @@ class SpartanOverlay(GripPipeline):
             if self.training:
                 self.overlay_color_stats()
 
-        return self.results
+        return self.results, self.tags
 
     def bounding_box_sort_contours(self, method='size'):
         """Get sorted contours and bounding boxes from our list of filtered contours
@@ -440,7 +445,7 @@ class SpartanOverlay(GripPipeline):
             raise ValueError(f'Invalid camera specification {self.camera}')
 
         # let's just do the calculations on the closest one for now; we could loop through them all easily enough
-        for bbox in self.bounding_boxes:
+        for idx, bbox in enumerate(self.bounding_boxes):
             x, y, w, h = bbox  # returned rectangle parameters
             self.aspect_ratio = w / h
             self.height = h
@@ -459,6 +464,7 @@ class SpartanOverlay(GripPipeline):
             self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target
 
             # append results to our dictionaries
+            self.results[self.color]['ids'].append(idx+1)
             self.results[self.color]['rotations'].append(self.rotation_to_target)
             self.results[self.color]['distances'].append(self.distance_to_target)
             self.results[self.color]['strafes'].append(self.strafe_to_target)

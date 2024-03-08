@@ -197,6 +197,9 @@ def startCamera(config):
 
     if config.streamConfig is not None:
         server.setConfigJson(json.dumps(config.streamConfig))
+        print(f'ATTEMPTING TO SET streamConfig ...')
+    else:
+        print(f'UNABLE TO SET streamConfig ...')
 
 
     return camera
@@ -236,7 +239,7 @@ if __name__ == "__main__":
 
     # read configuration
     if not readConfig():
-        pass
+        print(f'COULD NOT READ CONFIG FILE {configFile}')
 
     # start NetworkTables
     ntinst = NetworkTableInstance.getDefault()
@@ -251,7 +254,7 @@ if __name__ == "__main__":
 
     # start cameras
     # work around wpilibsuite/allwpilib#5055
-    CameraServer.setSize(CameraServer.kSize160x120)
+    # CameraServer.setSize(CameraServer.kSize160x120)  # seems to be disallowed in 2024
     for config in cameraConfigs:
         cameras.append(startCamera(config))
 
@@ -277,14 +280,14 @@ if __name__ == "__main__":
         vm = cameras[ix].getVideoMode()
         x_resolution = vm.width
         y_resolution = vm.height
-        stream_fps = 20
+        stream_fps = 30
         image_source[ix] = CvSource(f"{stream_labels[ix]} CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
         # start a stream
         cvStream[ix] = MjpegServer(f"{stream_labels[ix]} CV Image Stream", processed_ports[ix])
         # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps is 11Mbps
         # 50 seems to cut it ~ 5x t- 2.3Mbps, still looks pretty good, 25 is pretty marginal at 1.6Mbps.  Default is -1?
         if x_resolution > 300:  # just take the default for smaller formats
-            cvStream[ix].getProperty("compression").set(35)
+            cvStream[ix].getProperty("compression").set(30)
         cvStream[ix].setSource(image_source[ix])  # now the stream is updated by image_source
         cs = CameraServer  #  .getInstance()
         cs.addCamera(image_source[ix])  # is this really necessary?  we add another one later
@@ -310,23 +313,29 @@ if __name__ == "__main__":
     top_colors = base_table.getStringArrayTopic('colors').publish()
     # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
     base_camera_dict = {'orange': {}, 'tags': {}}  # the colors we need to check for
-    bottom_camera_dict = {'orange': {}, 'tags': {}}
+    shooter_camera_dict = {'orange': {}, 'tags': {}}
+
+    tag_entries = [base_table.getDoubleArrayTopic(f"TAGS/tag1").publish(), base_table.getDoubleArrayTopic(f"TAGS/tag2").publish()]
+
     # set up network tables and pipelines, one for each color
     for key in base_camera_dict.keys():
+        base_camera_dict[key].update({'id': base_table.getDoubleTopic(f"{key}/id").publish()})
         base_camera_dict[key].update({'targets_entry': base_table.getDoubleTopic(f"{key}/targets").publish()})
         base_camera_dict[key].update({'distance_entry': base_table.getDoubleTopic(f"{key}/distance").publish()})
         base_camera_dict[key].update({'rotation_entry': base_table.getDoubleTopic(f"{key}/rotation").publish()})
         base_camera_dict[key].update({'strafe_entry': base_table.getDoubleTopic(f"{key}/strafe").publish()})
-    for key in bottom_camera_dict.keys():
-        bottom_camera_dict[key].update({'targets_entry': shooter_table.getDoubleTopic(f"{key}/targets").publish()})
-        bottom_camera_dict[key].update({'distance_entry': shooter_table.getDoubleTopic(f"{key}/distance").publish()})
-        bottom_camera_dict[key].update({'rotation_entry': shooter_table.getDoubleTopic(f"{key}/rotation").publish()})
-        bottom_camera_dict[key].update({'strafe_entry': shooter_table.getDoubleTopic(f"{key}/strafe").publish()})
+    for key in shooter_camera_dict.keys():
+        shooter_camera_dict[key].update({'id': shooter_table.getDoubleTopic(f"{key}/id").publish()})
+        shooter_camera_dict[key].update({'targets_entry': shooter_table.getDoubleTopic(f"{key}/targets").publish()})
+        shooter_camera_dict[key].update({'distance_entr'
+                                         'y': shooter_table.getDoubleTopic(f"{key}/distance").publish()})
+        shooter_camera_dict[key].update({'rotation_entry': shooter_table.getDoubleTopic(f"{key}/rotation").publish()})
+        shooter_camera_dict[key].update({'strafe_entry': shooter_table.getDoubleTopic(f"{key}/strafe").publish()})
     ntinst.flush()
     # set up a pipeline for each camera
     actual_colors = [key for key in base_camera_dict.keys() if key != 'tags']
     top_pipeline = SpartanOverlay(colors=actual_colors, camera='c920')  # skipping lifecam for now
-    bottom_pipeline = SpartanOverlay(colors=list(bottom_camera_dict.keys()), camera='geniuscam')
+    bottom_pipeline = SpartanOverlay(colors=list(shooter_camera_dict.keys()), camera='geniuscam')
     top_colors.set(top_pipeline.colors)  # announce to NT that we have the right colors
 
     cs = CameraServer #  .getInstance()  # already taken care of above, but if i comment it out above this is necessary
@@ -350,7 +359,7 @@ if __name__ == "__main__":
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
 
-    server_dict = {'basecam' : True, 'shootercam' : True}
+    server_dict = {'basecam': True, 'shootercam': False}
 
     # make a folder to keep track of images  TODO - just do this on the driverstation in a notebook? Turn on from dash?
     save_images = False
@@ -383,19 +392,36 @@ if __name__ == "__main__":
             # get the basecam images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
-                results = top_pipeline.process(captured_img.copy(), method='size',  training=training, debug=debug)
+                results, tags = top_pipeline.process(captured_img.copy(), method='size',  training=training, debug=debug)
                 for key in base_camera_dict.keys():  # doing all colors and tags !
                     #targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']
                     base_camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
                     if targets > 0:
+                        base_camera_dict[key]['id'].set(results[key]['ids'][0])
                         base_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
                         base_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
                         base_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
                     else:
+                        base_camera_dict[key]['id'].set(0)
                         base_camera_dict[key]['distance_entry'].set(0)
                         base_camera_dict[key]['strafe_entry'].set(0)
                         base_camera_dict[key]['rotation_entry'].set(0)
+                # put the tag poses an info to NT
+                if len(tags) > 0:
+                    # self.tags.update({f'tag{tag.getId():02d}': {'id': tag.getId(), 'rotation': pose.rotation().x,
+                    #   'distance': pose.z, 'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
+                    for idx, key in enumerate(tags.keys()):
+                        data = [tags[key]['id'], tags[key]['tx'], tags[key]['ty'], tags[key]['tz'], tags[key]['rx'], tags[key]['ry'], tags[key]['rz']]
+                        try:
+                            tag_entries[idx].set(data)
+                        except IndexError:
+                            pass
+                    if idx < 1:
+                        tag_entries[1].set([0] * 7)
+                else:
+                    for tag_entry in tag_entries:
+                        tag_entry.set([0]*7)
                 ntinst.flush()  # is this necessary?
 
                 # if we are connected to a robot, get its team color.  default to blue
@@ -407,7 +433,16 @@ if __name__ == "__main__":
                         pass
                     # print(f'At frame {success_counter} team key is {team_key}')
                 if server_dict['basecam']:
-                    image_source[0].putFrame(top_pipeline.image)  # feeds the Http camera with a new image
+
+                    # cut down on streaming bandwidth - hard to figure out how to just set the stream to do it for you
+                    reduce_bandwidth = False
+                    max_width = 480
+                    if reduce_bandwidth and top_pipeline.image.shape[1] > max_width:
+                        height, width = top_pipeline.image.shape[:2]
+                        image = cv2.resize(top_pipeline.image, (int(max_width), int(height * max_width / width)))
+                        image_source[0].putFrame(image)
+                    else:
+                        image_source[0].putFrame(top_pipeline.image)  # feeds the Http camera with a new image
                 topcam_success_counter += 1
 
             else:  # keep track of failures to read the image from the sink
@@ -439,23 +474,25 @@ if __name__ == "__main__":
 
             if image_time > 0:  # actually got an image
                 if process_bottom_cam:
-                    results = bottom_pipeline.process(captured_img2.copy())
+                    results, tags = bottom_pipeline.process(captured_img2.copy())
                     for key in bottom_pipeline.colors:
                         targets = results[key]['targets']
-                        bottom_camera_dict[key]['targets_entry'].set(targets)
+                        shooter_camera_dict[key]['targets_entry'].set(targets)
                         if targets > 0:
-                            bottom_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
-                            bottom_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
-                            bottom_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
+                            shooter_camera_dict[key]['id'].set(results[key]['ids'][0])
+                            shooter_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
+                            shooter_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
+                            shooter_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
                         else:
-                            bottom_camera_dict[key]['distance_entry'].set(0)
-                            bottom_camera_dict[key]['strafe_entry'].set(0)
-                            bottom_camera_dict[key]['rotation_entry'].set(0)
+                            base_camera_dict[key]['id'].set(0)
+                            shooter_camera_dict[key]['distance_entry'].set(0)
+                            shooter_camera_dict[key]['strafe_entry'].set(0)
+                            shooter_camera_dict[key]['rotation_entry'].set(0)
                     ntinst.flush()
-                    if server_dict['bottomcam']:
+                    if server_dict['shootercam']:
                         image_source[1].putFrame(bottom_pipeline.image)
                 else: # skip the processing, stream the raw image
-                    if server_dict['bottomcam']:
+                    if server_dict['shootercam']:
                         image_source[1].putFrame(captured_img2)
                 groundcam_success_counter += 1
 

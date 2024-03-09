@@ -142,7 +142,7 @@ class SpartanOverlay(GripPipeline):
         home = False
 
         if self.color == 'orange':  # 2024 orange rings - started 20240305
-            self._hsv_threshold_hue = [-2, 4]  # unknown - probably need to wrap around this year - too close to red
+            self._hsv_threshold_hue = [0, 4]  # unknown - probably need to wrap around this year - too close to red
             self._hsv_threshold_saturation = [100, 254]  # unknown
             self._hsv_threshold_value = [100, 254]  # unknown
             self._blur_radius = 3  # do i need to blur more or less?
@@ -155,6 +155,8 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_max_height = 200
             self._filter_contours_solidity = [10.0, 100.0]
             self._filter_contours_box_fill = [10.0, 95.0]
+            # above (y is 0 at top) or below this we ignore detections  - (.9*yres, yres) would ignore the top 90%
+            self.ignore_y = [0.6 * self.y_resolution, self.y_resolution]
 
         elif self.color == 'purple':  # 2023 purple cubes
             self._hsv_threshold_hue = [117, 126]  # this is too close to blue...
@@ -241,7 +243,6 @@ class SpartanOverlay(GripPipeline):
             # in 2023 they are tall and thin (4in tall) (2in wide?) ratio is w/h
                 #self._filter_contours_min_area = 10.0
 
-            #self.ignore_y = [0, 200]  # above or below this we ignore detections
         else:
             print('no valid color provided')
 
@@ -513,12 +514,14 @@ class SpartanOverlay(GripPipeline):
                     sat = t[:, :, 1].compressed().mean();
                     val = t[:, :, 2].compressed().mean();  # don't want messages about masked format strings
                     self.image = cv2.putText(self.image, f'hsv {hue:.0f},{sat:.0f},{val:.0f}', (int(x), int(y)-3), 1, 1, text_color, 1, 1)
-                    self.image = cv2.putText(self.image, f'wh {w:02d},{h:02d}', (int(x), min(self.y_resolution, int(y+h+10))), 1, 1, text_color, 1, 1)
+                    self.image = cv2.putText(self.image, f'wh {w:02d},{h:02d}', (int(x), min(self.y_resolution, int(y+h+25))), 1, 1, text_color, 1, 1)
+                    self.image = cv2.putText(self.image, f'{x:03d},{y:03d}', (int(x), min(self.y_resolution, int(y+h+10))), 1, 1., text_color, 1, 1)
                 else:
-                    self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x), int(y)), 1, 1.5, text_color, 1, 1)
+                    self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x+w), int(y+w)), 1, 1.5, text_color, 1, 1)
 
 
-    def simple_text_overlay(self, location='bottom', show_lines=False):
+
+    def simple_text_overlay(self, location='top', show_lines=False):
         """Write our object information to the image"""
 
         if location == 'top':
@@ -526,7 +529,7 @@ class SpartanOverlay(GripPipeline):
             target_text_location = (int(0.7 * self.x_resolution), 13)
             target_area_text_location = (int(0.02 * self.x_resolution), 27)
             # black bar at top of image
-            cv2.rectangle(self.image, (0, int(0.88 * self.y_resolution)), (self.x_resolution, 0), (0, 0, 0), -1)
+            cv2.rectangle(self.image, (0, int(0.12 * self.y_resolution)), (self.x_resolution, 0), (0, 0, 0), -1)
         else:
             info_text_location = (2, -14 + self.y_resolution)
             target_text_location = (int(0.7 * self.x_resolution), -13 + self.y_resolution)
@@ -551,7 +554,7 @@ class SpartanOverlay(GripPipeline):
                     info_text_location, 1, 0.9, info_text_color, 1)
 
 
-    def overlay_text(self, location='bottom', show_lines=False):
+    def overlay_text(self, location='top', show_lines=True, box=False):
         """Write our object information to the image"""
         self.end_time = time.time()
         if location == 'top':
@@ -559,13 +562,15 @@ class SpartanOverlay(GripPipeline):
             target_text_location = (int(0.7 * self.x_resolution), 13)
             target_area_text_location = (int(0.02 * self.x_resolution), 27)
             # black bar at top of image
-            cv2.rectangle(self.image, (0, int(0.88 * self.y_resolution)), (self.x_resolution, 0), (0, 0, 0), -1)
+            if box:
+                cv2.rectangle(self.image, (0, int(0.08 * self.y_resolution)), (self.x_resolution, 0), (0, 0, 0), -1)
         else:
             info_text_location = (int(0.035 * self.x_resolution), -15 + self.y_resolution)
             target_text_location = (int(0.7 * self.x_resolution), -13 + self.y_resolution)
             target_area_text_location = (int(0.02 * self.x_resolution), -2 + self.y_resolution)
             # black bar at bottom of image
-            cv2.rectangle(self.image, (0, int(0.90 * self.y_resolution)), (self.x_resolution, self.y_resolution), (0, 0, 0), -1)
+            if box:
+                cv2.rectangle(self.image, (0, int(0.90 * self.y_resolution)), (self.x_resolution, self.y_resolution), (0, 0, 0), -1)
 
         info_text_color = (0, 255, 255)
         target_text_color = (255, 255, 0)
@@ -578,11 +583,11 @@ class SpartanOverlay(GripPipeline):
             # decorations - target lines, boxes, bullseyes, etc
             # TODO - add decorations for when we have a target - needs the camera_shift to do it right
             if show_lines:
-                cv2.line(self.image, (int(0.3 * self.x_resolution + self.camera_shift), int(0.77 * self.y_resolution)),
-                         (int(0.3 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)), (0, 255, 0),
+                cv2.line(self.image, (int(0.4 * self.x_resolution + self.camera_shift), int(0.9 * self.y_resolution)),
+                         (int(0.4 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)), (0, 255, 0),
                          2)
-                cv2.line(self.image, (int(0.7 * self.x_resolution + self.camera_shift), int(0.77 * self.y_resolution)),
-                         (int(0.7 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)), (0, 255, 0),
+                cv2.line(self.image, (int(0.6 * self.x_resolution + self.camera_shift), int(0.9* self.y_resolution)),
+                         (int(0.6 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)), (0, 255, 0),
                          2)
             if self.debug:
                 # display the stats on the main target we found
@@ -610,11 +615,11 @@ class SpartanOverlay(GripPipeline):
             # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
             # TODO - add decorations for when we do not have a target
             if show_lines:
-                cv2.line(self.image, (int(0.3 * self.x_resolution + self.camera_shift), int(0.77 * self.y_resolution)),
-                         (int(0.3 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)),
+                cv2.line(self.image, (int(0.4 * self.x_resolution + self.camera_shift), int(0.9 * self.y_resolution)),
+                         (int(0.4 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)),
                          (127, 127, 127), 1)
-                cv2.line(self.image, (int(0.7 * self.x_resolution + self.camera_shift), int(0.77 * self.y_resolution)),
-                         (int(0.7 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)),
+                cv2.line(self.image, (int(0.6 * self.x_resolution + self.camera_shift), int(0.9 * self.y_resolution)),
+                         (int(0.6 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)),
                          (127, 127, 127), 1)
 
             if self.debug:

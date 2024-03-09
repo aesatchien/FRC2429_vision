@@ -300,23 +300,23 @@ if __name__ == "__main__":
 
     #  ----------------  start a vision thread (CJH)  --------------------
     # TODO - turn this into a thread running in the background
-    training_topic_publisher = base_table.getBooleanTopic('training').publish()  # is it really this annoying?
+    training_topic_publisher = base_table.getBooleanTopic('_training').publish()  # is it really this annoying?
     training_topic_publisher.set(False)
     training_topic_subscriber = base_table.getBooleanTopic('training').subscribe(False)
 
-    debug_topic_publisher = base_table.getBooleanTopic('debug').publish()  # is it really this annoying?
+    debug_topic_publisher = base_table.getBooleanTopic('_debug').publish()  # is it really this annoying?
     debug_topic_publisher.set(False)
-    debug_topic_subscriber = base_table.getBooleanTopic('debug').subscribe(False)
-    timestamp_subscriber = ntinst.getDoubleTopic('/SmartDashboard/_timestamp').subscribe(0)
+    debug_topic_subscriber = base_table.getBooleanTopic('_debug').subscribe(False)
+    timestamp_subscriber = ntinst.getDoubleTopic('/SmartDashboard/_timestamp').subscribe(0)  # comes from robot
 
-    training_color = base_table.getStringTopic('training_color').publish()
-    top_frames = base_table.getDoubleTopic('frames').publish()
-    top_colors = base_table.getStringArrayTopic('colors').publish()
+    training_color = base_table.getStringTopic('_training_color').publish()
+    top_frames = base_table.getDoubleTopic('_frames').publish()
+    top_colors = base_table.getStringArrayTopic('_colors').publish()
     # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
     base_camera_dict = {'orange': {}, 'tags': {}}  # the colors we need to check for
     shooter_camera_dict = {'orange': {}, 'tags': {}}
 
-    tag_entries = [base_table.getDoubleArrayTopic(f"TAGS/tag1").publish(), base_table.getDoubleArrayTopic(f"TAGS/tag2").publish()]
+    tag_entries = [base_table.getDoubleArrayTopic(f"poses/tag1").publish(), base_table.getDoubleArrayTopic(f"poses/tag2").publish()]
 
     # set up network tables and pipelines, one for each color
     for key in base_camera_dict.keys():

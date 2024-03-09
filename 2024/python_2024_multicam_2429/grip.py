@@ -164,7 +164,7 @@ class GripPipeline:
             Contours as a list of numpy.ndarray.
         """
         output = []
-        for contour in input_contours:
+        for contour in input_contours:   # remember, continue means skip
             x,y,w,h = cv2.boundingRect(contour)
             if y < ignore_y[0] or y > ignore_y[1]:
                 continue

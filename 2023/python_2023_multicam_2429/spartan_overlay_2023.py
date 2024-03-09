@@ -46,7 +46,7 @@ class SpartanOverlay(GripPipeline):
                 ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
         else:
             # the genius cam may have it's x center messed up.
-            camera_x_shift = -14  # this seems to fix the camera center as best we can
+            camera_x_shift = -17  # this seems to fix the camera center as best we can
             self.estimator = ra.AprilTagPoseEstimator(
                 ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=114.3, fy=135.9, cx=352/2 - camera_x_shift, cy=288/2))  # 6 inches is 0.15m
 
@@ -176,7 +176,8 @@ class SpartanOverlay(GripPipeline):
 
             #self.ignore_y = [0, 200]  # above or below this we ignore detections
         else:
-            print('no valid color provided')
+            pass
+             # print('no valid color provided')
 
     def get_center_hsv(self, width=5, height=10):  # attempt to train hsv detector with center objects
         x_center, y_center = self.x_resolution // 2, self.y_resolution // 2

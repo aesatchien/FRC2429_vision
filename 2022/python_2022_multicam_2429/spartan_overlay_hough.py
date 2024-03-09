@@ -425,8 +425,12 @@ class SpartanOverlay(GripPipeline):
 
         if approach == 'hough':
             self.draw_circles()
+            draw_time = time.time()
             self.get_target_attributes()
+            attrib_time = time.time()
             self.overlay_vision_text_hough()
+            overlay_time = time.time()
+            #print(f'times: draw:{draw_time-self.start_time:.2f}  attrib:{attrib_time-draw_time:.2f} overlay:{overlay_time-attrib_time:.2f}', end='\r')
             return self.telemetry_dict
 
         else:
@@ -686,7 +690,7 @@ if __name__ == "__main__":
         while end_time - start_time < 5:  # take video for x seconds
             count += 1
             s, im = cam.read()  # captures image - note for processing that it is BGR, not RGB!
-            cv2.imshow(f"Test Picture: sorting by size on {pipeline.color}", im)  # displays captured image
+            # cv2.imshow(f"Test Picture: sorting by size on {pipeline.color}", im)  # displays captured image
             if s > 0:  # Found an image
                 im = cv2.resize(im, (320,240), interpolation=cv2.INTER_AREA)
                 pipeline.process(image=im, method='size')
@@ -721,7 +725,7 @@ if __name__ == "__main__":
         cam.release()
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-        print(f'mean: {t[:, :, 0].mean():.2f}', end='\n', flush='True')
+        #print(f'mean: {t[:, :, 0].mean():.2f}', end='\n', flush='True')
         # print(f'hist: {np.histogram(t[:, :, 0], bins=90, range=(0,179))}', end='\n', flush='True')
         print(f'Captured {count} frames in {end_time - start_time:.1f}s - average fps is {count/(end_time - start_time):.1f}')
 

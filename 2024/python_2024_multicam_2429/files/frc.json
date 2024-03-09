@@ -1,0 +1,58 @@
+{
+    "cameras": [
+        {
+            "brightness": 50,
+            "fps": 20,
+            "height": 240,
+            "name": "rPi Camera 0 MSLifeCam",
+            "path": "/dev/video0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 50
+                },
+                {
+                    "name": "saturation",
+                    "value": 50
+                },
+                {
+                    "name": "sharpness",
+                    "value": 50
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "exposure_auto_priority",
+                    "value": 0
+                }
+            ],
+            "stream": {
+                "properties": [
+                    {
+                        "name": "width",
+                        "value": 320
+                    },
+                    {
+                        "name": "height",
+                        "value": 240
+                    },
+                    {
+                        "name": "fps",
+                        "value": 20
+                    }
+                ]
+            },
+            "width": 320
+        }
+    ],
+    "ntmode": "client",
+    "switched cameras": [],
+    "team": 2429
+}

@@ -302,7 +302,7 @@ if __name__ == "__main__":
     # TODO - turn this into a thread running in the background
     training_topic_publisher = base_table.getBooleanTopic('_training').publish()  # is it really this annoying?
     training_topic_publisher.set(False)
-    training_topic_subscriber = base_table.getBooleanTopic('training').subscribe(False)
+    training_topic_subscriber = base_table.getBooleanTopic('_training').subscribe(False)
 
     debug_topic_publisher = base_table.getBooleanTopic('_debug').publish()  # is it really this annoying?
     debug_topic_publisher.set(False)

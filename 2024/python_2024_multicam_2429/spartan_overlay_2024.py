@@ -45,7 +45,7 @@ class SpartanOverlay(GripPipeline):
 
         # set up an apriltag detector, and try to get the poses
         self.detector = ra.AprilTagDetector()
-        self.detector.addFamily('tag16h5')
+        self.detector.addFamily('tag36h11')
         # need to calculate this based on camera and resolution
         if self.camera == 'lifecam':
             self.estimator = ra.AprilTagPoseEstimator(
@@ -142,19 +142,19 @@ class SpartanOverlay(GripPipeline):
         home = False
 
         if self.color == 'orange':  # 2024 orange rings - started 20240305
-            self._hsv_threshold_hue = [0, 4]  # unknown - probably need to wrap around this year - too close to red
-            self._hsv_threshold_saturation = [100, 254]  # unknown
-            self._hsv_threshold_value = [100, 254]  # unknown
+            self._hsv_threshold_hue = [0, 7]  # unknown - probably need to wrap around this year - too close to red
+            self._hsv_threshold_saturation = [150, 254]  # unknown
+            self._hsv_threshold_value = [30, 254]  # unknown
             self._blur_radius = 3  # do i need to blur more or less?
-            self._filter_contours_max_ratio = 5
-            self._filter_contours_min_ratio = 0.2
+            self._filter_contours_max_ratio = 10  # ring lying flat on ground
+            self._filter_contours_min_ratio = 2  # facing the circle
             self._filter_contours_min_area = 100.0
             self._filter_contours_min_height = 15
             self._filter_contours_min_width = 15
-            self._filter_contours_max_width = 200
-            self._filter_contours_max_height = 200
+            self._filter_contours_max_width = self.x_resolution // 2
+            self._filter_contours_max_height = self.y_resolution // 2
             self._filter_contours_solidity = [10.0, 100.0]
-            self._filter_contours_box_fill = [10.0, 95.0]
+            self._filter_contours_box_fill = [10.0, 100]
             # above (y is 0 at top) or below this we ignore detections  - (.9*yres, yres) would ignore the top 90%
             self.ignore_y = [0.6 * self.y_resolution, self.y_resolution]
 

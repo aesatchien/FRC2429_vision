@@ -292,7 +292,7 @@ class SpartanOverlay(GripPipeline):
         self.image = cv2.putText(self.image, val_msg, (2, 32), 1, 0.8, (0, 255, 200), 1)
 
     def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
-                skip_overlay=False, debug=False, find_tags=True):
+                skip_overlay=False, debug=False, find_tags=True, tags_only=False):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -305,8 +305,9 @@ class SpartanOverlay(GripPipeline):
         self.debug = debug
         self.start_time = time.time()
         self.image = image
-        self.original_image = image.copy()  # expensive, but if we need it later
+        self.original_image = image.copy()  # supposedly expensive, but if we need it later - doesn't seem to cost time
         self.y_resolution, self.x_resolution, self.channels = self.image.shape
+
 
         for idx, color in enumerate(self.colors):
             self.color = color

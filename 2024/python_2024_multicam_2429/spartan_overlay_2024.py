@@ -42,22 +42,28 @@ class SpartanOverlay(GripPipeline):
         self.start_time = 0
         self.end_time = 0
         self.camera_shift = 0
+        self.x_resolution = 640  # not really, this is just a placeholder until we get an image; I should pass it in
+        self.y_resolution = 360
 
         # set up an apriltag detector, and try to get the poses
         self.detector = ra.AprilTagDetector()
         self.detector.addFamily('tag36h11')
         # need to calculate this based on camera and resolution
+        print(f'estimating image parameters using f{self.camera} at resolution x:{self.x_resolution} y: {self.y_resolution}')
         if self.camera == 'lifecam':
             self.estimator = ra.AprilTagPoseEstimator(
-                ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
+                ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
         elif self.camera == 'c920':
-            self.estimator = ra.AprilTagPoseEstimator(
-                ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=439.5, fy=439.9, cx=640/2, cy=360/2))  # logitech at 640x360
+            if self.x_resolution < 1000:
+                config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=459.5, fy=459.5, cx=640/2, cy=360/2)  # logitech at 640x360
+            else:
+                config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=924.4, fy=924.4, cx=644, cy=358)  # logitech at 1280x720
+            self.estimator = ra.AprilTagPoseEstimator(config)
         else:
             # the genius cam may have its x center messed up.
             camera_x_shift = -14  # this seems to fix the camera center as best we can
             self.estimator = ra.AprilTagPoseEstimator(
-                ra.AprilTagPoseEstimator.Config(tagSize=0.1524, fx=114.3, fy=135.9, cx=352/2 - camera_x_shift, cy=288/2))  # 6 inches is 0.15m
+                ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=114.3, fy=135.9, cx=352/2 - camera_x_shift, cy=288/2))  # 6 inches is 0.15m
 
         # define what we send back at the end of the pipeline
         self.results = {}  # new in 2023
@@ -74,7 +80,7 @@ class SpartanOverlay(GripPipeline):
         self.height = 0
         self.rotation_to_target = 0
 
-    def find_apriltags(self, draw_tags=True, decision_margin=20):
+    def find_apriltags(self, draw_tags=True, decision_margin=30):
         self.results.update({'tags': {'ids':[], 'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
         self.tags = {}
         grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)

@@ -265,14 +265,11 @@ if __name__ == "__main__":
 
     #  -------   2429 CJH  stuff - add this to get networktables and processed stream  ------------
 
-    base_table = ntinst.getTable("Basecam")  # the network table served by the pi
-    shooter_table = ntinst.getTable("Shootercam")  # the network table served by the pi
-
     # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS
     # except for how it reports, and the actual speed is determined by the rate the code puts images to the sink
 
     processed_ports = [1186, 1187]   # allow for multiple cameras on 1181-1185
-    stream_labels = ['Basecam', 'Shootercam']
+    stream_labels = ['Ringcam', 'Tagcam']
     image_source = [None, None]
     cvStream = [None, None]
     cams = [None, None]
@@ -300,44 +297,53 @@ if __name__ == "__main__":
 
     #  ----------------  start a vision thread (CJH)  --------------------
     # TODO - turn this into a thread running in the background
-    training_topic_publisher = base_table.getBooleanTopic('_training').publish()  # is it really this annoying?
-    training_topic_publisher.set(False)
-    training_topic_subscriber = base_table.getBooleanTopic('_training').subscribe(False)
 
-    debug_topic_publisher = base_table.getBooleanTopic('_debug').publish()  # is it really this annoying?
+    # set up our network tables
+    ring_table = ntinst.getTable("Cam_Ringcam")  # the network table served by the pi
+    tag_table = ntinst.getTable("Cam_Tagcam")  # the network table served by the pi
+    use_camera_1 = True
+    use_camera_2 = True
+
+    # set up the debug and training calls in the network tables
+    training_topic_publisher = ring_table.getBooleanTopic('_training').publish()  # is it really this annoying?
+    training_topic_publisher.set(False)
+    training_topic_subscriber = ring_table.getBooleanTopic('_training').subscribe(False)
+
+    debug_topic_publisher = ring_table.getBooleanTopic('_debug').publish()  # is it really this annoying?
     debug_topic_publisher.set(False)
-    debug_topic_subscriber = base_table.getBooleanTopic('_debug').subscribe(False)
+    debug_topic_subscriber = ring_table.getBooleanTopic('_debug').subscribe(False)
     timestamp_subscriber = ntinst.getDoubleTopic('/SmartDashboard/_timestamp').subscribe(0)  # comes from robot
 
-    training_color = base_table.getStringTopic('_training_color').publish()
-    top_frames = base_table.getDoubleTopic('_frames').publish()
-    top_colors = base_table.getStringArrayTopic('_colors').publish()
+    training_color = ring_table.getStringTopic('_training_color').publish()
+    top_frames = ring_table.getDoubleTopic('_frames').publish()
+    top_colors = ring_table.getStringArrayTopic('_colors').publish()
     # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
-    base_camera_dict = {'orange': {}, 'tags': {}}  # the colors we need to check for
-    shooter_camera_dict = {'orange': {}, 'tags': {}}
 
-    tag_entries = [base_table.getDoubleArrayTopic(f"poses/tag1").publish(), base_table.getDoubleArrayTopic(f"poses/tag2").publish()]
+    # dictionary for each camera - at the moment needs a color even if you don't look for them
+    tag_camera_dict = {'orange': {}, 'tags': {}}  # the colors we need to check for
+    ring_camera_dict =  {'orange': {}, 'tags': {}}
+    tag_entries = [tag_table.getDoubleArrayTopic(f"poses/tag1").publish(), tag_table.getDoubleArrayTopic(f"poses/tag2").publish()]
 
     # set up network tables and pipelines, one for each color
-    for key in base_camera_dict.keys():
-        base_camera_dict[key].update({'id': base_table.getDoubleTopic(f"{key}/id").publish()})
-        base_camera_dict[key].update({'targets_entry': base_table.getDoubleTopic(f"{key}/targets").publish()})
-        base_camera_dict[key].update({'distance_entry': base_table.getDoubleTopic(f"{key}/distance").publish()})
-        base_camera_dict[key].update({'rotation_entry': base_table.getDoubleTopic(f"{key}/rotation").publish()})
-        base_camera_dict[key].update({'strafe_entry': base_table.getDoubleTopic(f"{key}/strafe").publish()})
-    for key in shooter_camera_dict.keys():
-        shooter_camera_dict[key].update({'id': shooter_table.getDoubleTopic(f"{key}/id").publish()})
-        shooter_camera_dict[key].update({'targets_entry': shooter_table.getDoubleTopic(f"{key}/targets").publish()})
-        shooter_camera_dict[key].update({'distance_entr'
-                                         'y': shooter_table.getDoubleTopic(f"{key}/distance").publish()})
-        shooter_camera_dict[key].update({'rotation_entry': shooter_table.getDoubleTopic(f"{key}/rotation").publish()})
-        shooter_camera_dict[key].update({'strafe_entry': shooter_table.getDoubleTopic(f"{key}/strafe").publish()})
+    for key in tag_camera_dict.keys():
+        tag_camera_dict[key].update({'id': tag_table.getDoubleTopic(f"{key}/id").publish()})
+        tag_camera_dict[key].update({'targets_entry': tag_table.getDoubleTopic(f"{key}/targets").publish()})
+        tag_camera_dict[key].update({'distance_entry': tag_table.getDoubleTopic(f"{key}/distance").publish()})
+        tag_camera_dict[key].update({'rotation_entry': tag_table.getDoubleTopic(f"{key}/rotation").publish()})
+        tag_camera_dict[key].update({'strafe_entry': tag_table.getDoubleTopic(f"{key}/strafe").publish()})
+    for key in ring_camera_dict.keys():
+        ring_camera_dict[key].update({'id': ring_table.getDoubleTopic(f"{key}/id").publish()})
+        ring_camera_dict[key].update({'targets_entry': ring_table.getDoubleTopic(f"{key}/targets").publish()})
+        ring_camera_dict[key].update({'distance_entry': ring_table.getDoubleTopic(f"{key}/distance").publish()})
+        ring_camera_dict[key].update({'rotation_entry': ring_table.getDoubleTopic(f"{key}/rotation").publish()})
+        ring_camera_dict[key].update({'strafe_entry': ring_table.getDoubleTopic(f"{key}/strafe").publish()})
     ntinst.flush()
+
     # set up a pipeline for each camera
-    actual_colors = [key for key in base_camera_dict.keys() if key != 'tags']
-    top_pipeline = SpartanOverlay(colors=actual_colors, camera='c920')  # skipping lifecam for now
-    bottom_pipeline = SpartanOverlay(colors=list(shooter_camera_dict.keys()), camera='geniuscam')
-    top_colors.set(top_pipeline.colors)  # announce to NT that we have the right colors
+    ring_actual_colors = [key for key in tag_camera_dict.keys() if key != 'tags']
+    tag_pipeline = SpartanOverlay(colors=ring_actual_colors, camera='c920')  # logitech for tags
+    ring_pipeline = SpartanOverlay(colors=ring_actual_colors, camera='lifecam')  # lifecam for rings
+    top_colors.set(tag_pipeline.colors)  # announce to NT that we have the right colors
 
     cs = CameraServer #  .getInstance()  # already taken care of above, but if i comment it out above this is necessary
     # this next part will be trickier if we have more than one camera, but we can have separate pipelines
@@ -352,15 +358,16 @@ if __name__ == "__main__":
         vm2 = cameras[1].getVideoMode()
         img2 = np.zeros((vm2.height, vm2.width, 3))
 
-    topcam_success_counter = 0  # keep track of FPS so we can tell in the console when things are going wrong
-    groundcam_success_counter = 0
+    tagcam_success_counter = 0  # keep track of FPS so we can tell in the console when things are going wrong
+    ringcam_success_counter = 0
     previous_topcam_counts = 0
     previous_groundcam_counts = 0
     failure_counter = 0  # very first image often fails, and after that we are solid
     print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
     previous_time = time.time()
 
-    server_dict = {'basecam': True, 'shootercam': False}
+    server_dict = {'ringcam': True, 'tagcam': True}
+    reduce_bandwidth = False
 
     # make a folder to keep track of images  TODO - just do this on the driverstation in a notebook? Turn on from dash?
     save_images = False
@@ -374,16 +381,16 @@ if __name__ == "__main__":
             pass
 
     # geniuscam seems to work, but mainly because you can't tell it anything.  lifecam needs brightness updated
-    fix_lifecam_brightness = True  # better to do with length of camera configs?
-    if fix_lifecam_brightness:
+    # re-set camera paramaters - may jump start them a bit
+    cameras_to_set = [0, 1]
+    for cam_idx in cameras_to_set:
         bright_list = [item.config["brightness"] for item in cameraConfigs]
-        cameras[0].setBrightness(bright_list[0]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
+        cameras[cam_idx].setBrightness(bright_list[cam_idx]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
         time.sleep(0.25)
-        print(f'Resetting brightness on cam 0 to {bright_list[0]}')
-        cameras[0].setBrightness(bright_list[0])
+        print(f'Resetting brightness on cam {cam_idx} to {bright_list[cam_idx]}')
+        cameras[cam_idx].setBrightness(bright_list[cam_idx])
     else:
         pass
-
 
     training = False  # for pipeline.process - are we in training mode
     debug = False # for pipeline process - do we want to see contours
@@ -393,21 +400,21 @@ if __name__ == "__main__":
             # get the basecam images
             image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
-                results, tags = top_pipeline.process(captured_img.copy(), method='size',  training=training, debug=debug)
-                for key in base_camera_dict.keys():  # doing all colors and tags !
+                results, tags = tag_pipeline.process(captured_img.copy(), method='size', training=training, debug=debug, find_tags=True, find_colors=False)
+                for key in tag_camera_dict.keys():  # doing all colors and tags !
                     #targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']
-                    base_camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
+                    tag_camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
                     if targets > 0:
-                        base_camera_dict[key]['id'].set(results[key]['ids'][0])
-                        base_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
-                        base_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
-                        base_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
+                        tag_camera_dict[key]['id'].set(results[key]['ids'][0])
+                        tag_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
+                        tag_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
+                        tag_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
                     else:
-                        base_camera_dict[key]['id'].set(0)
-                        base_camera_dict[key]['distance_entry'].set(0)
-                        base_camera_dict[key]['strafe_entry'].set(0)
-                        base_camera_dict[key]['rotation_entry'].set(0)
+                        tag_camera_dict[key]['id'].set(0)
+                        tag_camera_dict[key]['distance_entry'].set(0)
+                        tag_camera_dict[key]['strafe_entry'].set(0)
+                        tag_camera_dict[key]['rotation_entry'].set(0)
                 # put the tag poses an info to NT
                 ts = timestamp_subscriber.get()  # find out what time it is
                 if len(tags) > 0:
@@ -427,78 +434,77 @@ if __name__ == "__main__":
                 ntinst.flush()  # is this necessary?
 
                 # if we are connected to a robot, get its team color.  default to blue
-                if topcam_success_counter % 30 == 0:  # check every few seconds for a camera selection update
+                if tagcam_success_counter % 30 == 0:  # check every few seconds for a camera selection update
                     training = training_topic_subscriber.get()  # update if the dash has selected training mode
                     debug = debug_topic_subscriber.get()
-                    top_frames.set(topcam_success_counter)
+                    top_frames.set(tagcam_success_counter)
                     if ntinst.getTable('SmartDashboard').getEntry('StationNumber').getInteger(0) == 1:
                         pass
                     # print(f'At frame {success_counter} team key is {team_key}')
-                if server_dict['basecam']:
-
+                if server_dict['tagcam']:
                     # cut down on streaming bandwidth - hard to figure out how to just set the stream to do it for you
-                    reduce_bandwidth = False
                     max_width = 480
-                    if reduce_bandwidth and top_pipeline.image.shape[1] > max_width:
-                        height, width = top_pipeline.image.shape[:2]
-                        image = cv2.resize(top_pipeline.image, (int(max_width), int(height * max_width / width)))
+                    if reduce_bandwidth and tag_pipeline.image.shape[1] > max_width:
+                        height, width = tag_pipeline.image.shape[:2]
+                        image = cv2.resize(tag_pipeline.image, (int(max_width), int(height * max_width / width)))
                         image_source[0].putFrame(image)
                     else:
-                        image_source[0].putFrame(top_pipeline.image)  # feeds the Http camera with a new image
-                topcam_success_counter += 1
+                        image_source[0].putFrame(tag_pipeline.image)  # feeds the Http camera with a new image
+                tagcam_success_counter += 1
 
             else:  # keep track of failures to read the image from the sink
                 failure_counter += 1
-            if topcam_success_counter % 30 == 0:
+            if tagcam_success_counter % 30 == 0:
                 now = time.time()
                 # update the console - most FPS issues are with auto-exposure or if exposure time is too long for FPS setting
                 # the cameras seem to cut FPS down automatically by integer divisors - e.g. max 30 --> max 15 --> max 7.5
-                fps1 = (topcam_success_counter - previous_topcam_counts) / (now - previous_time)
-                fps2 = (groundcam_success_counter - previous_groundcam_counts) / (now - previous_time)
-                print(f'Cameras: {len(cameras)}  Avg Ball FPS: {fps1:0.1f} Avg Shoot FPS: {fps2:0.1f}  Reported:{cameras[0].getActualFPS()}  Success: {topcam_success_counter:8d}  Failure:{failure_counter:3d}', end='\r', flush=True)
-                previous_topcam_counts = topcam_success_counter
-                previous_groundcam_counts = groundcam_success_counter
+                fps1 = (tagcam_success_counter - previous_topcam_counts) / (now - previous_time)
+                fps2 = (ringcam_success_counter - previous_groundcam_counts) / (now - previous_time)
+                # print(f'Cameras: {len(cameras)}  Avg Tag FPS: {fps1:0.1f} Avg Ring FPS: {fps2:0.1f}  Reported:{cameras[0].getActualFPS()}  Success: {tagcam_success_counter:8d}  Failure:{failure_counter:3d}', end='\r', flush=True)
+                print(f'Cameras: {len(cameras)}  Avg Tag FPS: {fps1:0.1f} Avg Ring FPS: {fps2:0.1f}  Success: {tagcam_success_counter:8d}  Failure:{failure_counter:3d}', end='\r', flush=True)
+                previous_topcam_counts = tagcam_success_counter
+                previous_groundcam_counts = ringcam_success_counter
                 previous_time = now
 
-        process_bottom_cam = True  # do we want to recognize targets on the bottom camera?
-        if len(cameras) >= 2:
-            # get the shooter target images - green stuff
-            image_time, captured_img2 = sink_2.grabFrame(img2)  # default time out is about 4 FPS
-            # check if the foscam is making large images
-            if captured_img2.shape[1] > 400:  # this is the width
-                scale_percent = 50  # percent of original size
-                width = int(captured_img2.shape[1] * scale_percent / 100)
-                height = int(captured_img2.shape[0] * scale_percent / 100)
-                dim = (width, height)
-                image_to_process = cv2.resize(captured_img2.copy(), dim, interpolation=cv2.INTER_AREA)
-            else:
-                image_to_process = captured_img2.copy()
+        if use_camera_2:  # do we want to recognize targets on the ring camera?
+            if len(cameras) >= 2:
+                # get the shooter target images - green stuff
+                image_time, captured_img2 = sink_2.grabFrame(img2)  # default time out is about 4 FPS
+                # check if the foscam is making large images
+                if captured_img2.shape[1] > 400:  # this is the width
+                    scale_percent = 50  # percent of original size
+                    width = int(captured_img2.shape[1] * scale_percent / 100)
+                    height = int(captured_img2.shape[0] * scale_percent / 100)
+                    dim = (width, height)
+                    image_to_process = cv2.resize(captured_img2.copy(), dim, interpolation=cv2.INTER_AREA)
+                else:
+                    image_to_process = captured_img2.copy()
 
-            if image_time > 0:  # actually got an image
-                if process_bottom_cam:
-                    results, tags = bottom_pipeline.process(captured_img2.copy())
-                    for key in bottom_pipeline.colors:
-                        targets = results[key]['targets']
-                        shooter_camera_dict[key]['targets_entry'].set(targets)
-                        if targets > 0:
-                            shooter_camera_dict[key]['id'].set(results[key]['ids'][0])
-                            shooter_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
-                            shooter_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
-                            shooter_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
-                        else:
-                            base_camera_dict[key]['id'].set(0)
-                            shooter_camera_dict[key]['distance_entry'].set(0)
-                            shooter_camera_dict[key]['strafe_entry'].set(0)
-                            shooter_camera_dict[key]['rotation_entry'].set(0)
-                    ntinst.flush()
-                    if server_dict['shootercam']:
-                        image_source[1].putFrame(bottom_pipeline.image)
-                else: # skip the processing, stream the raw image
-                    if server_dict['shootercam']:
-                        image_source[1].putFrame(captured_img2)
-                groundcam_success_counter += 1
+                if image_time > 0:  # actually got an image
+                    if use_camera_2:
+                        results, tags = ring_pipeline.process(captured_img2.copy(), find_tags=False, find_colors=True)
+                        for key in ring_pipeline.colors:
+                            targets = results[key]['targets']
+                            ring_camera_dict[key]['targets_entry'].set(targets)
+                            if targets > 0:
+                                ring_camera_dict[key]['id'].set(results[key]['ids'][0])
+                                ring_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
+                                ring_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
+                                ring_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
+                            else:
+                                ring_camera_dict[key]['id'].set(0)
+                                ring_camera_dict[key]['distance_entry'].set(0)
+                                ring_camera_dict[key]['strafe_entry'].set(0)
+                                ring_camera_dict[key]['rotation_entry'].set(0)
+                        ntinst.flush()
+                        if server_dict['ringcam']:
+                            image_source[1].putFrame(ring_pipeline.image)
+                    else: # skip the processing, stream the raw image
+                        if server_dict['ringcam']:
+                            image_source[1].putFrame(captured_img2)
+                    ringcam_success_counter += 1
 
-        if topcam_success_counter % 51 == 0 and save_images:  # save an image every few seconds
+        if tagcam_success_counter % 51 == 0 and save_images:  # save an image every few seconds
             image_counter += 1
             print(f'Writing image {image_counter % 200:03d}...')
             cv2.imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)

@@ -1,3 +1,4 @@
+# this started out as a simple HSV segmentation routing but has grown over the years.  needs to be refactored and simplified
 # this is a standalone that should be able to inherit any grip pipeline and decorate it
 # intended to be used with the wpi multicamera server and a grip pipeline
 # note that GRIP is old so sometimes you have to correct the cv2 return values on some of the auto-generated code
@@ -12,10 +13,8 @@ import robotpy_apriltag as ra
 import wpimath.geometry as geo
 from wpimath import objectToRobotPose  # 2024 version
 
-
 from ntcore import NetworkTableInstance
 from ntcore import NetworkTable
-
 
 class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
@@ -45,7 +44,7 @@ class SpartanOverlay(GripPipeline):
         self.x_resolution = 640  # not really, this is just a placeholder until we get an image; I should pass it in
         self.y_resolution = 360
 
-        # set up an apriltag detector, and try to get the poses
+        # set up an apriltag detector, and try to get the poses - in 2024 the tag is 6.5" (0.1651m)
         self.detector = ra.AprilTagDetector()
         self.detector.addFamily('tag36h11')
         # need to calculate this based on camera and resolution
@@ -80,8 +79,83 @@ class SpartanOverlay(GripPipeline):
         self.height = 0
         self.rotation_to_target = 0
 
+    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
+                skip_overlay=False, debug=False, find_tags=True, find_colors=True):
+        """Run the parent pipeline and then continue to do custom overlays and reporting
+           Run this the same way you would the wpilib examples on pipelines
+           e.g. call it in the capture section of the camera server
+           e.g. call it in the capture section of the camera serversort
+           :param method: sort method [size, left-to-right, right-to-left, top-down or bottom-up]
+           :param post_to_nt: whether to post to a networktable named self.table_name
+           """
+
+        self.training = training  # boolean to see of we switch to training mode
+        self.debug = debug
+        self.start_time = time.time()
+        self.image = image
+        self.original_image = image.copy()  # supposedly expensive, but if we need it later - doesn't seem to cost time
+        self.y_resolution, self.x_resolution, self.channels = self.image.shape
+
+
+        # color section
+        for idx, color in enumerate(self.colors):
+            self.color = color
+            self.results.update(
+                {color: {'targets': 0, 'previous_targets': self.results[color]['targets'], 'ids': [], 'distances': [],
+                         'strafes': [], 'heights': [], 'rotations': [], 'contours': []}})
+            self.contours.update({color: {'contours': []}})
+
+            if self.training and idx == 0:
+                self.get_center_hsv()
+            elif self.training and idx > 0:
+                continue
+            elif reset_hsv:
+                self.set_hsv()  # otherwise this does not allow us to pass in or set the hsv externally
+
+            if find_colors:
+                # maybe be I should rename this as not overloading the parent, it's not pythonic
+                super(self.__class__, self).process(self.original_image)
+                # update targets for a given color
+                targets = len(self.filter_contours_output)
+                self.results[self.color]['previous_targets'] = self.results[self.color]['targets']
+                self.results[self.color]['targets'] = targets
+
+                if targets > 0:
+                    self.bounding_box_sort_contours(method='center')
+                    self.contours[self.color]['contours'] = self.filter_contours_output  # TODO - sort these
+                    self.get_target_attributes()  # updates self.results
+            else:
+                self.filter_contours_output = []
+
+        # tag section
+        self.results.update({'tags': {'ids': [], 'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
+        if find_tags:
+            self.find_apriltags(draw_tags=draw_overlay)
+
+        # reporting results
+        targets_found = [self.results[c]['targets'] > 0 for c in self.colors]
+        targets_found.append(self.results['tags']['targets'] > 0)  # append the apriltag search results
+
+        if not skip_overlay:  # how much time does this cost us, esp since nobody looks anyway?  Seems like it's not the bottleneck
+            if any(targets_found):
+                for color in self.colors:
+                    if draw_overlay:
+                        self.color = color
+                        self.filter_contours_output = self.contours[self.color]['contours']
+                        self.overlay_bounding_boxes()  # needs to know the color
+            else:
+                pass
+
+            if len(self.colors) != 1:
+                self.simple_text_overlay()  # designed for multiple colors
+            else:
+                self.overlay_text()
+            if self.training:
+                self.overlay_color_stats()
+
+        return self.results, self.tags
+
     def find_apriltags(self, draw_tags=True, decision_margin=30):
-        self.results.update({'tags': {'ids':[], 'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
         self.tags = {}
         grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
         tags = self.detector.detect(grey_image)
@@ -100,9 +174,7 @@ class SpartanOverlay(GripPipeline):
         strafes = [pose.x for pose in poses]
         rotations = [pose.rotation().y_degrees for pose in poses]
         self.results.update({'tags': {'ids':ids, 'targets': tag_count, 'distances': distances, 'strafes': strafes, 'rotations': rotations}})
-        # for tag in tags:
-        #     self.tags.update({tag.getId(): {'id': tag.getId(), 'center': tag.getCenter(),
-        #                                     'homography': tag.getHomography(), 'corners': tag.getCorners()}})
+
         # translating poses into field coordinates
         if len(tags) > 0:
             for tag in tags:
@@ -112,8 +184,9 @@ class SpartanOverlay(GripPipeline):
                     geo.Rotation3d(-pose.rotation().x - np.pi, -pose.rotation().y, pose.rotation().z - np.pi))
                 pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(),
                                                         geo.CoordinateSystem.NWU())
-                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.2, 0, 0.15), geo.Rotation3d(0, 0, 0))
-                # 2024 additions
+                # where is camera on robot - origin of frame is center of robot
+                # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
+                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, 0, 0.2),geo.Rotation3d(0, np.radians(0), np.pi))  # back of robot, rotate up in y?
                 tag_in_field_frame = self.layout.getTagPose(tag.getId())
                 try:
                     robot_in_field_frame = objectToRobotPose(objectInField=tag_in_field_frame, cameraToObject=pose_nwu, robotToCamera=camera_in_robot_frame)
@@ -130,13 +203,11 @@ class SpartanOverlay(GripPipeline):
             for idy, tag in enumerate(tags):
                 print_tag_labels = False
                 if print_tag_labels:
-                    # these line do something else
                     # these lines print the camera to tag pose translation and rotation - just for debugging
                     self.image = cv2.putText(self.image, f'ID: {tag.getId():02d} pose t:{str(poses[idy].translation())}', (self.x_resolution//20, 20 * (idy+1)), 1, 0.7,(255, 255, 200), 1)
                     self.image = cv2.putText(self.image,f'     pose r:{str(poses[idy].rotation())}',(self.x_resolution // 20, 10+ 20 * (idy + 1)), 1, 0.7, (255, 255, 200), 1)
                 # color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors if we want them
                 color = (255, 75, 0) if tag.getId() in [1, 2, 6, 7, 8, 14, 15, 16] else (0, 0, 255)  # blue and red tags - opencv is BGR
-
                 center = tag.getCenter()
                 center = [int(center.x), int(center.y)]
                 corners = np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.int32)
@@ -144,6 +215,7 @@ class SpartanOverlay(GripPipeline):
                 self.image = cv2.putText(self.image, f'{tag.getId():2d}', center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     def set_hsv(self):
+        # each color has a different set of rules for segmenting it
         # do not change a value in one color that is not changed in another - so should make this a dictionary to clean
         home = False
 
@@ -250,7 +322,7 @@ class SpartanOverlay(GripPipeline):
                 #self._filter_contours_min_area = 10.0
 
         else:
-            print('no valid color provided')
+            print(f'{self.camera}: no valid color provided')
 
     def get_center_hsv(self, width=5, height=10):  # attempt to train hsv detector with center objects
         x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
@@ -296,75 +368,6 @@ class SpartanOverlay(GripPipeline):
         self.image = cv2.putText(self.image, hue_msg, (2, 10), 1, 0.8, (0, 255, 200), 1)
         self.image = cv2.putText(self.image, sat_msg, (2, 21), 1, 0.8, (0, 255, 200), 1)
         self.image = cv2.putText(self.image, val_msg, (2, 32), 1, 0.8, (0, 255, 200), 1)
-
-    def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
-                skip_overlay=False, debug=False, find_tags=True, tags_only=False):
-        """Run the parent pipeline and then continue to do custom overlays and reporting
-           Run this the same way you would the wpilib examples on pipelines
-           e.g. call it in the capture section of the camera server
-           e.g. call it in the capture section of the camera serversort
-           :param method: sort method [size, left-to-right, right-to-left, top-down or bottom-up]
-           :param post_to_nt: whether to post to a networktable named self.table_name
-           """
-
-        self.training = training  # boolean to see of we switch to training mode
-        self.debug = debug
-        self.start_time = time.time()
-        self.image = image
-        self.original_image = image.copy()  # supposedly expensive, but if we need it later - doesn't seem to cost time
-        self.y_resolution, self.x_resolution, self.channels = self.image.shape
-
-
-        for idx, color in enumerate(self.colors):
-            self.color = color
-            self.results.update({color: {'targets': 0, 'previous_targets': self.results[color]['targets'], 'ids':[], 'distances': [],
-                                        'strafes': [], 'heights': [], 'rotations':[], 'contours':[]}})
-            self.contours.update({color: {'contours': []}})
-
-            if self.training and idx==0:
-                self.get_center_hsv()
-            elif self.training and idx>0:
-                continue
-            elif reset_hsv:
-                self.set_hsv()  # otherwise this does not allow us to pass in or set the hsv externally
-
-            # maybe be I should rename this as not overloading the parent, it's not pythonic
-            super(self.__class__, self).process(self.original_image)
-            # update targets for a given color
-            targets = len(self.filter_contours_output)
-            self.results[self.color]['previous_targets'] = self.results[self.color]['targets']
-            self.results[self.color]['targets'] = targets
-
-            if targets > 0:
-                self.bounding_box_sort_contours(method='center')
-                self.contours[self.color]['contours'] = self.filter_contours_output # TODO - sort these
-                self.get_target_attributes()  # updates self.results
-
-        targets_found = [self.results[c]['targets'] > 0 for c in self.colors]
-
-        if find_tags:
-            self.find_apriltags(draw_tags=draw_overlay)
-
-        targets_found.append(self.results['tags']['targets'] > 0)  # append the apriltag search results
-
-        if not skip_overlay:  # how much time does this cost us, esp since nobody looks anyway?  Seems like it's not the bottleneck
-            if any(targets_found):
-                for color in self.colors:
-                    if draw_overlay:
-                        self.color = color
-                        self.filter_contours_output = self.contours[self.color]['contours']
-                        self.overlay_bounding_boxes()  # needs to know the color
-            else:
-                pass
-
-            if len(self.colors) != 1:
-                self.simple_text_overlay()  # designed for multiple colors
-            else:
-                self.overlay_text()
-            if self.training:
-                self.overlay_color_stats()
-
-        return self.results, self.tags
 
     def bounding_box_sort_contours(self, method='size'):
         """Get sorted contours and bounding boxes from our list of filtered contours
@@ -526,9 +529,8 @@ class SpartanOverlay(GripPipeline):
                 else:
                     self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x+w), int(y+w)), 1, 1.5, text_color, 1, 1)
 
-
-
     def simple_text_overlay(self, location='top', show_lines=False):
+
         """Write our object information to the image"""
 
         if location == 'top':
@@ -557,7 +559,7 @@ class SpartanOverlay(GripPipeline):
         cv2.putText(self.image, target_count_message, target_area_text_location, 1, 0.9, target_text_color, 1)
 
         self.end_time = time.time()
-        cv2.putText(self.image, f"MS: {1000 * (self.end_time - self.start_time):4.1f} {self.colors} ",
+        cv2.putText(self.image, f"MS: {int(1000 * (self.end_time - self.start_time)):03d} {self.colors} ",
                     info_text_location, 1, 0.9, info_text_color, 1)
 
 
@@ -641,7 +643,7 @@ class SpartanOverlay(GripPipeline):
                             target_area_text_location, 1, 0.9, info_text_color, 1)
 
         cv2.putText(self.image,
-                    f"MS: {1000 * (self.end_time - self.start_time):.1f} {self.color} bogeys: {len(self.filter_contours_output)}  tags:{self.results['tags']['targets']}",
+                    f"MS: {int(1000 * (self.end_time - self.start_time)):03d} {self.color} bogeys: {len(self.filter_contours_output):2d}  tags: {self.results['tags']['targets']:2d}",
                     info_text_location, 1, 0.9, info_text_color, 1)
 
 
@@ -668,22 +670,6 @@ class SpartanOverlay(GripPipeline):
             right_boundary = x + w if x + w > right_boundary else right_boundary
         return int(np.mean(x_centers)), int(np.mean(y_centers)), left_boundary, right_boundary
 
-
-# ---------------   SPARKLINES  ---------------
-# -*- coding: utf-8 -*-
-# Unicode: 9601, 9602, 9603, 9604, 9605, 9606, 9607, 9608
-bar = '▁▂▃▄▅▆▇█'
-bar = '▁▂▃▅▆▇'
-barcount = len(bar)
-
-def sparkline(numbers, autoscale=True):
-    if autoscale:
-        mn, mx = np.min(numbers), np.max(numbers)
-    else:
-        mn, mx = -1.0, 1.0
-    extent = mx - mn
-    sparkline = ''.join(bar[min([barcount - 1, int((n - mn) / extent * barcount)])] for n in numbers)
-    return mn, mx, sparkline
 
 if __name__ == "__main__":
 

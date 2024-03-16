@@ -234,7 +234,7 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_solidity = [10.0, 100.0]
             self._filter_contours_box_fill = [10.0, 100]
             # above (y is 0 at top) or below this we ignore detections  - (.9*yres, yres) would ignore the top 90%
-            self.ignore_y = [0.6 * self.y_resolution, self.y_resolution]
+            self.ignore_y = [0.3 * self.y_resolution, self.y_resolution]  # ignore top 30% - lights, etc
 
         elif self.color == 'purple':  # 2023 purple cubes
             self._hsv_threshold_hue = [117, 126]  # this is too close to blue...
@@ -446,7 +446,8 @@ class SpartanOverlay(GripPipeline):
         # need to do extra math if camera bore at an angle to the object
         camera_height = 33  # camera vertical distance above ground, use when cam looking at objects on ground
         if self.camera == 'lifecam':
-            camera_fov = 55  # Lifecam 320x240
+            # camera_fov = 55  # Lifecam 320x240
+            camera_fov = 55  # Lifecam 640x360
         elif self.camera == 'c920':
             camera_fov = 77  # logitech c920 in wide mode
         elif self.camera == 'geniuscam':

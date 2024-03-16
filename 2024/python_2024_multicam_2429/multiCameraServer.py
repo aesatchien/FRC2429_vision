@@ -7,6 +7,7 @@
 import json
 import time
 import sys, os, glob
+import threading
 
 import numpy as np
 
@@ -233,6 +234,23 @@ def startSwitchedCamera(config):
 
     return server
 
+
+# allow camera acquisition and analysis to run in a thread - just give a function a stop flag argument
+# then set stop_flag.set() to let it end
+stop_flags = []
+def run_in_thread(func):
+    def wrapper(*args, **kwargs):
+        stop_flag = threading.Event()
+
+        def target_func():
+            func(*args, **kwargs, stop_flag=stop_flag)
+
+        thread = threading.Thread(target=target_func, name=func.__name__)
+        thread.start()
+        stop_flags.append(stop_flag)  # back door to kill a thread i started with the set() event
+        return stop_flag
+    return wrapper
+
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
         configFile = sys.argv[1]
@@ -268,111 +286,10 @@ if __name__ == "__main__":
     # add an image source, should probably read camera[0] to get the resolution.  I think it ignores FPS
     # except for how it reports, and the actual speed is determined by the rate the code puts images to the sink
 
-    processed_ports = [1186, 1187]   # allow for multiple cameras on 1181-1185
-    stream_labels = ['Ringcam', 'Tagcam']
-    image_source = [None, None]
-    cvStream = [None, None]
-    cams = [None, None]
-    for ix, cam in enumerate(cameras):  # should allow me to have as many cameras as i want
-        vm = cameras[ix].getVideoMode()
-        x_resolution = vm.width
-        y_resolution = vm.height
-        stream_fps = 30
-        image_source[ix] = CvSource(f"{stream_labels[ix]} CV Image Source", VideoMode.PixelFormat.kMJPEG, x_resolution, y_resolution, stream_fps)
-        # start a stream
-        cvStream[ix] = MjpegServer(f"{stream_labels[ix]} CV Image Stream", processed_ports[ix])
-        # compress the stream - 1 cuts data by 16x but is unrecognizable, 100 is no compression and 320x240x30fps is 11Mbps
-        # 50 seems to cut it ~ 5x t- 2.3Mbps, still looks pretty good, 25 is pretty marginal at 1.6Mbps.  Default is -1?
-        if x_resolution > 300:  # just take the default for smaller formats
-            cvStream[ix].getProperty("compression").set(30)
-        cvStream[ix].setSource(image_source[ix])  # now the stream is updated by image_source
-        cs = CameraServer  #  .getInstance()
-        cs.addCamera(image_source[ix])  # is this really necessary?  we add another one later
-        print(f"*** Starting 2429 {stream_labels[ix]} Processed stream on {processed_ports[ix]}")
-        # camera = HttpCamera("BallCam Processed", "http://10.24.29.12:1182/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
-        # actually, this should be more bulletproof, esp when testing at home
-        cams[ix] = HttpCamera(f"{stream_labels[ix]} Processed", f"http://127.0.0.1:{processed_ports[ix]}/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
-        cs.addCamera(cams[ix])  # how does this know we want cvStream assigned to the web?
-    # -------------------------------------------'''
-
-    #  ----------------  start a vision thread (CJH)  --------------------
-    # TODO - turn this into a thread running in the background
-
-    # set up our network tables
-    ring_table = ntinst.getTable("Cam_Ringcam")  # the network table served by the pi
-    tag_table = ntinst.getTable("Cam_Tagcam")  # the network table served by the pi
-    use_camera_1 = True
-    use_camera_2 = True
-
-    # set up the debug and training calls in the network tables
-    training_topic_publisher = ring_table.getBooleanTopic('_training').publish()  # is it really this annoying?
-    training_topic_publisher.set(False)
-    training_topic_subscriber = ring_table.getBooleanTopic('_training').subscribe(False)
-
-    debug_topic_publisher = ring_table.getBooleanTopic('_debug').publish()  # is it really this annoying?
-    debug_topic_publisher.set(False)
-    debug_topic_subscriber = ring_table.getBooleanTopic('_debug').subscribe(False)
-    timestamp_subscriber = ntinst.getDoubleTopic('/SmartDashboard/_timestamp').subscribe(0)  # comes from robot
-
-    training_color = ring_table.getStringTopic('_training_color').publish()
-    top_frames = ring_table.getDoubleTopic('_frames').publish()
-    top_colors = ring_table.getStringArrayTopic('_colors').publish()
-    # camera_dict = {'red': {}, 'blue': {}, 'green':{}}  # the colors we need to check for
-
-    # dictionary for each camera - at the moment needs a color even if you don't look for them
-    tag_camera_dict = {'orange': {}, 'tags': {}}  # the colors we need to check for
-    ring_camera_dict =  {'orange': {}, 'tags': {}}
-    tag_entries = [tag_table.getDoubleArrayTopic(f"poses/tag1").publish(), tag_table.getDoubleArrayTopic(f"poses/tag2").publish()]
-
-    # set up network tables and pipelines, one for each color
-    for key in tag_camera_dict.keys():
-        tag_camera_dict[key].update({'id': tag_table.getDoubleTopic(f"{key}/id").publish()})
-        tag_camera_dict[key].update({'targets_entry': tag_table.getDoubleTopic(f"{key}/targets").publish()})
-        tag_camera_dict[key].update({'distance_entry': tag_table.getDoubleTopic(f"{key}/distance").publish()})
-        tag_camera_dict[key].update({'rotation_entry': tag_table.getDoubleTopic(f"{key}/rotation").publish()})
-        tag_camera_dict[key].update({'strafe_entry': tag_table.getDoubleTopic(f"{key}/strafe").publish()})
-    for key in ring_camera_dict.keys():
-        ring_camera_dict[key].update({'id': ring_table.getDoubleTopic(f"{key}/id").publish()})
-        ring_camera_dict[key].update({'targets_entry': ring_table.getDoubleTopic(f"{key}/targets").publish()})
-        ring_camera_dict[key].update({'distance_entry': ring_table.getDoubleTopic(f"{key}/distance").publish()})
-        ring_camera_dict[key].update({'rotation_entry': ring_table.getDoubleTopic(f"{key}/rotation").publish()})
-        ring_camera_dict[key].update({'strafe_entry': ring_table.getDoubleTopic(f"{key}/strafe").publish()})
-    ntinst.flush()
-
-    # set up a pipeline for each camera
-    ring_actual_colors = [key for key in tag_camera_dict.keys() if key != 'tags']
-    tag_pipeline = SpartanOverlay(colors=ring_actual_colors, camera='c920')  # logitech for tags
-    ring_pipeline = SpartanOverlay(colors=ring_actual_colors, camera='lifecam')  # lifecam for rings
-    top_colors.set(tag_pipeline.colors)  # announce to NT that we have the right colors
-
-    cs = CameraServer #  .getInstance()  # already taken care of above, but if i comment it out above this is necessary
-    # this next part will be trickier if we have more than one camera, but we can have separate pipelines
-    # also, since i added a camera above, this doesn't work if i just use cs.getVideo() - i think adding that one changes the primary
-    sink = cs.getVideo(camera=cameras[0])
-    # sink = cs.getVideo() # can only do this if a camera is started, i.e. camera = cs.startAutomaticCapture()
-    vm = cameras[0].getVideoMode()  # getting the resolution, etc from the camera again, repeating in case above changes
-    img = np.zeros((vm.height, vm.width, 3))  # make our first dummy image for cv to write over
-
-    if len(cameras) > 1:  # add a second camera
-        sink_2 = cs.getVideo(camera=cameras[1])
-        vm2 = cameras[1].getVideoMode()
-        img2 = np.zeros((vm2.height, vm2.width, 3))
-
-    tagcam_success_counter = 0  # keep track of FPS so we can tell in the console when things are going wrong
-    ringcam_success_counter = 0
-    previous_topcam_counts = 0
-    previous_groundcam_counts = 0
-    failure_counter = 0  # very first image often fails, and after that we are solid
-    print(f'Entering image process loop with a {vm.width}x{vm.height} stream...', flush=True)
-    previous_time = time.time()
-
-    server_dict = {'ringcam': True, 'tagcam': True}
-    reduce_bandwidth = False
-
     # make a folder to keep track of images  TODO - just do this on the driverstation in a notebook? Turn on from dash?
     save_images = False
     if save_images:
-        image_counter = 0
+        saved_image_counter = 0
         dir_count = len(glob.glob('image*')) + 2
         folder = f'images_{dir_count}'
         try:
@@ -380,134 +297,216 @@ if __name__ == "__main__":
         except Exception as e:
             pass
 
-    # geniuscam seems to work, but mainly because you can't tell it anything.  lifecam needs brightness updated
-    # re-set camera paramaters - may jump start them a bit
-    cameras_to_set = [0, 1]
+    cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,
+                'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
+                'find_tags': True, 'find_colors': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
+                'pipeline': None, },
+          1: {'name':'lifecam', 'processed_port': 1187, 'stream_label': 'Ringcam', 'table': None, 'table_name': "Cameras/Ringcam", 'enabled': True,
+                'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
+                'find_tags': False, 'find_colors': True, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
+                'pipeline': None, },
+          }
+
+    # set up streams using config dictionary above
+    print(f"Attempting to start cvstreams using camera keys: {list(cd.keys())}")
+    for cam in cd.keys():
+        vm = cd[cam]['camera'].getVideoMode()
+        cd[cam]['x_resolution'] = vm.width
+        cd[cam]['y_resolution'] = vm.height
+        stream_fps = 20
+        cd[cam]['image_source'] = CvSource(f"{cd[cam]['stream_label']} CV Image Source", VideoMode.PixelFormat.kMJPEG, cd[cam]['x_resolution'], cd[cam]['y_resolution'], stream_fps)
+        # start a stream
+        cd[cam]['cvstream'] = MjpegServer(f"{cd[cam]['stream_label']} CV Image Stream", cd[cam]['processed_port'])
+        if cd[cam]['x_resolution'] > 300:  # just take the default for smaller formats
+            cd[cam]['cvstream'].getProperty("compression").set(50)
+        cd[cam]['cvstream'].setSource(cd[cam]['image_source'])  # now the stream is updated by image_source
+        cs = CameraServer  #  .getInstance()
+        cs.addCamera(cd[cam]['image_source'])  # is this really necessary?  we add another one later
+        print(f"*** Starting 2429 {cd[cam]['stream_label']} Processed stream on {cd[cam]['processed_port']} at {cd[cam]['x_resolution']}x{cd[cam]['y_resolution']} ***")
+        cd[cam]['http_camera'] = HttpCamera(f"{cd[cam]['stream_label']} Processed",
+                              f"http://127.0.0.1:{cd[cam]['processed_port']}/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
+        cs.addCamera(cd[cam]['http_camera'])  # how does this know we want cvStream assigned to the web?
+
+
+    # WHY THIS IS NECESSARY - IF YOU SET ABSOLUTE EXPOSURE IT DOES NOT ACTUALLY UPDATE, SO TOUCH THE BRIGHTNESS AND IT DOES
+    # geniuscam seems to work, but mainly because you can't tell it anything.  lifecam and maybe logitech needs brightness updated
+    # re-set camera parameters - may jump start them a bit
+    cameras_to_set = [0,1]
     for cam_idx in cameras_to_set:
         bright_list = [item.config["brightness"] for item in cameraConfigs]
-        cameras[cam_idx].setBrightness(bright_list[cam_idx]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
+        cd[cam_idx]['camera'].setBrightness(bright_list[cam_idx]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
         time.sleep(0.25)
         print(f'Resetting brightness on cam {cam_idx} to {bright_list[cam_idx]}')
-        cameras[cam_idx].setBrightness(bright_list[cam_idx])
+        cd[cam_idx]['camera'].setBrightness(bright_list[cam_idx])
     else:
         pass
 
-    training = False  # for pipeline.process - are we in training mode
-    debug = False # for pipeline process - do we want to see contours
-    while True and failure_counter < 100:
+    #  ----------------  start a vision thread (CJH)  --------------------
+    # TODO - turn this into a thread running in the background
 
-        if len(cameras) >= 1:
+    # set up our network tables
+    cam_table = ntinst.getTable("Cameras")
+    training = False  # for pipeline.process - are we in training mode
+    debug = False # for pipeline process - do we want to see details on contours
+
+    # set up the debug and training calls in the network tables
+    training_topic_publisher = cam_table.getBooleanTopic('_training').publish()  # is it really this annoying?
+    training_topic_publisher.set(False)
+    training_topic_subscriber = cam_table.getBooleanTopic('_training').subscribe(False)
+
+    debug_topic_publisher = cam_table.getBooleanTopic('_debug').publish()  # is it really this annoying?
+    debug_topic_publisher.set(False)
+    debug_topic_subscriber = cam_table.getBooleanTopic('_debug').subscribe(False)
+    timestamp_subscriber = ntinst.getDoubleTopic('/SmartDashboard/_timestamp').subscribe(0)  # comes from robot
+    training_color = cam_table.getStringTopic('_training_color').publish()
+
+    for cam in cd.keys():  # set up everything you need in a camera
+        cd[cam]['table'] = ntinst.getTable(cd[cam]['table_name'])
+        for key in cd[cam]['target_results'].keys():
+            cd[cam]['target_results'][key].update({'id': cd[cam]['table'].getDoubleTopic(f"{key}/id").publish()})
+            cd[cam]['target_results'][key].update({'targets_entry': cd[cam]['table'].getDoubleTopic(f"{key}/targets").publish()})
+            cd[cam]['target_results'][key].update({'distance_entry': cd[cam]['table'].getDoubleTopic(f"{key}/distance").publish()})
+            cd[cam]['target_results'][key].update({'rotation_entry': cd[cam]['table'].getDoubleTopic(f"{key}/rotation").publish()})
+            cd[cam]['target_results'][key].update({'strafe_entry': cd[cam]['table'].getDoubleTopic(f"{key}/strafe").publish()})
+        cd[cam]['tag_entries'] = [cd[cam]['table'].getDoubleArrayTopic(f"poses/tag1").publish(), cd[cam]['table'].getDoubleArrayTopic(f"poses/tag2").publish()]
+        cd[cam]['frame_entry'] = cd[cam]['table'].getDoubleTopic("_frames").publish()
+        cd[cam]['colors_entry'] = cd[cam]['table'].getStringArrayTopic("colors").publish()
+        cd[cam]['colors_entry'].set(cd[cam]['colors'])
+        actual_colors = [key for key in cd[cam]['target_results'].keys() if key != 'tags']
+        cd[cam]['pipeline'] = SpartanOverlay(colors=actual_colors, camera=cd[cam]['name'])
+
+        cs = CameraServer
+        cd[cam]['sink'] = cs.getVideo(camera=cd[cam]['camera'])
+        cd[cam]['img'] = np.zeros((cd[cam]['y_resolution'], cd[cam]['x_resolution'], 3))
+        cd[cam]['success_counter'] = 0
+        cd[cam]['previous_counts'] = 0
+        cd[cam]['frame_counts'] = 0
+        cd[cam]['fps'] = 0
+        cd[cam]['previous_time'] = 0
+        cd[cam]['failure_counter'] = 0
+        cd[cam]['reduce_bandwidth'] = True
+
+    # set up a pipeline for each camera
+
+    failure_counter = 0  # very first image often fails, and after that we are solid
+    camera_names = [cd[cam]['name'] for cam in cd.keys()]
+    print(f'Entering image process loop with {camera_names}...', flush=True)
+    loop_count = 0
+    previous_time = 0
+
+    # set up threads here - so cameras can run in parallel instead for waiting for each other to finish
+
+    def update_stream(cam):
+        global training, debug, failure_counter, saved_image_counter
+        if cd[cam]['enabled']:
             # get the basecam images
-            image_time, captured_img = sink.grabFrame(img)  # default time out is about 4 FPS
+            image_time, captured_img = cd[cam]['sink'].grabFrame(cd[cam]['img'])  # default time out is about 4 FPS
             if image_time > 0:  # actually got an image
-                results, tags = tag_pipeline.process(captured_img.copy(), method='size', training=training, debug=debug, find_tags=True, find_colors=False)
-                for key in tag_camera_dict.keys():  # doing all colors and tags !
-                    #targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
+                # print(f'image acquired on {cd[cam]["name"]}', flush='True')
+                results, tags = cd[cam]['pipeline'].process(captured_img.copy(), method='size', training=training,
+                                                            debug=debug, find_tags=cd[cam]['find_tags'],
+                                                            find_colors=cd[cam]['find_colors'])
+                for key in cd[cam]['target_results'].keys():  # doing all colors and tags !
+                    # targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']
-                    tag_camera_dict[key]['targets_entry'].set(targets)  # should see if we can make this one dict to push, may be a one-liner
+                    cd[cam]['target_results'][key]['targets_entry'].set(
+                        targets)  # should see if we can make this one dict to push, may be a one-liner
                     if targets > 0:
-                        tag_camera_dict[key]['id'].set(results[key]['ids'][0])
-                        tag_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
-                        tag_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
-                        tag_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
+                        cd[cam]['target_results'][key]['id'].set(results[key]['ids'][0])
+                        cd[cam]['target_results'][key]['distance_entry'].set(results[key]['distances'][0])
+                        cd[cam]['target_results'][key]['strafe_entry'].set(results[key]['strafes'][0])
+                        cd[cam]['target_results'][key]['rotation_entry'].set(results[key]['rotations'][0])
                     else:
-                        tag_camera_dict[key]['id'].set(0)
-                        tag_camera_dict[key]['distance_entry'].set(0)
-                        tag_camera_dict[key]['strafe_entry'].set(0)
-                        tag_camera_dict[key]['rotation_entry'].set(0)
+                        cd[cam]['target_results'][key]['id'].set(0)
+                        cd[cam]['target_results'][key]['distance_entry'].set(0)
+                        cd[cam]['target_results'][key]['strafe_entry'].set(0)
+                        cd[cam]['target_results'][key]['rotation_entry'].set(0)
+
                 # put the tag poses an info to NT
                 ts = timestamp_subscriber.get()  # find out what time it is
                 if len(tags) > 0:
-                    # self.tags.update({f'tag{tag.getId():02d}': {'id': tag.getId(), 'rotation': pose.rotation().x,
+                    #  {'id': tag.getId(), 'rotation': pose.rotation().x,
                     #   'distance': pose.z, 'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
                     for idx, key in enumerate(tags.keys()):
-                        data = [ts, tags[key]['id'], tags[key]['tx'], tags[key]['ty'], tags[key]['tz'], tags[key]['rx'], tags[key]['ry'], tags[key]['rz']]
+                        data = [ts, tags[key]['id'], tags[key]['tx'], tags[key]['ty'], tags[key]['tz'],
+                                tags[key]['rx'], tags[key]['ry'], tags[key]['rz']]
                         try:
-                            tag_entries[idx].set(data)
+                            cd[cam]['tag_entries'][idx].set(data)
                         except IndexError:
                             pass
                     if idx < 1:
-                        tag_entries[1].set([ts] + [0] * 7)
+                        cd[cam]['tag_entries'][1].set([ts] + [0] * 7)
                 else:
-                    for tag_entry in tag_entries:
-                        tag_entry.set([ts] + [0]*7)
+                    for tag_entry in cd[cam]['tag_entries']:
+                        tag_entry.set([ts] + [0] * 7)
                 ntinst.flush()  # is this necessary?
 
-                # if we are connected to a robot, get its team color.  default to blue
-                if tagcam_success_counter % 30 == 0:  # check every few seconds for a camera selection update
+                # cut down on streaming bandwidth - hard to figure out how to just set the stream to do it for you
+                max_width = 320
+                if cd[cam]['reduce_bandwidth'] and cd[cam]['pipeline'].image.shape[1] > max_width:
+                    height, width = cd[cam]['pipeline'].image.shape[:2]
+                    image = cv2.resize(cd[cam]['pipeline'].image, (int(max_width), int(height * max_width / width)))
+                    cd[cam]['image_source'].putFrame(image)
+                else:
+                    cd[cam]['image_source'].putFrame(
+                        cd[cam]['pipeline'].image)  # feeds the Http camera with a new image
+
+                if cd[cam]['success_counter'] % 30 == 0:  # check every few seconds for a camera selection update
                     training = training_topic_subscriber.get()  # update if the dash has selected training mode
                     debug = debug_topic_subscriber.get()
-                    top_frames.set(tagcam_success_counter)
-                    if ntinst.getTable('SmartDashboard').getEntry('StationNumber').getInteger(0) == 1:
-                        pass
-                    # print(f'At frame {success_counter} team key is {team_key}')
-                if server_dict['tagcam']:
-                    # cut down on streaming bandwidth - hard to figure out how to just set the stream to do it for you
-                    max_width = 480
-                    if reduce_bandwidth and tag_pipeline.image.shape[1] > max_width:
-                        height, width = tag_pipeline.image.shape[:2]
-                        image = cv2.resize(tag_pipeline.image, (int(max_width), int(height * max_width / width)))
-                        image_source[0].putFrame(image)
-                    else:
-                        image_source[0].putFrame(tag_pipeline.image)  # feeds the Http camera with a new image
-                tagcam_success_counter += 1
+                    cd[cam]['frame_entry'].set(cd[cam]['success_counter'])
+                    now = time.time()
+                    # update the console - most FPS issues are with auto-exposure or if exposure time is too long for FPS setting
+                    # the cameras seem to cut FPS down automatically by integer divisors - e.g. max 30 --> max 15 --> max 7.5
+                    cd[cam]['fps'] = (cd[cam]['success_counter'] - cd[cam]['previous_counts']) / (
+                                now - cd[cam]['previous_time'])
 
-            else:  # keep track of failures to read the image from the sink
-                failure_counter += 1
-            if tagcam_success_counter % 30 == 0:
-                now = time.time()
-                # update the console - most FPS issues are with auto-exposure or if exposure time is too long for FPS setting
-                # the cameras seem to cut FPS down automatically by integer divisors - e.g. max 30 --> max 15 --> max 7.5
-                fps1 = (tagcam_success_counter - previous_topcam_counts) / (now - previous_time)
-                fps2 = (ringcam_success_counter - previous_groundcam_counts) / (now - previous_time)
-                # print(f'Cameras: {len(cameras)}  Avg Tag FPS: {fps1:0.1f} Avg Ring FPS: {fps2:0.1f}  Reported:{cameras[0].getActualFPS()}  Success: {tagcam_success_counter:8d}  Failure:{failure_counter:3d}', end='\r', flush=True)
-                print(f'Cameras: {len(cameras)}  Avg Tag FPS: {fps1:0.1f} Avg Ring FPS: {fps2:0.1f}  Success: {tagcam_success_counter:8d}  Failure:{failure_counter:3d}', end='\r', flush=True)
-                previous_topcam_counts = tagcam_success_counter
-                previous_groundcam_counts = ringcam_success_counter
-                previous_time = now
+                    cd[cam]['previous_counts'] = cd[cam]['success_counter']
+                    cd[cam]['previous_time'] = now
 
-        if use_camera_2:  # do we want to recognize targets on the ring camera?
-            if len(cameras) >= 2:
-                # get the shooter target images - green stuff
-                image_time, captured_img2 = sink_2.grabFrame(img2)  # default time out is about 4 FPS
-                # check if the foscam is making large images
-                if captured_img2.shape[1] > 400:  # this is the width
-                    scale_percent = 50  # percent of original size
-                    width = int(captured_img2.shape[1] * scale_percent / 100)
-                    height = int(captured_img2.shape[0] * scale_percent / 100)
-                    dim = (width, height)
-                    image_to_process = cv2.resize(captured_img2.copy(), dim, interpolation=cv2.INTER_AREA)
-                else:
-                    image_to_process = captured_img2.copy()
+                    if save_images:
+                        saved_image_counter += 1
+                        print(f'Writing image {saved_image_counter % 200:03d}...')
+                        cv2.imwrite(f'{folder}/test_{cam}{saved_image_counter % 200:03d}.png', captured_img)
 
-                if image_time > 0:  # actually got an image
-                    if use_camera_2:
-                        results, tags = ring_pipeline.process(captured_img2.copy(), find_tags=False, find_colors=True)
-                        for key in ring_pipeline.colors:
-                            targets = results[key]['targets']
-                            ring_camera_dict[key]['targets_entry'].set(targets)
-                            if targets > 0:
-                                ring_camera_dict[key]['id'].set(results[key]['ids'][0])
-                                ring_camera_dict[key]['distance_entry'].set(results[key]['distances'][0])
-                                ring_camera_dict[key]['strafe_entry'].set(results[key]['strafes'][0])
-                                ring_camera_dict[key]['rotation_entry'].set(results[key]['rotations'][0])
-                            else:
-                                ring_camera_dict[key]['id'].set(0)
-                                ring_camera_dict[key]['distance_entry'].set(0)
-                                ring_camera_dict[key]['strafe_entry'].set(0)
-                                ring_camera_dict[key]['rotation_entry'].set(0)
-                        ntinst.flush()
-                        if server_dict['ringcam']:
-                            image_source[1].putFrame(ring_pipeline.image)
-                    else: # skip the processing, stream the raw image
-                        if server_dict['ringcam']:
-                            image_source[1].putFrame(captured_img2)
-                    ringcam_success_counter += 1
+                cd[cam]['success_counter'] += 1
 
-        if tagcam_success_counter % 51 == 0 and save_images:  # save an image every few seconds
-            image_counter += 1
-            print(f'Writing image {image_counter % 200:03d}...')
-            cv2.imwrite(f'{folder}/test_{image_counter%200:03d}.png', captured_img)
-            #cv2.imwrite(f'{folder}/test_{image_counter % 200:03d}.png', captured_img2)
+            else:  # failed to acquire an image
+                cd[cam]['failure_counter'] += 1
+                failure_counter += 1  # any camera failure adds to the one on the while loop
+                if failure_counter % 10 == 0:
+                    print(
+                        f"failures: {failure_counter} {cd[0]['failure_counter']}/{cd[1]['failure_counter']}{' ' * 40}",
+                        flush=True)
+                # cd[cam]['image_source'].putFrame(cd[cam]['img'])
+        else:  # camera not enabled
+            pass
+
+    @run_in_thread
+    def stream_loop(cam, stop_flag):
+        while not stop_flag.is_set():
+            update_stream(cam)
+
+    # start the camera threads
+    for cam in cd.keys():
+        stream_loop(cam)
+
+    while True and failure_counter < 100:
+        # process each camera separately
+        loop_count += 1
+        time.sleep(1/30)
+        # print(f'Attempting a capture cycle {loop_count}... ', end='\r', flush=True)
+
+        if loop_count % 30 == 0:
+            # report stats once per second
+            now = time.time()
+            cam_fps = [cd[cam]['fps'] for cam in cd.keys()]
+            fails = [cd[cam]['failure_counter'] for cam in cd.keys()]
+            successes = [cd[cam]['success_counter'] for cam in cd.keys()]
+            names = [cd[cam]['name'] for cam in cd.keys()]
+            msg = f"Cameras: {len(cameras)}  Avg {names[0]} FPS: {cam_fps[0]:0.1f} Avg {names[1]} FPS: {cam_fps[1]:0.1f}"
+            msg += f" Success:{successes[0]}/{successes[1]}  Failure:{fails[0]}/{fails[1]}"
+            print(msg, end='\r', flush=True)
+            previous_time = now
 
         # ----------------------------------------------------

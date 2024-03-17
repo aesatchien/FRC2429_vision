@@ -6,7 +6,7 @@
 
 import json
 import time
-import sys, os, glob
+import sys, os, glob, signal
 import threading
 
 import numpy as np
@@ -240,7 +240,7 @@ def startSwitchedCamera(config):
 stop_flags = []
 
 def run_in_thread(func):
-    # wrap a function to run in a thread
+    # decorator to wrap a function to run in a thread -
     def wrapper(*args, **kwargs):
         stop_flag = threading.Event()
 
@@ -249,11 +249,11 @@ def run_in_thread(func):
 
         thread = threading.Thread(target=target_func, name=func.__name__)
         thread.start()
-        stop_flags.append(stop_flag)  # back door to kill a thread i started with the set() event
+        stop_flags.append(stop_flag)  # back door to kill any thread i started with the set() event
         return stop_flag
     return wrapper
 
-# decorator to simplify catching CTRL-C in ipython
+# decorator to simplify catching CTRL-C in ipython - not implemented yet
 def catch_ctrl_c(func):
     def wrapper(*args, **kwargs):
         try:
@@ -266,6 +266,16 @@ def catch_ctrl_c(func):
             sys.exit(0)
     return wrapper
 
+def handle_sigint(signum, frame):
+  """Function to execute when the SIGINT signal is received."""
+  print("\nSIGINT received. Exiting gracefully...\n")
+  for stop_flag in stop_flags:
+      stop_flag.set()
+      time.sleep(0.2)
+  sys.exit(0)
+
+# Register the signal handler
+signal.signal(signal.SIGINT, handle_sigint)
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -527,7 +537,7 @@ if __name__ == "__main__":
                 msg += f" Success:{successes[0]}/{successes[1]}  Failure:{fails[0]}/{fails[1]}"
                 print(msg, end='\r', flush=True)
                 previous_time = ts
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # not necessary since I'm trapping SIGNINT above
             print("\nCtrl+C trapped! Terminating threads and ending ...")
             for stop_flag in stop_flags:
                 stop_flag.set()

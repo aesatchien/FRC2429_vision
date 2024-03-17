@@ -238,7 +238,9 @@ def startSwitchedCamera(config):
 # allow camera acquisition and analysis to run in a thread - just give a function a stop flag argument
 # then set stop_flag.set() to let it end
 stop_flags = []
+
 def run_in_thread(func):
+    # wrap a function to run in a thread
     def wrapper(*args, **kwargs):
         stop_flag = threading.Event()
 
@@ -250,6 +252,20 @@ def run_in_thread(func):
         stop_flags.append(stop_flag)  # back door to kill a thread i started with the set() event
         return stop_flag
     return wrapper
+
+# decorator to simplify catching CTRL-C in ipython
+def catch_ctrl_c(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except KeyboardInterrupt:
+            print("\nCtrl+C trapped! Terminating threads.")
+            for stop_flag in stop_flags:
+                stop_flag.set()
+            time.sleep(0.1)
+            sys.exit(0)
+    return wrapper
+
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
@@ -300,11 +316,11 @@ if __name__ == "__main__":
     cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,
                 'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
                 'find_tags': True, 'find_colors': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                'pipeline': None, },
+                'pipeline': None, 'stream_fps': 10, 'stream_max_width': 640},
           1: {'name':'lifecam', 'processed_port': 1187, 'stream_label': 'Ringcam', 'table': None, 'table_name': "Cameras/Ringcam", 'enabled': True,
                 'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
                 'find_tags': False, 'find_colors': True, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                'pipeline': None, },
+                'pipeline': None, 'stream_fps': 15, 'stream_max_width': 480},
           }
 
     # set up streams using config dictionary above
@@ -318,7 +334,7 @@ if __name__ == "__main__":
         # start a stream
         cd[cam]['cvstream'] = MjpegServer(f"{cd[cam]['stream_label']} CV Image Stream", cd[cam]['processed_port'])
         if cd[cam]['x_resolution'] > 300:  # just take the default for smaller formats
-            cd[cam]['cvstream'].getProperty("compression").set(50)
+            cd[cam]['cvstream'].getProperty("compression").set(30)  # I think this screws up the incoming and outgoing images?  Need to check.
         cd[cam]['cvstream'].setSource(cd[cam]['image_source'])  # now the stream is updated by image_source
         cs = CameraServer  #  .getInstance()
         cs.addCamera(cd[cam]['image_source'])  # is this really necessary?  we add another one later
@@ -383,6 +399,7 @@ if __name__ == "__main__":
         cd[cam]['frame_counts'] = 0
         cd[cam]['fps'] = 0
         cd[cam]['previous_time'] = 0
+        cd[cam]['previous_image_send'] = 0
         cd[cam]['failure_counter'] = 0
         cd[cam]['reduce_bandwidth'] = True
 
@@ -442,25 +459,25 @@ if __name__ == "__main__":
                 ntinst.flush()  # is this necessary?
 
                 # cut down on streaming bandwidth - hard to figure out how to just set the stream to do it for you
-                max_width = 320
-                if cd[cam]['reduce_bandwidth'] and cd[cam]['pipeline'].image.shape[1] > max_width:
-                    height, width = cd[cam]['pipeline'].image.shape[:2]
-                    image = cv2.resize(cd[cam]['pipeline'].image, (int(max_width), int(height * max_width / width)))
-                    cd[cam]['image_source'].putFrame(image)
-                else:
-                    cd[cam]['image_source'].putFrame(
-                        cd[cam]['pipeline'].image)  # feeds the Http camera with a new image
+                now = time.time()
+                max_width = cd[cam]['stream_max_width']
+                if now - cd[cam]['previous_image_send'] > 1 / cd[cam]['stream_fps']:  # ok to send an image
+                    if cd[cam]['reduce_bandwidth'] and cd[cam]['pipeline'].image.shape[1] > max_width:
+                        height, width = cd[cam]['pipeline'].image.shape[:2]
+                        image = cv2.resize(cd[cam]['pipeline'].image, (int(max_width), int(height * max_width / width)))
+                        cd[cam]['image_source'].putFrame(image)
+                    else:
+                        cd[cam]['image_source'].putFrame(
+                            cd[cam]['pipeline'].image)  # feeds the Http camera with a new image
+                    cd[cam]['previous_image_send'] = now  # resets the clock for sending frames
 
                 if cd[cam]['success_counter'] % 30 == 0:  # check every few seconds for a camera selection update
                     training = training_topic_subscriber.get()  # update if the dash has selected training mode
                     debug = debug_topic_subscriber.get()
                     cd[cam]['frame_entry'].set(cd[cam]['success_counter'])
-                    now = time.time()
                     # update the console - most FPS issues are with auto-exposure or if exposure time is too long for FPS setting
                     # the cameras seem to cut FPS down automatically by integer divisors - e.g. max 30 --> max 15 --> max 7.5
-                    cd[cam]['fps'] = (cd[cam]['success_counter'] - cd[cam]['previous_counts']) / (
-                                now - cd[cam]['previous_time'])
-
+                    cd[cam]['fps'] = (cd[cam]['success_counter'] - cd[cam]['previous_counts']) / (now - cd[cam]['previous_time'])
                     cd[cam]['previous_counts'] = cd[cam]['success_counter']
                     cd[cam]['previous_time'] = now
 
@@ -492,21 +509,29 @@ if __name__ == "__main__":
         stream_loop(cam)
 
     while True and failure_counter < 100:
-        # process each camera separately
-        loop_count += 1
-        time.sleep(1/30)
-        # print(f'Attempting a capture cycle {loop_count}... ', end='\r', flush=True)
 
-        if loop_count % 30 == 0:
-            # report stats once per second
-            now = time.time()
-            cam_fps = [cd[cam]['fps'] for cam in cd.keys()]
-            fails = [cd[cam]['failure_counter'] for cam in cd.keys()]
-            successes = [cd[cam]['success_counter'] for cam in cd.keys()]
-            names = [cd[cam]['name'] for cam in cd.keys()]
-            msg = f"Cameras: {len(cameras)}  Avg {names[0]} FPS: {cam_fps[0]:0.1f} Avg {names[1]} FPS: {cam_fps[1]:0.1f}"
-            msg += f" Success:{successes[0]}/{successes[1]}  Failure:{fails[0]}/{fails[1]}"
-            print(msg, end='\r', flush=True)
-            previous_time = now
+        try:
+            # process each camera separately
+            loop_count += 1
+            time.sleep(1/30)
+            # print(f'Attempting a capture cycle {loop_count}... ', end='\r', flush=True)
+
+            if loop_count % 30 == 0:
+                # report stats once per second
+                ts = time.time()
+                cam_fps = [cd[cam]['fps'] for cam in cd.keys()]
+                fails = [cd[cam]['failure_counter'] for cam in cd.keys()]
+                successes = [cd[cam]['success_counter'] for cam in cd.keys()]
+                names = [cd[cam]['name'] for cam in cd.keys()]
+                msg = f"Cameras: {len(cameras)}  Avg {names[0]} FPS: {cam_fps[0]:0.1f} Avg {names[1]} FPS: {cam_fps[1]:0.1f}"
+                msg += f" Success:{successes[0]}/{successes[1]}  Failure:{fails[0]}/{fails[1]}"
+                print(msg, end='\r', flush=True)
+                previous_time = ts
+        except KeyboardInterrupt:
+            print("\nCtrl+C trapped! Terminating threads and ending ...")
+            for stop_flag in stop_flags:
+                stop_flag.set()
+                time.sleep(0.2)
+            sys.exit(0)
 
         # ----------------------------------------------------

@@ -186,7 +186,9 @@ class SpartanOverlay(GripPipeline):
                                                         geo.CoordinateSystem.NWU())
                 # where is camera on robot - origin of frame is center of robot
                 # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, 0, 0.2),geo.Rotation3d(0, np.radians(0), np.pi))  # back of robot, rotate up in y?
+                camera_x_offset = -0.3  # with the camera on the back, this seems to work as a negative number
+                camera_y_offset = -0.1  # just a bit off center, camera on back and right of center (if robot forwards)
+                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(camera_x_offset, camera_y_offset, 0.2),geo.Rotation3d(0, np.radians(-10), np.pi))  # back of robot, rotate up in y?
                 tag_in_field_frame = self.layout.getTagPose(tag.getId())
                 try:
                     robot_in_field_frame = objectToRobotPose(objectInField=tag_in_field_frame, cameraToObject=pose_nwu, robotToCamera=camera_in_robot_frame)

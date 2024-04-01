@@ -187,10 +187,12 @@ class SpartanOverlay(GripPipeline):
                 # where is camera on robot - origin of frame is center of robot
                 if self.front_cam:
                     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, -0.1),geo.Rotation3d(0, np.radians(0), 0))  # back of robot, rotate up in y?
-                else:  # camera in back
+                    # the camera is in the front and four inches to the left of center
+                    # also looks like a negative value on the y rotation gives the right distance
+                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0.1, 0.2),geo.Rotation3d(0, math.radians(-30), 0))  # back of robot, rotate up in y?
+                else:  # camera in back 
                     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, 0, 0.2), geo.Rotation3d(0, np.radians(0), np.pi))  # back of robot, rotate up in y?
+                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, -.1, 0.2), geo.Rotation3d(0, math.radians(-30), np.pi))  # back of robot, rotate up in y?
 
                 tag_in_field_frame = self.layout.getTagPose(tag.getId())
                 try:

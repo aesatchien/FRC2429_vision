@@ -80,7 +80,7 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
-                skip_overlay=False, debug=False, find_tags=True, find_colors=True, front_cam=False):
+                skip_overlay=False, debug=False, find_tags=True, find_colors=True):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -95,7 +95,7 @@ class SpartanOverlay(GripPipeline):
         self.image = image
         self.original_image = image.copy()  # supposedly expensive, but if we need it later - doesn't seem to cost time
         self.y_resolution, self.x_resolution, self.channels = self.image.shape
-        self.front_cam = front_cam  # flag if tag camera is on front or back of robot
+
 
         # color section
         for idx, color in enumerate(self.colors):
@@ -185,13 +185,8 @@ class SpartanOverlay(GripPipeline):
                 pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(),
                                                         geo.CoordinateSystem.NWU())
                 # where is camera on robot - origin of frame is center of robot
-                if self.front_cam:
-                    # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, -0.1),geo.Rotation3d(0, np.radians(0), 0))  # back of robot, rotate up in y?
-                else:  # camera in back
-                    # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, 0, 0.2), geo.Rotation3d(0, np.radians(0), np.pi))  # back of robot, rotate up in y?
-
+                # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
+                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, 0, 0.2),geo.Rotation3d(0, np.radians(0), np.pi))  # back of robot, rotate up in y?
                 tag_in_field_frame = self.layout.getTagPose(tag.getId())
                 try:
                     robot_in_field_frame = objectToRobotPose(objectInField=tag_in_field_frame, cameraToObject=pose_nwu, robotToCamera=camera_in_robot_frame)

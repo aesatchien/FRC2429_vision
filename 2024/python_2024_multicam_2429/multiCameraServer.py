@@ -8,7 +8,7 @@ import json
 import time
 import sys, os, glob, signal
 import threading
-
+import socket
 import numpy as np
 
 #from cv2 import imwrite, resize
@@ -323,15 +323,34 @@ if __name__ == "__main__":
         except Exception as e:
             pass
 
-    cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,
-                'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
-                'find_tags': True, 'find_colors': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                'pipeline': None, 'stream_fps': 10, 'stream_max_width': 640},
-          1: {'name':'lifecam', 'processed_port': 1187, 'stream_label': 'Ringcam', 'table': None, 'table_name': "Cameras/Ringcam", 'enabled': True,
-                'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
-                'find_tags': False, 'find_colors': True, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                'pipeline': None, 'stream_fps': 15, 'stream_max_width': 640},
-          }
+    # determine which host we are on.  this should make this server file work on any of our pis
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+    print(f'Starting camera servers on {hostname} at {ip_address}')
+
+    if ip_address == "10.24.24.12":  # this pi sees front ringcam and back tagcam
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,
+                    'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
+                    'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
+                    'pipeline': None, 'stream_fps': 10, 'stream_max_width': 640},
+              1: {'name':'lifecam', 'processed_port': 1187, 'stream_label': 'Ringcam', 'table': None, 'table_name': "Cameras/Ringcam", 'enabled': True,
+                    'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
+                    'find_tags': False, 'find_colors': True, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
+                    'pipeline': None, 'stream_fps': 15, 'stream_max_width': 640},
+              }
+    elif ip_address == "10.24.24.13":  # this pi sees the front tagcam
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None,
+                  'table_name': "Cameras/TagcamFront", 'enabled': True,
+                  'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
+                  'sink': None,
+                  'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
+                  'target_results': {'orange': {}, 'tags': {}},
+                  'pipeline': None, 'stream_fps': 10, 'stream_max_width': 640},
+              }
+    else:
+        # should I do this or just go for the default?
+        # can I make the pi play a warning instead, like a beep, or do soemting with the LED?
+        raise ValueError(f'host {ip_address} not in allowed range of 10.24.29.[12, 13]')
 
     # set up streams using config dictionary above
     print(f"Attempting to start cvstreams using camera keys: {list(cd.keys())}")
@@ -357,10 +376,9 @@ if __name__ == "__main__":
     # WHY THIS IS NECESSARY - IF YOU SET ABSOLUTE EXPOSURE IT DOES NOT ACTUALLY UPDATE, SO TOUCH THE BRIGHTNESS AND IT DOES
     # geniuscam seems to work, but mainly because you can't tell it anything.  lifecam and maybe logitech needs brightness updated
     # re-set camera parameters - may jump start them a bit
-    cameras_to_set = [0,1]
-    for cam_idx in cameras_to_set:
-        bright_list = [item.config["brightness"] for item in cameraConfigs]
-        cd[cam_idx]['camera'].setBrightness(bright_list[cam_idx]+1) # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
+    for cam_idx in cd.keys():  # will be [0, 1] if we have two cameras, etc
+        bright_list = [item.config["brightness"] for item in cameraConfigs]  # gets all the brightnesses, could instead just get the one at this index
+        cd[cam_idx]['camera'].setBrightness(bright_list[cam_idx]+1)  # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
         time.sleep(0.25)
         print(f'Resetting brightness on cam {cam_idx} to {bright_list[cam_idx]}')
         cd[cam_idx]['camera'].setBrightness(bright_list[cam_idx])
@@ -386,8 +404,18 @@ if __name__ == "__main__":
     timestamp_subscriber = ntinst.getDoubleTopic('/SmartDashboard/_timestamp').subscribe(0)  # comes from robot
     training_color = cam_table.getStringTopic('_training_color').publish()
 
+
     for cam in cd.keys():  # set up everything you need in a camera
         cd[cam]['table'] = ntinst.getTable(cd[cam]['table_name'])
+        cd[cam]['timestamp_entry'] = cd[cam]['table'].getDoubleTopic("_timestamp").publish()
+        cd[cam]['timestamp_entry'].set(0)
+
+       # keep track of pi(?) disconnections by incrementing this counter every time we connect to the NT server
+        cd[cam]['connections_publisher'] = cd[cam]['table'].getDoubleTopic("connections").publish()
+        cd[cam]['connections_subscriber'] = cd[cam]['table'].getDoubleTopic("connections").subscribe(0)
+        current_connections = cd[cam]['connections_subscriber'].get()
+        cd[cam]['connections_publisher'].set(current_connections + 1)
+
         for key in cd[cam]['target_results'].keys():
             cd[cam]['target_results'][key].update({'id': cd[cam]['table'].getDoubleTopic(f"{key}/id").publish()})
             cd[cam]['target_results'][key].update({'targets_entry': cd[cam]['table'].getDoubleTopic(f"{key}/targets").publish()})
@@ -432,7 +460,7 @@ if __name__ == "__main__":
                 # print(f'image acquired on {cd[cam]["name"]}', flush='True')
                 results, tags = cd[cam]['pipeline'].process(captured_img.copy(), method='size', training=training,
                                                             debug=debug, find_tags=cd[cam]['find_tags'],
-                                                            find_colors=cd[cam]['find_colors'])
+                                                            find_colors=cd[cam]['find_colors'], front_cam=cd[cam]['front_cam'])
                 for key in cd[cam]['target_results'].keys():  # doing all colors and tags !
                     # targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']
@@ -451,6 +479,8 @@ if __name__ == "__main__":
 
                 # put the tag poses an info to NT
                 ts = timestamp_subscriber.get()  # find out what time it is
+                cd[cam]['timestamp_entry'].set(ts)  # show camera is alive even if no data returned
+
                 if len(tags) > 0:
                     #  {'id': tag.getId(), 'rotation': pose.rotation().x,
                     #   'distance': pose.z, 'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
@@ -533,8 +563,13 @@ if __name__ == "__main__":
                 fails = [cd[cam]['failure_counter'] for cam in cd.keys()]
                 successes = [cd[cam]['success_counter'] for cam in cd.keys()]
                 names = [cd[cam]['name'] for cam in cd.keys()]
-                msg = f"Cameras: {len(cameras)}  Avg {names[0]} FPS: {cam_fps[0]:0.1f} Avg {names[1]} FPS: {cam_fps[1]:0.1f}"
-                msg += f" Success:{successes[0]}/{successes[1]}  Failure:{fails[0]}/{fails[1]}"
+                # TODO: make this work for arbitrary number of cameras
+                if len(cd.keys()) == 2:
+                    msg = f"Cameras: {len(cameras)}  Avg {names[0]} FPS: {cam_fps[0]:0.1f} Avg {names[1]} FPS: {cam_fps[1]:0.1f}"
+                    msg += f" Success:{successes[0]}/{successes[1]}  Failure:{fails[0]}/{fails[1]}"
+                else:
+                    msg = f"Cameras: {len(cameras)}  Avg {names[0]} FPS: {cam_fps[0]:0.1f}"
+                    msg += f" Success:{successes[0]}  Failure:{fails[0]}"
                 print(msg, end='\r', flush=True)
                 previous_time = ts
         except KeyboardInterrupt:  # not necessary since I'm trapping SIGNINT above

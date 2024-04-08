@@ -324,21 +324,26 @@ if __name__ == "__main__":
             pass
 
     # determine which host we are on.  this should make this server file work on any of our pis
-    hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
-    print(f'Starting camera servers on {hostname} at {ip_address}')
+    host_name = socket.gethostname();
+    ip_address = socket.gethostbyname(host_name);
+    ip_address = socket.gethostbyname(host_name + ".local")  # trick for the pi?;
+    print(f'Starting camera servers on {host_name} at {ip_address}')
 
-    if ip_address == "10.24.24.12":  # this pi sees front ringcam and back tagcam
+    # kludge this for now - this is the only parameter we have to change for the two pis
+    # ip_address = '10.24.29.12'  # ringcam and back tagcam
+    ip_address = '10.24.29.13'  # front tagcam
+
+    if ip_address == "10.24.29.12":  # this pi sees front ringcam and back tagcam
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,
                     'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
                     'pipeline': None, 'stream_fps': 10, 'stream_max_width': 640},
               1: {'name':'lifecam', 'processed_port': 1187, 'stream_label': 'Ringcam', 'table': None, 'table_name': "Cameras/Ringcam", 'enabled': True,
                     'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
-                    'find_tags': False, 'find_colors': True, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
+                    'find_tags': False, 'find_colors': True, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
                     'pipeline': None, 'stream_fps': 15, 'stream_max_width': 640},
               }
-    elif ip_address == "10.24.24.13":  # this pi sees the front tagcam
+    elif ip_address == "10.24.29.13":  # this pi sees the front tagcam
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None,
                   'table_name': "Cameras/TagcamFront", 'enabled': True,
                   'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
@@ -411,8 +416,8 @@ if __name__ == "__main__":
         cd[cam]['timestamp_entry'].set(0)
 
        # keep track of pi(?) disconnections by incrementing this counter every time we connect to the NT server
-        cd[cam]['connections_publisher'] = cd[cam]['table'].getDoubleTopic("connections").publish()
-        cd[cam]['connections_subscriber'] = cd[cam]['table'].getDoubleTopic("connections").subscribe(0)
+        cd[cam]['connections_publisher'] =  cd[cam]['table'].getDoubleTopic("_connections").publish()
+        cd[cam]['connections_subscriber'] = cd[cam]['table'].getDoubleTopic("_connections").subscribe(0)
         current_connections = cd[cam]['connections_subscriber'].get()
         cd[cam]['connections_publisher'].set(current_connections + 1)
 

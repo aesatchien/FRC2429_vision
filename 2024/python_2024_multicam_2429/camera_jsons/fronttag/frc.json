@@ -1,0 +1,75 @@
+{
+    "cameras": [
+        {
+            "brightness": 45,
+            "exposure": 2,
+            "fps": 30,
+            "height": 360,
+            "name": "front_logitech_c920",
+            "path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_2A323A1F-video-index0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 50
+                },
+                {
+                    "name": "saturation",
+                    "value": 50
+                },
+                {
+                    "name": "gain",
+                    "value": 30
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 2
+                },
+                {
+                    "name": "sharpness",
+                    "value": 50
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "exposure_auto_priority",
+                    "value": false
+                },
+                {
+                    "name": "pan_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "tilt_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "focus_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "focus_auto",
+                    "value": false
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 100
+                }
+            ],
+            "stream": {
+                "properties": []
+            },
+            "white balance": 4000,
+            "width": 640
+        }
+    ],
+    "ntmode": "client",
+    "switched cameras": [],
+    "team": 2429
+}

@@ -162,7 +162,7 @@ class SpartanOverlay(GripPipeline):
         self.tags = {}
         grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
         tags = self.detector.detect(grey_image)
-        tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 1]
+        tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
         # we have a 3D translation and a 3D rotation coming from each detection
         poses = [self.estimator.estimate(tag) for tag in tags]
 
@@ -193,7 +193,7 @@ class SpartanOverlay(GripPipeline):
                     # the camera is in the front and four inches to the left of center
                     # also looks like a negative value on the y rotation gives the right distance
                     camera_y_rotation = -30  #  -30 seems to be what makes the distances most accurate statically, but it's not getting the ose right
-                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0.1, 0.2),geo.Rotation3d(0, math.radians(camera_y_rotation), 0))  # back of robot, rotate up in y?
+                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0.05, 0.2),geo.Rotation3d(0, math.radians(camera_y_rotation), 0))  # back of robot, rotate up in y?
                 else:  # camera in back
                     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
                     camera_y_rotation = -30  # -30 seems to be what makes the distances most accurate statically, but it's not getting the ose right

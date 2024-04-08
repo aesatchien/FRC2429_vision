@@ -15,7 +15,7 @@ import numpy as np
 import cv2
 
 from cscore import CameraServer, VideoSource, UsbCamera, MjpegServer
-from ntcore import NetworkTableInstance, EventFlags
+from ntcore import NetworkTableInstance, EventFlags, PubSubOptions
 
 from cscore import HttpCamera, CvSource, VideoMode  # 2429 CJH
 from spartan_overlay_2024 import SpartanOverlay  # 2429 CJH
@@ -330,8 +330,8 @@ if __name__ == "__main__":
     print(f'Starting camera servers on {host_name} at {ip_address}')
 
     # kludge this for now - this is the only parameter we have to change for the two pis
-    # ip_address = '10.24.29.12'  # ringcam and back tagcam
-    ip_address = '10.24.29.13'  # front tagcam
+    ip_address = '10.24.29.12'  # ringcam and back tagcam
+    # ip_address = '10.24.29.13'  # front tagcam
 
     if ip_address == "10.24.29.12":  # this pi sees front ringcam and back tagcam
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,
@@ -416,8 +416,9 @@ if __name__ == "__main__":
         cd[cam]['timestamp_entry'].set(0)
 
        # keep track of pi(?) disconnections by incrementing this counter every time we connect to the NT server
-        cd[cam]['connections_publisher'] =  cd[cam]['table'].getDoubleTopic("_connections").publish()
+        cd[cam]['connections_publisher'] = cd[cam]['table'].getDoubleTopic("_connections").publish(PubSubOptions(keepDuplicates=True))
         cd[cam]['connections_subscriber'] = cd[cam]['table'].getDoubleTopic("_connections").subscribe(0)
+        time.sleep(0.25)  # without this pause the connections will not update - 100ms apparently not enough time for them to guarantee an update
         current_connections = cd[cam]['connections_subscriber'].get()
         cd[cam]['connections_publisher'].set(current_connections + 1)
 

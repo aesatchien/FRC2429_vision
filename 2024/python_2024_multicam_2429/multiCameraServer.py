@@ -420,7 +420,8 @@ if __name__ == "__main__":
         cd[cam]['connections_subscriber'] = cd[cam]['table'].getDoubleTopic("_connections").subscribe(0)
         time.sleep(0.25)  # without this pause the connections will not update - 100ms apparently not enough time for them to guarantee an update
         current_connections = cd[cam]['connections_subscriber'].get()
-        cd[cam]['connections_publisher'].set(current_connections + 1)
+        cd[cam]['connections_publisher'].set(current_connections + 1)  # TODO: note, if the camera is unplugged this will not increment
+        # TODO - maybe I should set the timestamp back to zero if there is no image received from the camera for x seconds?
 
         for key in cd[cam]['target_results'].keys():
             cd[cam]['target_results'][key].update({'id': cd[cam]['table'].getDoubleTopic(f"{key}/id").publish()})

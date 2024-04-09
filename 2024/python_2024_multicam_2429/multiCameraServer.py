@@ -7,6 +7,7 @@
 import json
 import time
 import sys, os, glob, signal
+import subprocess
 import threading
 import socket
 import numpy as np
@@ -327,11 +328,16 @@ if __name__ == "__main__":
     host_name = socket.gethostname();
     ip_address = socket.gethostbyname(host_name);
     ip_address = socket.gethostbyname(host_name + ".local")  # trick for the pi?;
-    print(f'Starting camera servers on {host_name} at {ip_address}')
 
-    # kludge this for now - this is the only parameter we have to change for the two pis
-    ip_address = '10.24.29.12'  # ringcam and back tagcam
-    # ip_address = '10.24.29.13'  # front tagcam
+    # socket hostname never seems to work right - use subprocess instead to get ifconfig output
+    ifconfig_output = subprocess.run(['ifconfig'], capture_output=True, text=True).stdout
+    if '10.24.29.12' in ifconfig_output:
+        ip_address = '10.24.29.12'  # ringcam / back tagcam
+    elif '10.24.29.13' in ifconfig_output:
+        ip_address = '10.24.29.13'  # front tagcam
+    else:
+        ip_address = None
+    print(f'Starting camera servers on {host_name} at {ip_address}')
 
     if ip_address == "10.24.29.12":  # this pi sees front ringcam and back tagcam
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,

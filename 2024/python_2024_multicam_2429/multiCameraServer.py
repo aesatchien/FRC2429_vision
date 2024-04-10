@@ -343,11 +343,11 @@ if __name__ == "__main__":
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,
                     'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                    'pipeline': None, 'stream_fps': 10, 'stream_max_width': 640},
+                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
               1: {'name':'lifecam', 'processed_port': 1187, 'stream_label': 'Ringcam', 'table': None, 'table_name': "Cameras/Ringcam", 'enabled': True,
                     'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None,
                     'find_tags': False, 'find_colors': True, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                    'pipeline': None, 'stream_fps': 15, 'stream_max_width': 640},
+                    'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640},  # we watch ringcam during the match - must not stream too much
               }
     elif ip_address == "10.24.29.13":  # this pi sees the front tagcam
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None,
@@ -356,7 +356,7 @@ if __name__ == "__main__":
                   'sink': None,
                   'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
                   'target_results': {'orange': {}, 'tags': {}},
-                  'pipeline': None, 'stream_fps': 10, 'stream_max_width': 640},
+                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
               }
     else:
         # should I do this or just go for the default?

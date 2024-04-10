@@ -330,8 +330,8 @@ if __name__ == "__main__":
     print(f'Starting camera servers on {host_name} at {ip_address}')
 
     # kludge this for now - this is the only parameter we have to change for the two pis
-    ip_address = '10.24.29.12'  # ringcam and back tagcam
-    # ip_address = '10.24.29.13'  # front tagcam
+    # ip_address = '10.24.29.12'  # ringcam and back tagcam
+    ip_address = '10.24.29.13'  # front tagcam
 
     if ip_address == "10.24.29.12":  # this pi sees front ringcam and back tagcam
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,

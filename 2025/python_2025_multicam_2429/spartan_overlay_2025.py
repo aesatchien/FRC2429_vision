@@ -47,6 +47,9 @@ class SpartanOverlay(GripPipeline):
         # set up an apriltag detector, and try to get the poses - in 2024 the tag is 6.5" (0.1651m)
         self.detector = ra.AprilTagDetector()
         self.detector.addFamily('tag36h11')
+        qt = self.detector.getQuadThresholdParameters()  # 2025 they made this way too big - default is 300 !
+        qt.minClusterPixels = 10
+        self.detector.setQuadThresholdParameters(qt)
         # need to calculate this based on camera and resolution
         print(f'estimating image parameters using {self.camera} at resolution x:{self.x_resolution} y: {self.y_resolution}')
         if self.camera == 'lifecam':

@@ -20,10 +20,10 @@ class SpartanOverlay(GripPipeline):
     """Extend the GRIP pipeline for analysis and overlay w/o breaking the pure GRIP output pipeline"""
 
     # set up all the tag positions
-    field = ra.AprilTagField.k2025Reefscape
+    field = ra.AprilTagField.k2025ReefscapeWelded
     layout = ra.AprilTagFieldLayout.loadField(field)
 
-    def __init__(self, colors=['orange'], camera='lifecam'):
+    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
@@ -41,14 +41,14 @@ class SpartanOverlay(GripPipeline):
         self.start_time = 0
         self.end_time = 0
         self.camera_shift = 0
-        self.x_resolution = 640  # not really, this is just a placeholder until we get an image; I should pass it in
-        self.y_resolution = 360
+        self.x_resolution = x_resolution  # not really, this is just a placeholder until we get an image; I should pass it in
+        self.y_resolution = y_resolution
 
         # set up an apriltag detector, and try to get the poses - in 2024 the tag is 6.5" (0.1651m)
         self.detector = ra.AprilTagDetector()
         self.detector.addFamily('tag36h11')
         # need to calculate this based on camera and resolution
-        print(f'estimating image parameters using f{self.camera} at resolution x:{self.x_resolution} y: {self.y_resolution}')
+        print(f'estimating image parameters using {self.camera} at resolution x:{self.x_resolution} y: {self.y_resolution}')
         if self.camera == 'lifecam':
             self.estimator = ra.AprilTagPoseEstimator(
                 ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
@@ -160,7 +160,7 @@ class SpartanOverlay(GripPipeline):
 
     def find_apriltags(self, draw_tags=True, decision_margin=30):
         self.tags = {}
-        grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
+        grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)  #  TODO not necessary for arducam
         tags = self.detector.detect(grey_image)
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
         # we have a 3D translation and a 3D rotation coming from each detection

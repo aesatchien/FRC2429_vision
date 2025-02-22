@@ -16,6 +16,7 @@ import numpy as np
 import cv2
 
 from cscore import CameraServer, VideoSource, UsbCamera, MjpegServer
+from fontTools.subset.svg import xpath
 from ntcore import NetworkTableInstance, EventFlags, PubSubOptions
 
 from cscore import HttpCamera, CvSource, VideoMode  # 2429 CJH
@@ -333,7 +334,7 @@ if __name__ == "__main__":
     ifconfig_output = subprocess.run(['ifconfig'], capture_output=True, text=True).stdout
     if '10.24.29.12' in ifconfig_output:
         ip_address = '10.24.29.12'  # ringcam / back tagcam
-    elif '10.24.29.13' in ifconfig_output:
+    elif '10.24.29.13' in ifconfig_output or "192.168.86.101" in ifconfig_output:
         ip_address = '10.24.29.13'  # front tagcam
     else:
         ip_address = None
@@ -354,10 +355,17 @@ if __name__ == "__main__":
                   'table_name': "Cameras/TagcamFront", 'enabled': True,
                   'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                   'sink': None,
-                  'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
+                  'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'],
                   'target_results': {'orange': {}, 'tags': {}},
                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
-              }
+              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'Tagcam', 'table': None,
+                   'table_name': "Cameras/Tagcam", 'enabled': True,
+                   'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
+                   'sink': None,
+                   'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
+                   'target_results': {'orange': {}, 'tags': {}},
+                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
+            }
     else:
         # should I do this or just go for the default?
         # can I make the pi play a warning instead, like a beep, or do soemting with the LED?
@@ -440,7 +448,8 @@ if __name__ == "__main__":
         cd[cam]['colors_entry'] = cd[cam]['table'].getStringArrayTopic("colors").publish()
         cd[cam]['colors_entry'].set(cd[cam]['colors'])
         actual_colors = [key for key in cd[cam]['target_results'].keys() if key != 'tags']
-        cd[cam]['pipeline'] = SpartanOverlay(colors=actual_colors, camera=cd[cam]['name'])
+        cd[cam]['pipeline'] = SpartanOverlay(colors=actual_colors, camera=cd[cam]['name'],
+                                             x_resolution=cd[cam]['x_resolution'], y_resolution=cd[cam]['y_resolution'])
 
         cs = CameraServer
         cd[cam]['sink'] = cs.getVideo(camera=cd[cam]['camera'])
@@ -473,7 +482,8 @@ if __name__ == "__main__":
                 # print(f'image acquired on {cd[cam]["name"]}', flush='True')
                 results, tags = cd[cam]['pipeline'].process(captured_img.copy(), method='size', training=training,
                                                             debug=debug, find_tags=cd[cam]['find_tags'],
-                                                            find_colors=cd[cam]['find_colors'], front_cam=cd[cam]['front_cam'])
+                                                            find_colors=cd[cam]['find_colors'], front_cam=cd[cam]['front_cam'],
+                                                            )
                 for key in cd[cam]['target_results'].keys():  # doing all colors and tags !
                     # targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())
                     targets = results[key]['targets']

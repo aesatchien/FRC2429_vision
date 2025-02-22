@@ -1,8 +1,7 @@
 {
     "cameras": [
         {
-            "brightness": 64,
-            "exposure": 3,
+            "brightness": 45,
             "fps": 30,
             "height": 360,
             "name": "logitech c920",
@@ -23,15 +22,15 @@
                 },
                 {
                     "name": "white_balance_automatic",
-                    "value": true
+                    "value": false
                 },
                 {
                     "name": "gain",
-                    "value": 95
+                    "value": 0
                 },
                 {
                     "name": "power_line_frequency",
-                    "value": 2
+                    "value": 1
                 },
                 {
                     "name": "sharpness",
@@ -47,11 +46,11 @@
                 },
                 {
                     "name": "exposure_time_absolute",
-                    "value": 3
+                    "value": 4
                 },
                 {
                     "name": "exposure_dynamic_framerate",
-                    "value": true
+                    "value": false
                 },
                 {
                     "name": "pan_absolute",
@@ -80,24 +79,24 @@
             "width": 640
         },
         {
-            "brightness": 49,
-            "fps": 30,
-            "height": 360,
-            "name": "lifecam",
-            "path": "/dev/v4l/by-id/usb-Microsoft_Microsoft®_LifeCam_HD-3000-video-index0",
+            "brightness": 48,
+            "fps": 120,
+            "height": 720,
+            "name": "arducam",
+            "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_Camera_UC762-video-index0",
             "pixel format": "mjpeg",
             "properties": [
                 {
                     "name": "connect_verbose",
-                    "value": 0
+                    "value": 1
                 },
                 {
                     "name": "contrast",
-                    "value": 49
+                    "value": 45
                 },
                 {
                     "name": "saturation",
-                    "value": 50
+                    "value": 45
                 },
                 {
                     "name": "white_balance_automatic",
@@ -109,7 +108,7 @@
                 },
                 {
                     "name": "sharpness",
-                    "value": 50
+                    "value": 0
                 },
                 {
                     "name": "backlight_compensation",
@@ -121,7 +120,7 @@
                 },
                 {
                     "name": "exposure_time_absolute",
-                    "value": 3
+                    "value": 8
                 },
                 {
                     "name": "pan_absolute",
@@ -139,11 +138,11 @@
             "stream": {
                 "properties": []
             },
-            "white balance": 5000,
-            "width": 640
+            "white balance": 4500,
+            "width": 1280
         }
     ],
-    "ntmode": "client",
+    "ntmode": "server",
     "switched cameras": [],
     "team": 2429
 }

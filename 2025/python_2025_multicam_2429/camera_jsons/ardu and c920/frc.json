@@ -1,13 +1,13 @@
 {
     "cameras": [
         {
-            "brightness": 49,
-            "exposure": 31,
+            "brightness": 45,
+            "exposure": 2,
             "fps": 30,
-            "height": 240,
-            "name": "Armcam (MS Lifecam HD 3000)",
-            "path": "/dev/video0",
-            "pixel format": "yuyv",
+            "height": 360,
+            "name": "front_logitech_c920",
+            "path": "/dev/v4l/by-id/usb-046d_C922_Pro_Stream_Webcam_112F5FDF-video-index0",
+            "pixel format": "mjpeg",
             "properties": [
                 {
                     "name": "connect_verbose",
@@ -22,8 +22,12 @@
                     "value": 50
                 },
                 {
+                    "name": "gain",
+                    "value": 30
+                },
+                {
                     "name": "power_line_frequency",
-                    "value": 0
+                    "value": 2
                 },
                 {
                     "name": "sharpness",
@@ -34,6 +38,10 @@
                     "value": 0
                 },
                 {
+                    "name": "exposure_auto_priority",
+                    "value": false
+                },
+                {
                     "name": "pan_absolute",
                     "value": 0
                 },
@@ -42,15 +50,23 @@
                     "value": 0
                 },
                 {
-                    "name": "zoom_absolute",
+                    "name": "focus_absolute",
                     "value": 0
+                },
+                {
+                    "name": "focus_auto",
+                    "value": false
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 100
                 }
             ],
             "stream": {
                 "properties": []
             },
-            "white balance": 3800,
-            "width": 320
+            "white balance": 4000,
+            "width": 640
         }
     ],
     "ntmode": "client",

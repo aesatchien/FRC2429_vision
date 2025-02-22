@@ -1,0 +1,148 @@
+{
+    "cameras": [
+        {
+            "brightness": 45,
+            "fps": 30,
+            "height": 360,
+            "name": "rear logitech c920",
+            "path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_EA3BCE4F-video-index0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 50
+                },
+                {
+                    "name": "saturation",
+                    "value": 50
+                },
+                {
+                    "name": "white_balance_automatic",
+                    "value": false
+                },
+                {
+                    "name": "gain",
+                    "value": 0
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 1
+                },
+                {
+                    "name": "sharpness",
+                    "value": 50
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "auto_exposure",
+                    "value": 1
+                },
+                {
+                    "name": "exposure_time_absolute",
+                    "value": 4
+                },
+                {
+                    "name": "exposure_dynamic_framerate",
+                    "value": false
+                },
+                {
+                    "name": "pan_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "tilt_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "focus_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "focus_automatic_continuous",
+                    "value": false
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 100
+                }
+            ],
+            "stream": {
+                "properties": []
+            },
+            "width": 640
+        },
+        {
+            "brightness": 48,
+            "fps": 30,
+            "height": 360,
+            "name": "lifecam",
+            "path": "/dev/v4l/by-id/usb-Microsoft_Microsoft®_LifeCam_HD-3000-video-index0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 37
+                },
+                {
+                    "name": "saturation",
+                    "value": 45
+                },
+                {
+                    "name": "white_balance_automatic",
+                    "value": false
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 0
+                },
+                {
+                    "name": "sharpness",
+                    "value": 0
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "auto_exposure",
+                    "value": 3
+                },
+                {
+                    "name": "exposure_time_absolute",
+                    "value": 8
+                },
+                {
+                    "name": "pan_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "tilt_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 0
+                }
+            ],
+            "stream": {
+                "properties": []
+            },
+            "white balance": 4500,
+            "width": 640
+        }
+    ],
+    "ntmode": "client",
+    "switched cameras": [],
+    "team": 2429
+}

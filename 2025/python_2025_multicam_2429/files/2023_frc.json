@@ -1,0 +1,59 @@
+{
+    "cameras": [
+        {
+            "brightness": 49,
+            "exposure": 31,
+            "fps": 30,
+            "height": 240,
+            "name": "Armcam (MS Lifecam HD 3000)",
+            "path": "/dev/video0",
+            "pixel format": "yuyv",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 50
+                },
+                {
+                    "name": "saturation",
+                    "value": 50
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 0
+                },
+                {
+                    "name": "sharpness",
+                    "value": 50
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "pan_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "tilt_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 0
+                }
+            ],
+            "stream": {
+                "properties": []
+            },
+            "white balance": 3800,
+            "width": 320
+        }
+    ],
+    "ntmode": "client",
+    "switched cameras": [],
+    "team": 2429
+}

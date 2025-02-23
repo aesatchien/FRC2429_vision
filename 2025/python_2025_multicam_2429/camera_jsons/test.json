@@ -26,7 +26,7 @@
                 },
                 {
                     "name": "gain",
-                    "value": 0
+                    "value": 65
                 },
                 {
                     "name": "power_line_frequency",
@@ -46,7 +46,7 @@
                 },
                 {
                     "name": "exposure_time_absolute",
-                    "value": 4
+                    "value": 16
                 },
                 {
                     "name": "exposure_dynamic_framerate",
@@ -81,7 +81,7 @@
         {
             "brightness": 48,
             "fps": 120,
-            "height": 720,
+            "height": 480,
             "name": "arducam",
             "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_Camera_UC762-video-index0",
             "pixel format": "mjpeg",
@@ -139,7 +139,7 @@
                 "properties": []
             },
             "white balance": 4500,
-            "width": 1280
+            "width": 640
         }
     ],
     "ntmode": "server",

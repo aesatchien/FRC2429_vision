@@ -23,7 +23,7 @@ class SpartanOverlay(GripPipeline):
     field = ra.AprilTagField.k2025ReefscapeWelded
     layout = ra.AprilTagFieldLayout.loadField(field)
 
-    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360):
+    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
@@ -43,6 +43,7 @@ class SpartanOverlay(GripPipeline):
         self.camera_shift = 0
         self.x_resolution = x_resolution  # not really, this is just a placeholder until we get an image; I should pass it in
         self.y_resolution = y_resolution
+        self.greyscale = greyscale
 
         # set up an apriltag detector, and try to get the poses - in 2024 the tag is 6.5" (0.1651m)
         self.detector = ra.AprilTagDetector()
@@ -50,11 +51,29 @@ class SpartanOverlay(GripPipeline):
         qt = self.detector.getQuadThresholdParameters()  # 2025 they made this way too big - default is 300 !
         qt.minClusterPixels = 10
         self.detector.setQuadThresholdParameters(qt)
+        cfg = self.detector.getConfig()
+        cfg.numThreads = 2  # attempt to thread this, hopefully it does not mess with the threaded execution of the images
+        self.detector.setConfig(cfg)
         # need to calculate this based on camera and resolution
         print(f'estimating image parameters using {self.camera} at resolution x:{self.x_resolution} y: {self.y_resolution}')
         if self.camera == 'lifecam':
             self.estimator = ra.AprilTagPoseEstimator(
-                ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=342.3, fy=335.1, cx=320/2, cy=240/2))  # 6 inches is 0.15m
+                ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=342.3, fy=335.1, cx=320/2, cy=240/2))
+        elif self.camera == 'arducam':
+            # should be able to calculate this based on my x and y resolution  - TODO - measure on field with laser
+            if self.x_resolution == 1280:
+                fx, fy = 905, 905
+            elif self.x_resolution == 800:
+                fx, fy = 691, 691
+            elif self.x_resolution == 640:
+                fx, fy = 525, 525
+            else:
+                print(f'Unable to set arducam intrinsics using reslution {self.x_resolution}, {self.y_resolution} ')
+                fx, fy = 1,1
+            cx, cy = self.x_resolution // 2, self.y_resolution // 2
+            self.estimator = ra.AprilTagPoseEstimator(
+                ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=fx, fy=fy, cx=cx, cy=cy))
+
         elif self.camera == 'c920':
             if self.x_resolution < 1000:
                 # 3D Zephry did this one
@@ -163,7 +182,11 @@ class SpartanOverlay(GripPipeline):
 
     def find_apriltags(self, draw_tags=True, decision_margin=30):
         self.tags = {}
-        grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)  #  TODO not necessary for arducam
+        if self.greyscale:  # arducams already in grey, but somehow coming in as not?
+            pass
+        else:
+            pass
+        grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
         tags = self.detector.detect(grey_image)
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
         # we have a 3D translation and a 3D rotation coming from each detection

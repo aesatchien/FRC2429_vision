@@ -1,0 +1,11 @@
+#!/bin/sh
+### TYPE: upload-python
+echo "Waiting 3 seconds..."
+sleep 3
+export PYTHONUNBUFFERED=1
+
+# Activate the virtual environment
+. /home/pi/robo2025/bin/activate  # Use "." instead of "source" for POSIX compliance
+
+# Run the Python script inside the virtual environment
+python3 /home/pi/git/FRC2429_vision/2025/python_2025_multicam_2429/multiCameraServer.py

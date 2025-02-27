@@ -105,7 +105,7 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
-                skip_overlay=False, debug=False, find_tags=True, find_colors=True, front_cam=False):
+                skip_overlay=False, debug=False, find_tags=True, find_colors=True, front_cam=False, cam_orientation=None):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -121,6 +121,10 @@ class SpartanOverlay(GripPipeline):
         self.original_image = image.copy()  # supposedly expensive, but if we need it later - doesn't seem to cost time
         self.y_resolution, self.x_resolution, self.channels = self.image.shape
         self.front_cam = front_cam  # flag if tag camera is on front or back of robot
+        if cam_orientation is not None:
+            self.cam_orientation = cam_orientation
+        else:  # provide a default with no offsets from center of robot
+            self.cam_orientation = {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':0}
 
         # color section
         for idx, color in enumerate(self.colors):
@@ -214,16 +218,25 @@ class SpartanOverlay(GripPipeline):
                 pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(),
                                                         geo.CoordinateSystem.NWU())
                 # where is camera on robot - origin of frame is center of robot
-                if self.front_cam:
-                    # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                    # the camera is in the front and four inches to the left of center
-                    # also looks like a negative value on the y rotation gives the right distance
-                    camera_y_rotation = -30  #  -30 seems to be what makes the distances most accurate statically, but it's not getting the ose right
-                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0.05, 0.2),geo.Rotation3d(0, math.radians(camera_y_rotation), 0))  # back of robot, rotate up in y?
-                else:  # camera in back
-                    # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                    camera_y_rotation = -30  # -30 seems to be what makes the distances most accurate statically, but it's not getting the ose right
-                    camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, -.1, 0.2), geo.Rotation3d(0, math.radians(camera_y_rotation), np.pi))  # back of robot, rotate up in y?
+                # use tx for moving robot fwd or back, ty left and right, tx up off the ground (positive only)
+                # use rx for rotations about x, ry for rotations about y (negative looks up), rz for rotations about z (0 is forward)
+                # frontcam was {'tx': 0.3, 'ty': 0.05, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':0}
+                # backcam was {'tx': -0.3, 'ty': -0.1, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':180}
+
+                so = self.cam_orientation  # shortcut to save typing
+                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(so['tx'], so['tz'], so['tz']),
+                                        geo.Rotation3d(math.radians(so['rx']), math.radians(so['ry']), math.radians(so['rz'])))  # back of robot, rotate up in y?
+                # deprecated in 2025 for an orientation in the camera dictionary
+                # if self.front_cam:
+                #     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
+                #     # the camera is in the front and four inches to the left of center
+                #     # also looks like a negative value on the y rotation gives the right distance
+                #     camera_y_rotation = -30  #  -30 seems to be what makes the distances most accurate statically, but it's not getting the ose right
+                #     camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0.05, 0.2),geo.Rotation3d(0, math.radians(camera_y_rotation), 0))  # back of robot, rotate up in y?
+                # else:  # camera in back
+                #     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
+                #     camera_y_rotation = -30  # -30 seems to be what makes the distances most accurate statically, but it's not getting the ose right
+                #     camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, -.1, 0.2), geo.Rotation3d(0, math.radians(camera_y_rotation), np.pi))  # back of robot, rotate up in y?
 
                 tag_in_field_frame = self.layout.getTagPose(tag.getId())
                 try:

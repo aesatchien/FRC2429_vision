@@ -333,7 +333,7 @@ if __name__ == "__main__":
 
     # socket hostname never seems to work right - use subprocess instead to get ifconfig output
     ifconfig_output = subprocess.run(['ifconfig'], capture_output=True, text=True).stdout
-    if '10.24.29.12' in ifconfig_output:
+    if '10.24.29.12' in ifconfig_output or "192.168.86.123" in ifconfig_output:
         ip_address = '10.24.29.12'  # ringcam / back tagcam
     elif '10.24.29.13' in ifconfig_output or "192.168.86.101" in ifconfig_output:
         ip_address = '10.24.29.13'  # front tagcam
@@ -341,15 +341,23 @@ if __name__ == "__main__":
         ip_address = None
     print(f'Starting camera servers on {host_name} at {ip_address}')
 
+    # TODO - get rid of some of these legacy ones.
+    # the most important ones are the names for tables, and the camera orientation on the robot
+    # orientation reminder - where is camera on robot - origin of frame is center of robot
+    # use tx for moving robot fwd or back, ty left and right, tx up off the ground (positive only)
+    # use rx for rotations about x, ry for rotations about y (negative looks up), rz for rotations about z (0 is forward)
+    # frontcam was {'tx': 0.3, 'ty': 0.05, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':0}
+    # backcam was {'tx': -0.3, 'ty': -0.1, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':180}
+
     if ip_address == "10.24.29.12":  # this pi sees front ringcam and back tagcam
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechHigh', 'table': None, 'table_name': "Cameras/LogitechHigh", 'enabled': True,
                     'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
+                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 1, 'rx': 0, 'ry': 0, 'rz':90} },
               1: {'name':'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
                     'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                    'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640},  # we watch ringcam during the match - must not stream too much
+                    'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':0},}
               }
     elif ip_address == "10.24.29.13":  # this pi sees the front tagcam
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechTags', 'table': None,
@@ -357,13 +365,13 @@ if __name__ == "__main__":
                   'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                   'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'],
                   'target_results': {'orange': {}, 'tags': {}}, 'greyscale': False,
-                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
+                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 1, 'rx': 0, 'ry': 0, 'rz': -90} },
               1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamReef', 'table': None,
                    'table_name': "Cameras/ArducamReef", 'enabled': True,
                    'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                    'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
                    'target_results': {'orange': {}, 'tags': {}}, 'greyscale': True,
-                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
+                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 0} },
             }
     else:
         # should I do this or just go for the default?
@@ -482,6 +490,7 @@ if __name__ == "__main__":
                 results, tags = cd[cam]['pipeline'].process(captured_img.copy(), method='size', training=training,
                                                             debug=debug, find_tags=cd[cam]['find_tags'], draw_overlay=True,
                                                             find_colors=cd[cam]['find_colors'], front_cam=cd[cam]['front_cam'],
+                                                            cam_orientation=cd[cam]['orientation']
                                                             )
                 for key in cd[cam]['target_results'].keys():  # doing all colors and tags !
                     # targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())

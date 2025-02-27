@@ -341,24 +341,24 @@ if __name__ == "__main__":
     print(f'Starting camera servers on {host_name} at {ip_address}')
 
     if ip_address == "10.24.29.12":  # this pi sees front ringcam and back tagcam
-        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None, 'table_name': "Cameras/Tagcam", 'enabled': True,
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechHigh', 'table': None, 'table_name': "Cameras/LogitechHigh", 'enabled': True,
                     'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
                     'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
-              1: {'name':'lifecam', 'processed_port': 1187, 'stream_label': 'Ringcam', 'table': None, 'table_name': "Cameras/Ringcam", 'enabled': True,
+              1: {'name':'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
                     'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
                     'find_tags': False, 'find_colors': True, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
                     'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640},  # we watch ringcam during the match - must not stream too much
               }
     elif ip_address == "10.24.29.13":  # this pi sees the front tagcam
-        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'Tagcam', 'table': None,
-                  'table_name': "Cameras/TagcamFront", 'enabled': True,
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechTags', 'table': None,
+                  'table_name': "Cameras/LogitechTags", 'enabled': True,
                   'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                   'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'],
                   'target_results': {'orange': {}, 'tags': {}}, 'greyscale': False,
                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
-              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'Tagcam', 'table': None,
-                   'table_name': "Cameras/Arducam", 'enabled': True,
+              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamReef', 'table': None,
+                   'table_name': "Cameras/ArducamReef", 'enabled': True,
                    'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                    'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
                    'target_results': {'orange': {}, 'tags': {}}, 'greyscale': True,

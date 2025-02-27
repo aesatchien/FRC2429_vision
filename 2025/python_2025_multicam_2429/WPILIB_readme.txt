@@ -28,11 +28,20 @@ CJH WAY - from scratch
 new py 5 - it keeps dying if you don't give it more than three amps.  jeez.
 put on bookworm lite
 plug in with monitor and enable ssh
+run sudo raspi-config and set up ssh and wireless (but you can do with the imager
+let raspi-config update stuff
+sudo apt update
+sudo apt upgrade
 sudo apt install python3-pip
 sudo apt install git
 sudo apt-get install libgl1-mesa-glx
 
-# ------ 
+# ------
+
+sudo apt install git
+mkdir git  && cd git
+git clone https://github.com/aesatchien/FRC2429_vision.git
+
 unfortunately, because it is an externally managed environment, you HAVE to make a venv
 python -m venv ~/robo2025
 
@@ -44,9 +53,9 @@ python3 -m pip install --extra-index-url=https://wpilib.jfrog.io/artifactory/api
 
 pip install matplotlib pandas scipy opencv-python
 
-
+most of the following is now in a script - i need to do the other stuff above in the script too.
 # ------ 
-had to set the nmcli stuff - see the chatgpt thread
+had to set the nmcli stuff - see the chatgpt thread and the files
 
 sudo nmcli connection modify "Wired connection 1" ipv4.ignore-auto-dns yes
 sudo nmcli connection modify "Wired connection 1" ipv4.dhcp-client-id ""
@@ -67,6 +76,8 @@ stop_wlan_fn() {
     sudo bash -c 'echo "blacklist brcmfmac" > /etc/modprobe.d/disable-wifi.conf && reboot'
 }
 source ~/robo2025/bin/activate
+
+# --  use the caminfo alias to help set up the /boot/frc/json for this pi/camera combo
 
 
 # ------  here is my /etc/systemd/system/runCamera.service

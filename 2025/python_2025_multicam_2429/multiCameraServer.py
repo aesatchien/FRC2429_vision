@@ -348,7 +348,7 @@ if __name__ == "__main__":
                     'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640},
               1: {'name':'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
                     'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
-                    'find_tags': False, 'find_colors': True, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
+                    'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
                     'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640},  # we watch ringcam during the match - must not stream too much
               }
     elif ip_address == "10.24.29.13":  # this pi sees the front tagcam

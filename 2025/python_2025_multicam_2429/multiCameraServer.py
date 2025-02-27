@@ -294,8 +294,9 @@ if __name__ == "__main__":
         ntinst.startServer()
     else:
         print("Setting up NetworkTables client for team {}".format(team))
-        ntinst.startClient4("wpilibpi2024")
-        ntinst.setServerTeam(team)
+        ntinst.startClient4("CJHpi5")
+        ntinst.setServerTeam(2429)
+        #ntinst.setServerTeam(team)
         ntinst.startDSClient()
 
     # start cameras

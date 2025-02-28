@@ -200,9 +200,9 @@ def startCamera(config):
 
     if config.streamConfig is not None:
         server.setConfigJson(json.dumps(config.streamConfig))
-        print(f'ATTEMPTING TO SET streamConfig ...')
+        print(f'ATTEMPTING TO SET streamConfig ... on {camera.getName()}')
     else:
-        print(f'UNABLE TO SET streamConfig ...')
+        print(f'UNABLE TO SET streamConfig ... on {camera.getName()}')
 
 
     return camera
@@ -365,13 +365,13 @@ if __name__ == "__main__":
                   'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                   'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'],
                   'target_results': {'orange': {}, 'tags': {}}, 'greyscale': False,
-                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': -0.33, 'ty': 0.24, 'tz': 0.86, 'rx': 30, 'ry': 0, 'rz': -90} },
+                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': -0.33, 'ty': 0.25, 'tz': 0.86, 'rx': 0, 'ry': 0, 'rz': 90} },
               1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamReef', 'table': None,
                    'table_name': "Cameras/ArducamReef", 'enabled': True,
                    'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                    'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
                    'target_results': {'orange': {}, 'tags': {}}, 'greyscale': True,
-                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': -0.33, 'ty': -0.24, 'tz': 0.95, 'rx': 0, 'ry': 0, 'rz': 90} },
+                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': -0.33, 'ty': +0.25, 'tz': 0.95, 'rx': 0, 'ry': 0, 'rz': -90} },
             }
     else:
         # should I do this or just go for the default?
@@ -522,7 +522,7 @@ if __name__ == "__main__":
                             cd[cam]['tag_entries'][idx].set(data)
                         except IndexError:
                             pass
-                    if idx < 1:
+                    if idx < 1:  # TODO - this works but needs to be either if len(tags) == 1 or something like that
                         cd[cam]['tag_entries'][1].set([ts] + [0] * 7)
                 else:
                     for tag_entry in cd[cam]['tag_entries']:

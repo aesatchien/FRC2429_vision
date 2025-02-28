@@ -66,7 +66,8 @@ class SpartanOverlay(GripPipeline):
             elif self.x_resolution == 800:
                 fx, fy = 691, 691
             elif self.x_resolution == 640:
-                fx, fy = 525, 525
+                #  going lower makes things closer  was 525 for 2.26, 500 for 2.11, 2.50 for 600
+                fx, fy = 590, 590
             else:
                 print(f'Unable to set arducam intrinsics using reslution {self.x_resolution}, {self.y_resolution} ')
                 fx, fy = 1,1
@@ -186,12 +187,13 @@ class SpartanOverlay(GripPipeline):
 
     def find_apriltags(self, draw_tags=True, decision_margin=30):
         self.tags = {}
-        if self.greyscale:  # arducams already in grey, but somehow coming in as not?
+        if self.greyscale:  # arducams already in grey, but somehow coming in as not?  TBD if this will help
             pass
         else:
             pass
         grey_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
         tags = self.detector.detect(grey_image)
+        # can the following be just fed to detector?
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
         # we have a 3D translation and a 3D rotation coming from each detection
         poses = [self.estimator.estimate(tag) for tag in tags]
@@ -215,23 +217,22 @@ class SpartanOverlay(GripPipeline):
                 pose_camera = geo.Transform3d(
                     geo.Translation3d(pose.x, pose.y, pose.z),
                     geo.Rotation3d(-pose.rotation().x - np.pi, -pose.rotation().y, pose.rotation().z - np.pi))
-                pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(),
-                                                        geo.CoordinateSystem.NWU())
+                pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(), geo.CoordinateSystem.NWU())
                 # where is camera on robot - origin of frame is center of robot
                 # use tx for moving robot fwd or back, ty left and right, tx up off the ground (positive only)
                 # use rx for rotations about x, ry for rotations about y (negative looks up), rz for rotations about z (0 is forward)
-                # frontcam was {'tx': 0.3, 'ty': 0.05, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':0}
-                # backcam was {'tx': -0.3, 'ty': -0.1, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':180}
+                # 2024 frontcam was {'tx': 0.3, 'ty': 0.05, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':0}
+                # 2024 backcam was {'tx': -0.3, 'ty': -0.1, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':180}
 
                 so = self.cam_orientation  # shortcut to save typing
-                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(so['tx'], so['tz'], so['tz']),
+                camera_in_robot_frame = geo.Transform3d(geo.Translation3d(so['tx'], so['ty'], so['tz']),
                                         geo.Rotation3d(math.radians(so['rx']), math.radians(so['ry']), math.radians(so['rz'])))  # back of robot, rotate up in y?
                 # deprecated in 2025 for an orientation in the camera dictionary
                 # if self.front_cam:
                 #     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
                 #     # the camera is in the front and four inches to the left of center
                 #     # also looks like a negative value on the y rotation gives the right distance
-                #     camera_y_rotation = -30  #  -30 seems to be what makes the distances most accurate statically, but it's not getting the ose right
+                #     camera_y_rotation = -30  #  -30 seems to be what makes the distances most accurate statically, but it's not getting the pose right
                 #     camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0.05, 0.2),geo.Rotation3d(0, math.radians(camera_y_rotation), 0))  # back of robot, rotate up in y?
                 # else:  # camera in back
                 #     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot

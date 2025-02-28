@@ -365,13 +365,13 @@ if __name__ == "__main__":
                   'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                   'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'],
                   'target_results': {'orange': {}, 'tags': {}}, 'greyscale': False,
-                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 1, 'rx': 0, 'ry': 0, 'rz': -90} },
+                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': -0.33, 'ty': 0.24, 'tz': 0.86, 'rx': 0, 'ry': 30, 'rz': -90} },
               1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamReef', 'table': None,
                    'table_name': "Cameras/ArducamReef", 'enabled': True,
                    'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                    'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
                    'target_results': {'orange': {}, 'tags': {}}, 'greyscale': True,
-                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 0} },
+                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': -0.33, 'ty': -0.24, 'tz': 0.95, 'rx': 0, 'ry': 0, 'rz': 90} },
             }
     else:
         # should I do this or just go for the default?

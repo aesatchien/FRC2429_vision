@@ -12,6 +12,7 @@ from grip import GripPipeline  # put your GRIP generated grip.py in the same fol
 import robotpy_apriltag as ra
 import wpimath.geometry as geo
 from wpimath import objectToRobotPose  # 2024 version
+from tagmanager import TagManager
 
 from ntcore import NetworkTableInstance
 from ntcore import NetworkTable
@@ -23,7 +24,7 @@ class SpartanOverlay(GripPipeline):
     field = ra.AprilTagField.k2025ReefscapeWelded
     layout = ra.AprilTagFieldLayout.loadField(field)
 
-    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False):
+    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
@@ -44,6 +45,8 @@ class SpartanOverlay(GripPipeline):
         self.x_resolution = x_resolution  # not really, this is just a placeholder until we get an image; I should pass it in
         self.y_resolution = y_resolution
         self.greyscale = greyscale
+        self.intrinsics = intrinsics
+        self.tagmanager = TagManager()
 
         # set up an apriltag detector, and try to get the poses - in 2024 the tag is 6.5" (0.1651m)
         self.detector = ra.AprilTagDetector()
@@ -56,39 +59,42 @@ class SpartanOverlay(GripPipeline):
         self.detector.setConfig(cfg)
         # need to calculate this based on camera and resolution
         print(f'estimating image parameters using {self.camera} at resolution x:{self.x_resolution} y: {self.y_resolution}')
-        if self.camera == 'lifecam':
-            self.estimator = ra.AprilTagPoseEstimator(
-                ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=342.3, fy=335.1, cx=320/2, cy=240/2))
-        elif self.camera == 'arducam':
-            # should be able to calculate this based on my x and y resolution  - TODO - measure on field with laser
-            if self.x_resolution == 1280:
-                fx, fy = 905, 905
-            elif self.x_resolution == 800:
-                fx, fy = 691, 691
-            elif self.x_resolution == 640:
-                #  going lower makes things closer  was 525 for 2.26, 500 for 2.11, 2.50 for 600
-                fx, fy = 590, 590
-            else:
-                print(f'Unable to set arducam intrinsics using reslution {self.x_resolution}, {self.y_resolution} ')
-                fx, fy = 1,1
-            cx, cy = self.x_resolution // 2, self.y_resolution // 2
-            self.estimator = ra.AprilTagPoseEstimator(
-                ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=fx, fy=fy, cx=cx, cy=cy))
-
-        elif self.camera == 'c920':
-            if self.x_resolution < 1000:
-                # 3D Zephry did this one
-                # config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=459.5, fy=459.5, cx=640/2, cy=360/2)  # logitech at 640x360
-                # frontcam AND backcam both work best at 3m with these settings - CJH optimizing in shop on robot 20240401
-                config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=478, fy=478, cx=640 / 2, cy=360 / 2)  # logitech at 640x360
-            else:
-                config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=924.4, fy=924.4, cx=644, cy=358)  # logitech at 1280x720
-            self.estimator = ra.AprilTagPoseEstimator(config)
+        fx = 1; fy = 1; cx = 1; cy = 1  # IDE complains
+        if self.intrinsics is not None:
+            print(f'using passed in intrinsics {self.intrinsics} on cam {self.camera}')
+            fx = self.intrinsics['fx']
+            fy = self.intrinsics['fy']
+            cx = self.intrinsics['cx']
+            cy = self.intrinsics['cy']
         else:
-            # the genius cam may have its x center messed up.
-            camera_x_shift = -14  # this seems to fix the camera center as best we can
-            self.estimator = ra.AprilTagPoseEstimator(
-                ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=114.3, fy=135.9, cx=352/2 - camera_x_shift, cy=288/2))  # 6 inches is 0.15m
+            if self.camera == 'lifecam':
+                fx = 342.3; fy = 335.1; cx = 320 / 2; cy = 240 / 2
+            elif self.camera == 'arducam':
+                # should be able to calculate this based on my x and y resolution  - TODO - measure on field with laser
+                if self.x_resolution == 1280:
+                    fx, fy = 905, 905
+                elif self.x_resolution == 800:
+                    fx, fy = 691, 691
+                elif self.x_resolution == 640:
+                    #  going lower makes things closer  was 525 for 2.26, 500 for 2.11, 2.50 for 600
+                    fx, fy = 590, 590
+                else:
+                    print(f'Unable to set arducam intrinsics using resolution {self.x_resolution}, {self.y_resolution} ')
+                    fx, fy = 1,1
+                cx, cy = self.x_resolution // 2, self.y_resolution // 2
+            elif self.camera == 'c920':
+                if self.x_resolution < 1000:
+                    # 3D Zephry did this one
+                    # config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=459.5, fy=459.5, cx=640/2, cy=360/2)  # logitech at 640x360
+                    # frontcam AND backcam both work best at 3m with these settings - CJH optimizing in shop on robot 20240401
+                    fx = 478; fy = 478; cx = 640 / 2; cy = 360 / 2
+                else:
+                    fx = 924.4; fy = 924.4; cx = 640; cy = 360
+            else:
+                pass
+
+        config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=fx, fy=fy, cx=cx, cy=cy)  # catch all
+        self.estimator = ra.AprilTagPoseEstimator(config)
 
         # define what we send back at the end of the pipeline
         self.results = {}  # new in 2023
@@ -246,6 +252,9 @@ class SpartanOverlay(GripPipeline):
                     rfr = robot_in_field_frame.rotation()
                     tx, ty, tz = rft.x, rft.y, rft.z
                     rx, ry, rz = rfr.x, rfr.y, rfr.z
+
+                    # attempt to denoise the data - should probably see if this is actually wanted
+                    #tx, ty, tz, rx, ry, rz = self.tagmanager.update(tag.getId(), tx, ty, tz, rx, ry, rz)
                     self.tags.update({f'tag{tag.getId():02d}': {'id': tag.getId(), 'rotation': pose.rotation().x, 'distance': pose.z,
                                                   'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
                 except Exception as e:

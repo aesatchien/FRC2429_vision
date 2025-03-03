@@ -119,6 +119,9 @@ alias stopcams='sudo systemctl stop runCamera.service'
 alias stopwlan='sudo bash -c "echo \"blacklist brcmfmac\" > /etc/modprobe.d/disable-wifi.conf && reboot"'
 alias startwlan='sudo rm /etc/modprobe.d/disable-wifi.conf && sudo reboot'
 
+alias ro='sudo mount -o remount,ro / && sudo mount -o remount,ro /boot'
+alias rw='sudo mount -o remount,rw / && sudo mount -o remount,rw /boot'
+
 stop_wlan_fn() {
     sudo bash -c 'echo "blacklist brcmfmac" > /etc/modprobe.d/disable-wifi.conf && reboot'
 }

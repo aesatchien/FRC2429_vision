@@ -1,0 +1,36 @@
+{
+    "camera": "HD Pro Webcam C920 (046d:082d) A",
+    "platform": "Windows NT 10.0; Win64; x64",
+    "camera_matrix": [
+        [
+            943.5445332174421,
+            0,
+            650.1254094561709
+        ],
+        [
+            0,
+            942.2108211627123,
+            354.43559112293065
+        ],
+        [
+            0,
+            0,
+            1
+        ]
+    ],
+    "distortion_coefficients": [
+        0.13486329293007127,
+        -0.30144604040745565,
+        0.0030890767385906926,
+        0.00029940963858358016,
+        0.17424428176414244
+    ],
+    "distortion_model": "rectilinear",
+    "avg_reprojection_error": 0.4178041186472016,
+    "img_size": [
+        1280,
+        720
+    ],
+    "keyframes": 11,
+    "calibration_time": "Sun, 02 Mar 2025 15:45:38 GMT"
+}

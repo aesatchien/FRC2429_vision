@@ -202,8 +202,18 @@ class SpartanOverlay(GripPipeline):
         # can the following be just fed to detector?
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
         # we have a 3D translation and a 3D rotation coming from each detection
-        poses = [self.estimator.estimate(tag) for tag in tags]
+        at_poses = [self.estimator.estimateOrthogonalIteration(tag, 50) for tag in tags]
+        ambiguities = [ at_pose.getAmbiguity() for at_pose in at_poses]
+        poses = [at_pose.pose1 for at_pose in at_poses]
 
+        # cull all tags where ambiguity > 0.2
+        indices_to_remove = [i for i, amb in enumerate(ambiguities) if amb > 0.2]
+        for index in reversed(indices_to_remove):
+            del tags[index]
+            del at_poses[index]
+            del ambiguities[index]
+
+        # todo - also reject if they are more than a certain distance from the camera
         # sort the tags based on their distance from the camera - this comes from the pose
         if len(tags) > 1:
             sorted_lists = sorted(zip(poses, tags), key=lambda x: x[0].translation().z)
@@ -218,8 +228,8 @@ class SpartanOverlay(GripPipeline):
 
         # translating poses into field coordinates
         if len(tags) > 0:
-            for tag in tags:
-                pose = self.estimator.estimate(tag)
+            for tag, pose in zip(tags, poses):
+                # pose = self.estimator.estimate(tag)  #  already did this above
                 pose_camera = geo.Transform3d(
                     geo.Translation3d(pose.x, pose.y, pose.z),
                     geo.Rotation3d(-pose.rotation().x - np.pi, -pose.rotation().y, pose.rotation().z - np.pi))

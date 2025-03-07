@@ -94,6 +94,7 @@ class SpartanOverlay(GripPipeline):
                 pass
 
         config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=fx, fy=fy, cx=cx, cy=cy)  # catch all
+        print(f'double check  {self.camera} - {config.fx} {config.fy} {config.cx} {config.cy}')
         self.estimator = ra.AprilTagPoseEstimator(config)
 
         # define what we send back at the end of the pipeline
@@ -230,8 +231,7 @@ class SpartanOverlay(GripPipeline):
         if len(tags) > 0:
             for tag, pose in zip(tags, poses):
                 # pose = self.estimator.estimate(tag)  #  already did this above
-                pose_camera = geo.Transform3d(
-                    geo.Translation3d(pose.x, pose.y, pose.z),
+                pose_camera = geo.Transform3d(geo.Translation3d(pose.x, pose.y, pose.z),
                     geo.Rotation3d(-pose.rotation().x - np.pi, -pose.rotation().y, pose.rotation().z - np.pi))
                 pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(), geo.CoordinateSystem.NWU())
                 # where is camera on robot - origin of frame is center of robot

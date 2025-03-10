@@ -344,8 +344,8 @@ if __name__ == "__main__":
     # TODO - get rid of some of these legacy ones.
     # the most important ones are the names for tables, and the camera orientation on the robot
     # orientation reminder - where is camera on robot - origin of frame is center of robot
-    # use tx for moving robot fwd or back, ty left and right, tx up off the ground (positive only)
-    # use rx for rotations about x, ry for rotations about y (negative looks up), rz for rotations about z (0 is forward)
+    # use tx for moving robot fwd or back, ty left and right, tx up off the ground (positive only, BUT LEAVE AT ZERO BECAUSE IT SOLVES FOR THIS - i think)
+    # use rx for ROLL rotations about x, ry for PITCH rotations about y (negative looks up), rz for YAW rotations about z (0 is forward)
     # frontcam was {'tx': 0.3, 'ty': 0.05, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':0}
     # backcam was {'tx': -0.3, 'ty': -0.1, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':180}
     # {'fx': 462.92, 'fy': 463.62, 'cx': 320.76, 'cy': 175.12}  # c920 A 640x360 tested at home 20250302 CJH and very accurate
@@ -369,7 +369,8 @@ if __name__ == "__main__":
                   'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                   'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'],
                   'target_results': {'orange': {}, 'tags': {}}, 'greyscale': False,
-                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': -0.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 90},
+                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640,
+                  'orientation': {'tx': -0.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': 90},
                   'intrinsics':{'fx':484.14, 'fy':484.09, 'cx':327.21, 'cy':173.35 }, 'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947] },
               1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamReef', 'table': None,
                    'table_name': "Cameras/ArducamReef", 'enabled': True,
@@ -378,7 +379,7 @@ if __name__ == "__main__":
                    'target_results': {'orange': {}, 'tags': {}}, 'greyscale': True,
                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640,
                    #'orientation': {'tx': -0.33, 'ty': +0.25, 'tz': 0, 'rx': 0, 'ry': -20, 'rz': -90},
-                   'orientation': {'tx': -.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': -90},
+                   'orientation': {'tx': -.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': -90},
                   'intrinsics':{'fx':563.95, 'fy':564.05, 'cx':315.83, 'cy':214.20 }, 'distortions':[ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03] },
             }
     else:

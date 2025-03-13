@@ -345,42 +345,45 @@ if __name__ == "__main__":
     # the most important ones are the names for tables, and the camera orientation on the robot
     # orientation reminder - where is camera on robot - origin of frame is center of robot
     # use tx for moving robot fwd or back, ty left and right, tx up off the ground (positive only, BUT LEAVE AT ZERO BECAUSE IT SOLVES FOR THIS - i think)
-    # use rx for ROLL rotations about x, ry for PITCH rotations about y (negative looks up), rz for YAW rotations about z (0 is forward)
+    # use rx for ROLL rotations about x, ry for PITCH rotations about y (negative looks up),
+    # rz for YAW rotations about z (0 is forward, CCW is positive, so a camera facing robot's right is -90 )
     # frontcam was {'tx': 0.3, 'ty': 0.05, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':0}
     # backcam was {'tx': -0.3, 'ty': -0.1, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':180}
     # {'fx': 462.92, 'fy': 463.62, 'cx': 320.76, 'cy': 175.12}  # c920 A 640x360 tested at home 20250302 CJH and very accurate
     # {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09}  # arducam A at 640x480 tested at home 20250302 CJH and very accurate
 
-    if ip_address == "10.24.29.12":  # this pi sees front ringcam and back tagcam
+    if ip_address == "10.24.29.12":  # this pi is not enabled this year
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechHigh', 'table': None, 'table_name': "Cameras/LogitechHigh", 'enabled': True,
                     'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
                     'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':90},
-                  'intrinsics':{'fx':462.93, 'fy':463.62, 'cx':320.77, 'cy':175.12 }, 'distortions':[ 0.12230188, -0.23959589, -0.00127158, -0.00126347,  0.10090911] },
-              1: {'name':'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
+                  'intrinsics': {'fx': 462.93, 'fy': 463.62, 'cx': 320.77, 'cy': 175.12 }, 'distortions': [ 0.12230188, -0.23959589, -0.00127158, -0.00126347,  0.10090911] },
+              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
                     'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
                     'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':0},
-                  'intrinsics':{'fx':563.95, 'fy':564.05, 'cx':324.73, 'cy':236.09 }, 'distortions':[ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
+                  'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
+                  'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
               }
-    elif ip_address == "10.24.29.13":  # this pi sees the front tagcam
-        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechTags', 'table': None,
-                  'table_name': "Cameras/LogitechTags", 'enabled': True,
+    elif ip_address == "10.24.29.13":  # this pi sees from the top of the elevator
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table': None,
+                  'table_name': "Cameras/LogitechReef", 'enabled': True,
                   'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                   'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'],
                   'target_results': {'orange': {}, 'tags': {}}, 'greyscale': False,
                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640,
-                  'orientation': {'tx': -0.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': 90},
-                  'intrinsics':{'fx':484.14, 'fy':484.09, 'cx':327.21, 'cy':173.35 }, 'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947] },
-              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamReef', 'table': None,
-                   'table_name': "Cameras/ArducamReef", 'enabled': True,
+                  'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
+                  'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
+                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947] },
+              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamHigh', 'table': None,
+                   'table_name': "Cameras/ArducamHigh", 'enabled': True,
                    'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
                    'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
                    'target_results': {'orange': {}, 'tags': {}}, 'greyscale': True,
                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640,
-                   #'orientation': {'tx': -0.33, 'ty': +0.25, 'tz': 0, 'rx': 0, 'ry': -20, 'rz': -90},
-                   'orientation': {'tx': -.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': -90},
-                  'intrinsics':{'fx':563.95, 'fy':564.05, 'cx':315.83, 'cy':214.20 }, 'distortions':[ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03] },
+                   'orientation': {'tx': -.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': +90},
+                  'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 315.83, 'cy': 214.20 },
+                  'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03] },
             }
     else:
         # should I do this or just go for the default?

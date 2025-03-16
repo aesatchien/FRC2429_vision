@@ -202,6 +202,7 @@ class SpartanOverlay(GripPipeline):
         tags = self.detector.detect(grey_image)
         # can the following be just fed to detector?
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
+        original_tags = tags.copy()  # keep this for drawing all tags later - even the ones we reject
         # we have a 3D translation and a 3D rotation coming from each detection
         at_poses = [self.estimator.estimateOrthogonalIteration(tag, 50) for tag in tags]
         ambiguities = [ at_pose.getAmbiguity() for at_pose in at_poses]
@@ -222,7 +223,7 @@ class SpartanOverlay(GripPipeline):
             del ambiguities[index]
 
         poses = [at_pose.pose1 for at_pose in at_poses]  # only work on the culled ones
-        # todo - also reject if they are more than a certain distance from the camera
+
         # sort the tags based on their distance from the camera - this comes from the pose
         if len(tags) > 1:
             sorted_lists = sorted(zip(poses, tags), key=lambda x: x[0].translation().z)
@@ -268,7 +269,8 @@ class SpartanOverlay(GripPipeline):
                     print(f'Attempted to get field frame but got error {e} on tag id {tag.getId()}')
 
         if draw_tags:
-            for idy, tag in enumerate(tags):
+            good_tags = [tag.getId() for tag in tags]
+            for idy, tag in enumerate(original_tags):
                 print_tag_labels = False
                 if print_tag_labels:
                     # these lines print the camera to tag pose translation and rotation - just for debugging
@@ -277,6 +279,7 @@ class SpartanOverlay(GripPipeline):
                 # color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors if we want them
                 # color = (255, 75, 0) if tag.getId() in [1, 2, 6, 7, 8, 14, 15, 16] else (0, 0, 255)  # 2024 blue and red tags - opencv is BGR
                 color = (255, 75, 0) if tag.getId() > 12 else (0, 0, 255)  # 2025 blue and red tags - opencv is BGR
+                color = (0, 255, 0) if tag.getId() not in good_tags else color  # make the rejected ones green (ambiguity or distance)
                 center = tag.getCenter()
                 center = [int(center.x), int(center.y)]
                 corners = np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.int32)

@@ -342,10 +342,10 @@ if __name__ == "__main__":
         ip_address = None
     print(f'Starting camera servers on {host_name} at {ip_address}', flush=True)
 
-    # TODO - get rid of some of these legacy ones.
+    # TODO - SLOW EXPOSURE IS OFTEN RELATED TO EXPOSURE TIMES - CHECK THEM IN FRC.JSON WHEN NEW CAMS ARE SLOW.
     # the most important ones are the names for tables, and the camera orientation on the robot
     # orientation reminder - where is camera on robot - origin of frame is center of robot
-    # use tx for moving robot fwd or back, ty left and right, tx up off the ground (positive only, BUT LEAVE AT ZERO BECAUSE IT SOLVES FOR THIS - i think)
+    # use tx for moving robot fwd (+) or back, ty left (+) and right, tx up off the ground (positive only, BUT LEAVE AT ZERO BECAUSE IT SOLVES FOR THIS - i think)
     # use rx for ROLL rotations about x, ry for PITCH rotations about y (negative looks up),
     # rz for YAW rotations about z (0 is forward, CCW is positive, so a camera facing robot's right is -90 )
     # frontcam was {'tx': 0.3, 'ty': 0.05, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':0}
@@ -354,36 +354,39 @@ if __name__ == "__main__":
     # {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09}  # arducam A at 640x480 tested at home 20250302 CJH and very accurate
     # {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39}  #  geniuscam at 640x480 measured 20250314, average of two, at 0.27, -0.2, -111 yaw
 
-    if ip_address == "10.24.29.12":  # this pi is not enabled this year
-        cd = {0: {'name': 'genius', 'processed_port': 1186, 'stream_label': 'GeniusLow', 'table': None, 'table_name': "Cameras/GeniusLow", 'enabled': True,
-                    'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
-                    'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 320, 'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':-119},
-                  'intrinsics': {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39}, 'distortions': [ 0, 0, 0, 0,  0] },
-              # 1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
-              #       'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
-              #       'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-              #       'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':0},
-              #     'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
-              #     'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
+    if ip_address == "10.24.29.12":  # this pi has the wide-fov tagcam
+        cd = {0: {'name': 'genius', 'processed_port': 1186, 'stream_label': 'GeniusLow', 'table_name': "Cameras/GeniusLow",
+                  'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
+                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
+                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+                  'stream_fps': 16, 'stream_max_width': 320, 'max_tag_distance': 2,
+                  'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': -119},
+                  'intrinsics': {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39},
+                  'distortions': [ 0, 0, 0, 0,  0] },
+              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table_name': "Cameras/ArducamBack",
+                  'enabled': False, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
+                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
+                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+                  'stream_fps': 11, 'stream_max_width': 640, 'max_tag_distance': 3,
+                  'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 0},
+                  'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
+                  'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
               }
-    elif ip_address == "10.24.29.13":  # this pi sees from the top of the elevator
-        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table': None,
-                  'table_name': "Cameras/LogitechReef", 'enabled': True,
-                  'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
-                  'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'],
-                  'target_results': {'orange': {}, 'tags': {}}, 'greyscale': False,
-                  'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640,
+    elif ip_address == "10.24.29.13":  # this pair of cameras see from the top of the elevator supports
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table_name': "Cameras/LogitechReef",
+                  'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
+                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
+                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+                  'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
                   'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
                   'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
                   'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947] },
-              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamHigh', 'table': None,
-                   'table_name': "Cameras/ArducamHigh", 'enabled': True,
-                   'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0,
-                   'sink': None, 'find_tags': True, 'find_colors': False, 'front_cam': True, 'colors': ['orange'],
-                   'target_results': {'orange': {}, 'tags': {}}, 'greyscale': True,
-                   'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640,
-                   'orientation': {'tx': -.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': +90},
+              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamHigh', 'table_name': "Cameras/ArducamHigh",
+                  'enabled': True, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
+                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
+                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+                  'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
+                  'orientation': {'tx': -.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': +90},
                   'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 315.83, 'cy': 214.20 },
                   'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03] },
             }
@@ -471,7 +474,7 @@ if __name__ == "__main__":
         actual_colors = [key for key in cd[cam]['target_results'].keys() if key != 'tags']
         cd[cam]['pipeline'] = SpartanOverlay(colors=actual_colors, camera=cd[cam]['name'], greyscale=cd[cam]['greyscale'],
                                              x_resolution=cd[cam]['x_resolution'], y_resolution=cd[cam]['y_resolution'],
-                                             intrinsics=cd[cam]['intrinsics'])
+                                             intrinsics=cd[cam]['intrinsics'], max_tag_distance=cd[cam]['max_tag_distance'])
 
         cs = CameraServer
         cd[cam]['sink'] = cs.getVideo(camera=cd[cam]['camera'])
@@ -504,7 +507,7 @@ if __name__ == "__main__":
                 # print(f'image acquired on {cd[cam]["name"]}', flush='True')
                 results, tags = cd[cam]['pipeline'].process(captured_img.copy(), method='size', training=training,
                                                             debug=debug, find_tags=cd[cam]['find_tags'], draw_overlay=True,
-                                                            find_colors=cd[cam]['find_colors'], front_cam=cd[cam]['front_cam'],
+                                                            find_colors=cd[cam]['find_colors'],
                                                             cam_orientation=cd[cam]['orientation']
                                                             )
                 for key in cd[cam]['target_results'].keys():  # doing all colors and tags !

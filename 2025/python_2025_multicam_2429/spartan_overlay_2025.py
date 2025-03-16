@@ -24,7 +24,7 @@ class SpartanOverlay(GripPipeline):
     field = ra.AprilTagField.k2025ReefscapeWelded
     layout = ra.AprilTagFieldLayout.loadField(field)
 
-    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None):
+    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, max_tag_distance=10):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
@@ -45,6 +45,7 @@ class SpartanOverlay(GripPipeline):
         self.x_resolution = x_resolution  # not really, this is just a placeholder until we get an image; I should pass it in
         self.y_resolution = y_resolution
         self.greyscale = greyscale
+        self.max_tag_distance = max_tag_distance  # cutoff after which we no longer accept an april tag detection  20250316 CJH
         self.intrinsics = intrinsics
         self.tagmanager = TagManager()
 
@@ -113,7 +114,7 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
-                skip_overlay=False, debug=False, find_tags=True, find_colors=True, front_cam=False, cam_orientation=None):
+                skip_overlay=False, debug=False, find_tags=True, find_colors=True, cam_orientation=None):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -128,7 +129,6 @@ class SpartanOverlay(GripPipeline):
         self.image = image
         self.original_image = image.copy()  # supposedly expensive, but if we need it later - doesn't seem to cost time
         self.y_resolution, self.x_resolution, self.channels = self.image.shape
-        self.front_cam = front_cam  # flag if tag camera is on front or back of robot
         if cam_orientation is not None:
             self.cam_orientation = cam_orientation
         else:  # provide a default with no offsets from center of robot
@@ -205,8 +205,8 @@ class SpartanOverlay(GripPipeline):
         # we have a 3D translation and a 3D rotation coming from each detection
         at_poses = [self.estimator.estimateOrthogonalIteration(tag, 50) for tag in tags]
         ambiguities = [ at_pose.getAmbiguity() for at_pose in at_poses]
-        poses = [at_pose.pose1 for at_pose in at_poses]
 
+        # TODO - move these tags to a "bad tag" list so I can draw them anyway - easy to tell why rejected then
         # cull all tags where ambiguity > 0.2
         indices_to_remove = [i for i, amb in enumerate(ambiguities) if amb > 0.2]
         for index in reversed(indices_to_remove):
@@ -214,6 +214,14 @@ class SpartanOverlay(GripPipeline):
             del at_poses[index]
             del ambiguities[index]
 
+        # cull all tags where distance > limit imposed for this camera
+        indices_to_remove = [i for i, pose in enumerate(at_poses) if pose.pose1.z > self.max_tag_distance]
+        for index in reversed(indices_to_remove):
+            del tags[index]
+            del at_poses[index]
+            del ambiguities[index]
+
+        poses = [at_pose.pose1 for at_pose in at_poses]  # only work on the culled ones
         # todo - also reject if they are more than a certain distance from the camera
         # sort the tags based on their distance from the camera - this comes from the pose
         if len(tags) > 1:
@@ -243,17 +251,6 @@ class SpartanOverlay(GripPipeline):
                 so = self.cam_orientation  # shortcut to save typing
                 camera_in_robot_frame = geo.Transform3d(geo.Translation3d(so['tx'], so['ty'], so['tz']),
                                         geo.Rotation3d(math.radians(so['rx']), math.radians(so['ry']), math.radians(so['rz'])))  # back of robot, rotate up in y?
-                # deprecated in 2025 for an orientation in the camera dictionary
-                # if self.front_cam:
-                #     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                #     # the camera is in the front and four inches to the left of center
-                #     # also looks like a negative value on the y rotation gives the right distance
-                #     camera_y_rotation = -30  #  -30 seems to be what makes the distances most accurate statically, but it's not getting the pose right
-                #     camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0.05, 0.2),geo.Rotation3d(0, math.radians(camera_y_rotation), 0))  # back of robot, rotate up in y?
-                # else:  # camera in back
-                #     # camera_in_robot_frame = geo.Transform3d(geo.Translation3d(0.3, 0, 0.2), geo.Rotation3d(0, 0, 0))  # front of robot
-                #     camera_y_rotation = -30  # -30 seems to be what makes the distances most accurate statically, but it's not getting the ose right
-                #     camera_in_robot_frame = geo.Transform3d(geo.Translation3d(-0.3, -.1, 0.2), geo.Rotation3d(0, math.radians(camera_y_rotation), np.pi))  # back of robot, rotate up in y?
 
                 tag_in_field_frame = self.layout.getTagPose(tag.getId())
                 try:
@@ -278,7 +275,8 @@ class SpartanOverlay(GripPipeline):
                     self.image = cv2.putText(self.image, f'ID: {tag.getId():02d} pose t:{str(poses[idy].translation())}', (self.x_resolution//20, 20 * (idy+1)), 1, 0.7,(255, 255, 200), 1)
                     self.image = cv2.putText(self.image,f'     pose r:{str(poses[idy].rotation())}',(self.x_resolution // 20, 10+ 20 * (idy + 1)), 1, 0.7, (255, 255, 200), 1)
                 # color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors if we want them
-                color = (255, 75, 0) if tag.getId() in [1, 2, 6, 7, 8, 14, 15, 16] else (0, 0, 255)  # blue and red tags - opencv is BGR
+                # color = (255, 75, 0) if tag.getId() in [1, 2, 6, 7, 8, 14, 15, 16] else (0, 0, 255)  # 2024 blue and red tags - opencv is BGR
+                color = (255, 75, 0) if tag.getId() > 12 else (0, 0, 255)  # 2025 blue and red tags - opencv is BGR
                 center = tag.getCenter()
                 center = [int(center.x), int(center.y)]
                 corners = np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.int32)

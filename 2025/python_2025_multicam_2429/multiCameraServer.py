@@ -327,9 +327,10 @@ if __name__ == "__main__":
             pass
 
     # determine which host we are on.  this should make this server file work on any of our pis
-    host_name = socket.gethostname();
-    ip_address = socket.gethostbyname(host_name);
-    ip_address = socket.gethostbyname(host_name + ".local")  # trick for the pi?
+    print(f'Attempting to get host name ...', flush=True)
+    host_name = socket.gethostname()
+    #ip_address = socket.gethostbyname(host_name);
+    #ip_address = socket.gethostbyname(host_name + ".local")  # trick for the pi?
 
     # socket hostname never seems to work right - use subprocess instead to get ifconfig output
     ifconfig_output = subprocess.run(['ifconfig'], capture_output=True, text=True).stdout
@@ -339,7 +340,7 @@ if __name__ == "__main__":
         ip_address = '10.24.29.13'  # front tagcam
     else:
         ip_address = None
-    print(f'Starting camera servers on {host_name} at {ip_address}')
+    print(f'Starting camera servers on {host_name} at {ip_address}', flush=True)
 
     # TODO - get rid of some of these legacy ones.
     # the most important ones are the names for tables, and the camera orientation on the robot
@@ -351,19 +352,20 @@ if __name__ == "__main__":
     # backcam was {'tx': -0.3, 'ty': -0.1, 'tz': 0.2, 'rx': 0, 'ry': -30, 'rz':180}
     # {'fx': 462.92, 'fy': 463.62, 'cx': 320.76, 'cy': 175.12}  # c920 A 640x360 tested at home 20250302 CJH and very accurate
     # {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09}  # arducam A at 640x480 tested at home 20250302 CJH and very accurate
+    # {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39}  #  geniuscam at 640x480 measured 20250314, average of two, at 0.27, -0.2, -111 yaw
 
     if ip_address == "10.24.29.12":  # this pi is not enabled this year
-        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechHigh', 'table': None, 'table_name': "Cameras/LogitechHigh", 'enabled': True,
+        cd = {0: {'name': 'genius', 'processed_port': 1186, 'stream_label': 'GeniusLow', 'table': None, 'table_name': "Cameras/GeniusLow", 'enabled': True,
                     'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':90},
-                  'intrinsics': {'fx': 462.93, 'fy': 463.62, 'cx': 320.77, 'cy': 175.12 }, 'distortions': [ 0.12230188, -0.23959589, -0.00127158, -0.00126347,  0.10090911] },
-              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
-                    'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
-                    'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                    'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':0},
-                  'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
-                  'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
+                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':-119},
+                  'intrinsics': {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39}, 'distortions': [ 0, 0, 0, 0,  0] },
+              # 1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
+              #       'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
+              #       'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
+              #       'pipeline': None, 'stream_fps': 11, 'stream_max_width': 640, 'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':0},
+              #     'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
+              #     'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
               }
     elif ip_address == "10.24.29.13":  # this pi sees from the top of the elevator
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table': None,
@@ -391,7 +393,7 @@ if __name__ == "__main__":
         raise ValueError(f'host {ip_address} not in allowed range of 10.24.29.[12, 13]')
 
     # set up streams using config dictionary above
-    print(f"Attempting to start cvstreams using camera keys: {list(cd.keys())}")
+    print(f"Attempting to start cvstreams using camera keys: {list(cd.keys())}", flush=True)
     for cam in cd.keys():
         vm = cd[cam]['camera'].getVideoMode()
         cd[cam]['x_resolution'] = vm.width
@@ -405,7 +407,7 @@ if __name__ == "__main__":
         cd[cam]['cvstream'].setSource(cd[cam]['image_source'])  # now the stream is updated by image_source
         cs = CameraServer  #  .getInstance()
         cs.addCamera(cd[cam]['image_source'])  # is this really necessary?  we add another one later
-        print(f"*** Starting 2429 {cd[cam]['stream_label']} Processed stream on {cd[cam]['processed_port']} at {cd[cam]['x_resolution']}x{cd[cam]['y_resolution']} ***")
+        print(f"*** Starting 2429 {cd[cam]['stream_label']} Processed stream on {cd[cam]['processed_port']} at {cd[cam]['x_resolution']}x{cd[cam]['y_resolution']} ***", flush=True)
         cd[cam]['http_camera'] = HttpCamera(f"{cd[cam]['stream_label']} Processed",
                               f"http://127.0.0.1:{cd[cam]['processed_port']}/?action=stream", HttpCamera.HttpCameraKind.kMJPGStreamer)
         cs.addCamera(cd[cam]['http_camera'])  # how does this know we want cvStream assigned to the web?

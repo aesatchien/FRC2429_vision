@@ -1,0 +1,86 @@
+{
+    "cameras": [
+        {
+            "brightness": 45,
+            "fps": 30,
+            "height": 480,
+            "name": "geniuscam",
+            "path": "/dev/v4l/by-id/usb-KYE_Systems_Corp._USB_Camera_200901010001-video-index0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 50
+                },
+                {
+                    "name": "saturation",
+                    "value": 50
+                },
+                {
+                    "name": "white_balance_automatic",
+                    "value": false
+                },
+                {
+                    "name": "gain",
+                    "value": 65
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 1
+                },
+                {
+                    "name": "sharpness",
+                    "value": 50
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "auto_exposure",
+                    "value": 1
+                },
+                {
+                    "name": "exposure_time_absolute",
+                    "value": 5
+                },
+                {
+                    "name": "exposure_dynamic_framerate",
+                    "value": false
+                },
+                {
+                    "name": "pan_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "tilt_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "focus_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "focus_automatic_continuous",
+                    "value": false
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 100
+                }
+            ],
+            "stream": {
+                "properties": []
+            },
+            "width": 640
+        }
+        
+    ],
+    "ntmode": "client",
+    "switched cameras": [],
+    "team": 2429
+}

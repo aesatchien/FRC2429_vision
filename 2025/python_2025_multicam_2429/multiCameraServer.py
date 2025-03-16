@@ -358,7 +358,7 @@ if __name__ == "__main__":
         cd = {0: {'name': 'genius', 'processed_port': 1186, 'stream_label': 'GeniusLow', 'table': None, 'table_name': "Cameras/GeniusLow", 'enabled': True,
                     'camera': cameras[0], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,
                     'find_tags': True, 'find_colors': False, 'front_cam': False, 'colors': ['orange'], 'target_results': {'orange': {}, 'tags': {}},
-                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 640, 'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':-119},
+                    'pipeline': None, 'stream_fps': 16, 'stream_max_width': 320, 'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz':-119},
                   'intrinsics': {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39}, 'distortions': [ 0, 0, 0, 0,  0] },
               # 1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table': None, 'table_name': "Cameras/ArducamBack", 'enabled': True,
               #       'camera': cameras[1], 'image_source': None, 'cvstream': None, 'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False,

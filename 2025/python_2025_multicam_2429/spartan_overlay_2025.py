@@ -24,7 +24,7 @@ class SpartanOverlay(GripPipeline):
     field = ra.AprilTagField.k2025ReefscapeWelded
     layout = ra.AprilTagFieldLayout.loadField(field)
 
-    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, max_tag_distance=10):
+    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, distortions=False, max_tag_distance=10):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
@@ -47,6 +47,7 @@ class SpartanOverlay(GripPipeline):
         self.greyscale = greyscale
         self.max_tag_distance = max_tag_distance  # cutoff after which we no longer accept an april tag detection  20250316 CJH
         self.intrinsics = intrinsics
+        self.distortions = distortions
         self.tagmanager = TagManager()
 
         # set up an apriltag detector, and try to get the poses - in 2024 the tag is 6.5" (0.1651m)
@@ -94,6 +95,7 @@ class SpartanOverlay(GripPipeline):
             else:
                 pass
 
+        self.camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
         config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=fx, fy=fy, cx=cx, cy=cy)  # catch all
         print(f'double check  {self.camera} - {config.fx} {config.fy} {config.cx} {config.cy}')
         self.estimator = ra.AprilTagPoseEstimator(config)
@@ -114,7 +116,7 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
-                skip_overlay=False, debug=False, find_tags=True, find_colors=True, cam_orientation=None):
+                skip_overlay=False, debug=False, find_tags=True, find_colors=True, cam_orientation=None, use_distortions=None):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -167,7 +169,7 @@ class SpartanOverlay(GripPipeline):
         # tag section
         self.results.update({'tags': {'ids': [], 'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
         if find_tags:
-            self.find_apriltags(draw_tags=draw_overlay)
+            self.find_apriltags(draw_tags=draw_overlay, use_distortions=use_distortions)
 
         # reporting results
         targets_found = [self.results[c]['targets'] > 0 for c in self.colors]
@@ -192,7 +194,7 @@ class SpartanOverlay(GripPipeline):
 
         return self.results, self.tags
 
-    def find_apriltags(self, draw_tags=True, decision_margin=30):
+    def find_apriltags(self, draw_tags=True, decision_margin=30, use_distortions=False):
         self.tags = {}
         if self.greyscale:  # arducams already in grey, but somehow coming in as not?  TBD if this will help
             pass
@@ -202,8 +204,14 @@ class SpartanOverlay(GripPipeline):
         tags = self.detector.detect(grey_image)
         # can the following be just fed to detector?
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
+        original_tags = tags.copy()  # keep this for drawing all tags later - even the ones we reject
         # we have a 3D translation and a 3D rotation coming from each detection
-        at_poses = [self.estimator.estimateOrthogonalIteration(tag, 50) for tag in tags]
+        if use_distortions:  # correct for distorted lenses
+            temp_corners = [np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.float32) for tag in tags]
+            new_corners = [cv2.undistortPoints(corners, self.camera_matrix, self.distortions, None, self.camera_matrix) for corners in temp_corners]
+            at_poses = [self.estimator.estimateOrthogonalIteration(tag.getHomography(), new_corner.flatten.tolist(), 50) for tag, new_corner in zip(tags, new_corners)]
+        else:
+            at_poses = [self.estimator.estimateOrthogonalIteration(tag, 50) for tag in tags]
         ambiguities = [ at_pose.getAmbiguity() for at_pose in at_poses]
 
         # TODO - move these tags to a "bad tag" list so I can draw them anyway - easy to tell why rejected then
@@ -222,7 +230,7 @@ class SpartanOverlay(GripPipeline):
             del ambiguities[index]
 
         poses = [at_pose.pose1 for at_pose in at_poses]  # only work on the culled ones
-        # todo - also reject if they are more than a certain distance from the camera
+
         # sort the tags based on their distance from the camera - this comes from the pose
         if len(tags) > 1:
             sorted_lists = sorted(zip(poses, tags), key=lambda x: x[0].translation().z)
@@ -268,7 +276,8 @@ class SpartanOverlay(GripPipeline):
                     print(f'Attempted to get field frame but got error {e} on tag id {tag.getId()}')
 
         if draw_tags:
-            for idy, tag in enumerate(tags):
+            good_tags = [tag.getId() for tag in tags]
+            for idy, tag in enumerate(original_tags):
                 print_tag_labels = False
                 if print_tag_labels:
                     # these lines print the camera to tag pose translation and rotation - just for debugging
@@ -277,6 +286,7 @@ class SpartanOverlay(GripPipeline):
                 # color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors if we want them
                 # color = (255, 75, 0) if tag.getId() in [1, 2, 6, 7, 8, 14, 15, 16] else (0, 0, 255)  # 2024 blue and red tags - opencv is BGR
                 color = (255, 75, 0) if tag.getId() > 12 else (0, 0, 255)  # 2025 blue and red tags - opencv is BGR
+                color = (0, 255, 0) if tag.getId() not in good_tags else color  # make the rejected ones green (ambiguity or distance)
                 center = tag.getCenter()
                 center = [int(center.x), int(center.y)]
                 corners = np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.int32)

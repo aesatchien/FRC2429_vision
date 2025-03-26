@@ -362,15 +362,15 @@ if __name__ == "__main__":
                   'stream_fps': 16, 'stream_max_width': 320, 'max_tag_distance': 2,
                   'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': -119},
                   'intrinsics': {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39},
-                  'distortions': [ 0, 0, 0, 0,  0] },
-              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table_name': "Cameras/ArducamBack",
-                  'enabled': False, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
-                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
-                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
-                  'stream_fps': 11, 'stream_max_width': 640, 'max_tag_distance': 3,
-                  'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 0},
-                  'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
-                  'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
+                  'distortions': [-0.01547, 0.13807, -0.00068, 0.00119, 0.2233, 0.00301, 0.10055, 0.27034], 'use_distortions': True},
+              # 1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table_name': "Cameras/ArducamBack",
+              #     'enabled': False, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
+              #     'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
+              #     'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+              #     'stream_fps': 11, 'stream_max_width': 640, 'max_tag_distance': 3,
+              #     'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 0},
+              #     'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
+              #     'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501], 'use_distortions': True},
               }
     elif ip_address == "10.24.29.13":  # this pair of cameras see from the top of the elevator supports
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table_name': "Cameras/LogitechReef",
@@ -380,7 +380,7 @@ if __name__ == "__main__":
                   'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
                   'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
                   'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
-                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947] },
+                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': True},
               1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamHigh', 'table_name': "Cameras/ArducamHigh",
                   'enabled': True, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
@@ -388,7 +388,7 @@ if __name__ == "__main__":
                   'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
                   'orientation': {'tx': -.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': +90},
                   'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 315.83, 'cy': 214.20 },
-                  'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03] },
+                  'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': True},
             }
     else:
         # should I do this or just go for the default?
@@ -474,7 +474,8 @@ if __name__ == "__main__":
         actual_colors = [key for key in cd[cam]['target_results'].keys() if key != 'tags']
         cd[cam]['pipeline'] = SpartanOverlay(colors=actual_colors, camera=cd[cam]['name'], greyscale=cd[cam]['greyscale'],
                                              x_resolution=cd[cam]['x_resolution'], y_resolution=cd[cam]['y_resolution'],
-                                             intrinsics=cd[cam]['intrinsics'], max_tag_distance=cd[cam]['max_tag_distance'])
+                                             intrinsics=cd[cam]['intrinsics'], distortions=cd[cam]['distortions'],
+                                             max_tag_distance=cd[cam]['max_tag_distance'])
 
         cs = CameraServer
         cd[cam]['sink'] = cs.getVideo(camera=cd[cam]['camera'])
@@ -507,8 +508,8 @@ if __name__ == "__main__":
                 # print(f'image acquired on {cd[cam]["name"]}', flush='True')
                 results, tags = cd[cam]['pipeline'].process(captured_img.copy(), method='size', training=training,
                                                             debug=debug, find_tags=cd[cam]['find_tags'], draw_overlay=True,
-                                                            find_colors=cd[cam]['find_colors'],
-                                                            cam_orientation=cd[cam]['orientation']
+                                                            find_colors=cd[cam]['find_colors'],cam_orientation=cd[cam]['orientation'],
+                                                            use_distortions=cd[cam]['use_distortions']
                                                             )
                 for key in cd[cam]['target_results'].keys():  # doing all colors and tags !
                     # targets, distance_to_target, strafe_to_target, height, rotation_to_target = camera_dict[key]['pipeline'].process(captured_img.copy())

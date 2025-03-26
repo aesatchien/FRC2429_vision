@@ -24,7 +24,7 @@ class SpartanOverlay(GripPipeline):
     field = ra.AprilTagField.k2025ReefscapeWelded
     layout = ra.AprilTagFieldLayout.loadField(field)
 
-    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, max_tag_distance=10):
+    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, distortions=False, max_tag_distance=10):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
@@ -47,6 +47,7 @@ class SpartanOverlay(GripPipeline):
         self.greyscale = greyscale
         self.max_tag_distance = max_tag_distance  # cutoff after which we no longer accept an april tag detection  20250316 CJH
         self.intrinsics = intrinsics
+        self.distortions = distortions
         self.tagmanager = TagManager()
 
         # set up an apriltag detector, and try to get the poses - in 2024 the tag is 6.5" (0.1651m)
@@ -114,7 +115,7 @@ class SpartanOverlay(GripPipeline):
         self.rotation_to_target = 0
 
     def process(self, image, method='size', draw_overlay=True, reset_hsv=True, training=False,
-                skip_overlay=False, debug=False, find_tags=True, find_colors=True, cam_orientation=None):
+                skip_overlay=False, debug=False, find_tags=True, find_colors=True, cam_orientation=None, use_distortions=None):
         """Run the parent pipeline and then continue to do custom overlays and reporting
            Run this the same way you would the wpilib examples on pipelines
            e.g. call it in the capture section of the camera server
@@ -167,7 +168,7 @@ class SpartanOverlay(GripPipeline):
         # tag section
         self.results.update({'tags': {'ids': [], 'targets': 0, 'distances': [], 'strafes': [], 'heights': [], 'rotations': []}})
         if find_tags:
-            self.find_apriltags(draw_tags=draw_overlay)
+            self.find_apriltags(draw_tags=draw_overlay, use_distortions=use_distortions)
 
         # reporting results
         targets_found = [self.results[c]['targets'] > 0 for c in self.colors]

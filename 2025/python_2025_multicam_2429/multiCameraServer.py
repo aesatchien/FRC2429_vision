@@ -360,13 +360,9 @@ if __name__ == "__main__":
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
                   'find_tags': True, 'find_colors': False, 'colors': ['orange'],
                   'stream_fps': 16, 'stream_max_width': 320, 'max_tag_distance': 2,
-                  'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': -119},
+                  'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': -115},
                   'intrinsics': {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39},
-<<<<<<< HEAD
-                  'distortions': [ 0, 0, 0, 0,  0] },
-=======
-                  'distortions': [-0.01547, 0.13807, -0.00068, 0.00119, 0.2233, 0.00301, 0.10055, 0.27034], 'use_distortions': True},
->>>>>>> 75c589a6858297c48e3eb7ffe7c825467b20b141
+                  'distortions': [-0.01547, 0.13807, -0.00068, 0.00119, 0.2233, 0.00301, 0.10055, 0.27034], 'use_distortions': False},
               # 1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table_name': "Cameras/ArducamBack",
               #     'enabled': False, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
               #     'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
@@ -374,11 +370,7 @@ if __name__ == "__main__":
               #     'stream_fps': 11, 'stream_max_width': 640, 'max_tag_distance': 3,
               #     'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 0},
               #     'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
-<<<<<<< HEAD
-              #     'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
-=======
               #     'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501], 'use_distortions': True},
->>>>>>> 75c589a6858297c48e3eb7ffe7c825467b20b141
               }
     elif ip_address == "10.24.29.13":  # this pair of cameras see from the top of the elevator supports
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table_name': "Cameras/LogitechReef",
@@ -388,7 +380,7 @@ if __name__ == "__main__":
                   'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
                   'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
                   'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
-                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': True},
+                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
               1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamHigh', 'table_name': "Cameras/ArducamHigh",
                   'enabled': True, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
@@ -396,7 +388,7 @@ if __name__ == "__main__":
                   'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
                   'orientation': {'tx': -.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': +90},
                   'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 315.83, 'cy': 214.20 },
-                  'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': True},
+                  'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': False},
             }
     else:
         # should I do this or just go for the default?

@@ -363,14 +363,14 @@ if __name__ == "__main__":
                   'orientation': {'tx': 0.27, 'ty': -0.20, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': -119},
                   'intrinsics': {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39},
                   'distortions': [ 0, 0, 0, 0,  0] },
-              1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table_name': "Cameras/ArducamBack",
-                  'enabled': False, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
-                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
-                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
-                  'stream_fps': 11, 'stream_max_width': 640, 'max_tag_distance': 3,
-                  'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 0},
-                  'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
-                  'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
+              # 1: {'name': 'arducam', 'processed_port': 1187, 'stream_label': 'ArducamBack', 'table_name': "Cameras/ArducamBack",
+              #     'enabled': False, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
+              #     'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
+              #     'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+              #     'stream_fps': 11, 'stream_max_width': 640, 'max_tag_distance': 3,
+              #     'orientation': {'tx': 0, 'ty': 0, 'tz': 0, 'rx': 0, 'ry': 0, 'rz': 0},
+              #     'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09 },
+              #     'distortions': [ 0.04901888, -0.05578499, -0.00119951, -0.00033551, -0.00150501] }
               }
     elif ip_address == "10.24.29.13":  # this pair of cameras see from the top of the elevator supports
         cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table_name': "Cameras/LogitechReef",

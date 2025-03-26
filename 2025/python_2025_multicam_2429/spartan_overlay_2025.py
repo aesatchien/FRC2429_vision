@@ -95,6 +95,7 @@ class SpartanOverlay(GripPipeline):
             else:
                 pass
 
+        self.camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
         config = ra.AprilTagPoseEstimator.Config(tagSize=0.1651, fx=fx, fy=fy, cx=cx, cy=cy)  # catch all
         print(f'double check  {self.camera} - {config.fx} {config.fy} {config.cx} {config.cy}')
         self.estimator = ra.AprilTagPoseEstimator(config)
@@ -193,7 +194,7 @@ class SpartanOverlay(GripPipeline):
 
         return self.results, self.tags
 
-    def find_apriltags(self, draw_tags=True, decision_margin=30):
+    def find_apriltags(self, draw_tags=True, decision_margin=30, use_distortions=False):
         self.tags = {}
         if self.greyscale:  # arducams already in grey, but somehow coming in as not?  TBD if this will help
             pass
@@ -205,7 +206,12 @@ class SpartanOverlay(GripPipeline):
         tags = [tag for tag in tags if tag.getDecisionMargin() > decision_margin and tag.getHamming() < 2]
         original_tags = tags.copy()  # keep this for drawing all tags later - even the ones we reject
         # we have a 3D translation and a 3D rotation coming from each detection
-        at_poses = [self.estimator.estimateOrthogonalIteration(tag, 50) for tag in tags]
+        if use_distortions:  # correct for distorted lenses
+            temp_corners = [np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.float32) for tag in tags]
+            new_corners = [cv2.undistortPoints(corners, self.camera_matrix, self.distortions, None, self.camera_matrix) for corners in temp_corners]
+            at_poses = [self.estimator.estimateOrthogonalIteration(tag.getHomography(), new_corner.flatten.tolist(), 50) for tag, new_corner in zip(tags, new_corners)]
+        else:
+            at_poses = [self.estimator.estimateOrthogonalIteration(tag, 50) for tag in tags]
         ambiguities = [ at_pose.getAmbiguity() for at_pose in at_poses]
 
         # TODO - move these tags to a "bad tag" list so I can draw them anyway - easy to tell why rejected then

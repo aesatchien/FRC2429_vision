@@ -209,7 +209,7 @@ class SpartanOverlay(GripPipeline):
         if use_distortions:  # correct for distorted lenses
             temp_corners = [np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.float32) for tag in tags]
             new_corners = [cv2.undistortPoints(corners, self.camera_matrix, self.distortions, None, self.camera_matrix) for corners in temp_corners]
-            at_poses = [self.estimator.estimateOrthogonalIteration(tag.getHomography(), new_corner.flatten.tolist(), 50) for tag, new_corner in zip(tags, new_corners)]
+            at_poses = [self.estimator.estimateOrthogonalIteration(tag.getHomography(), new_corner.flatten().tolist(), 50) for tag, new_corner in zip(tags, new_corners)]
         else:
             at_poses = [self.estimator.estimateOrthogonalIteration(tag, 50) for tag in tags]
         ambiguities = [ at_pose.getAmbiguity() for at_pose in at_poses]

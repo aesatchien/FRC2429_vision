@@ -377,7 +377,7 @@ if __name__ == "__main__":
                   'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
                   'find_tags': True, 'find_colors': False, 'colors': ['orange'],
-                  'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
+                  'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3.25,  # 3 burned us once at Vegas
                   'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
                   'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
                   'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},

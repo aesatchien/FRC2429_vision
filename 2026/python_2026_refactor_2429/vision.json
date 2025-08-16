@@ -73,6 +73,52 @@
       }
     },
 
+    "192.168.86.30": {
+      "role": "arducam-test",
+      "cameras": [
+        {
+          "name": "arducam",
+          "processed_port": 1186,
+          "stream_label": "ArducamLeft",
+          "table_name": "Cameras/ArducamLeft",
+          "enabled": true,
+          "greyscale": true,
+          "find_tags": true,
+          "find_colors": false,
+          "colors": ["orange"],
+          "stream_fps": 16,
+          "stream_max_width": 640,
+          "max_tag_distance": 3,
+          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+          "intrinsics": { "fx": 563.95, "fy": 564.05, "cx": 315.83, "cy": 214.20 },
+          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+          "use_distortions": false
+        },
+        {
+          "name": "arducam",
+          "processed_port": 1187,
+          "stream_label": "ArducamRight",
+          "table_name": "Cameras/ArducamRight",
+          "enabled": true,
+          "greyscale": true,
+          "find_tags": true,
+          "find_colors": false,
+          "colors": ["orange"],
+          "stream_fps": 16,
+          "stream_max_width": 640,
+          "max_tag_distance": 3,
+          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+          "intrinsics": { "fx": 563.95, "fy": 564.05, "cx": 315.83, "cy": 214.20 },
+          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+          "use_distortions": false
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
+
     "reef-high": {
       "role": "hostname-fallback",
       "cameras": []

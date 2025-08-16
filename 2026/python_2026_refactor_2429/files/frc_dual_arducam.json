@@ -43,18 +43,6 @@
                 {
                     "name": "exposure_time_absolute",
                     "value": 8
-                },
-                {
-                    "name": "pan_absolute",
-                    "value": 0
-                },
-                {
-                    "name": "tilt_absolute",
-                    "value": 0
-                },
-                {
-                    "name": "zoom_absolute",
-                    "value": 0
                 }
             ],
             "stream": {
@@ -106,18 +94,6 @@
                 {
                     "name": "exposure_time_absolute",
                     "value": 8
-                },
-                {
-                    "name": "pan_absolute",
-                    "value": 0
-                },
-                {
-                    "name": "tilt_absolute",
-                    "value": 0
-                },
-                {
-                    "name": "zoom_absolute",
-                    "value": 0
                 }
             ],
             "stream": {

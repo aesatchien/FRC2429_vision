@@ -5,7 +5,7 @@
             "fps": 120,
             "height": 480,
             "name": "arducam",
-            "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_Camera_UC762-video-index0",
+            "path": "/dev/v4l/by-path/platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.1:1.0-video-index0",
             "pixel format": "mjpeg",
             "properties": [
                 {
@@ -38,25 +38,28 @@
                 },
                 {
                     "name": "auto_exposure",
-                    "value": 3
+                    "value": 1
                 },
-                {
-                    "name": "exposure_time_absolute",
-                    "value": 8
-                }
+				{
+					"name": "exposure_auto_priority", 
+					"value": 0
+				},
+				{
+					"name": "exposure_time_absolute", 
+					"value": 1
+				}
             ],
             "stream": {
                 "properties": []
             },
-            "white balance": 4500,
             "width": 640
         },
         {
             "brightness": 58,
             "fps": 120,
             "height": 480,
-            "name": "arducam",
-            "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_Camera_UC762-video-index1",
+            "name": "arducam2",
+            "path": "/dev/v4l/by-path/platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.2:1.0-video-index0",
             "pixel format": "mjpeg",
             "properties": [
                 {
@@ -90,16 +93,11 @@
                 {
                     "name": "auto_exposure",
                     "value": 3
-                },
-                {
-                    "name": "exposure_time_absolute",
-                    "value": 8
                 }
             ],
             "stream": {
                 "properties": []
             },
-            "white balance": 4500,
             "width": 640
         }
     ],

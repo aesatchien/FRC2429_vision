@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+# frc_io.py — matches your current WPILib loader API/semantics
+import sys, json
+from cscore import CameraServer, VideoSource, UsbCamera
+
+# Same globals/names your code expects
+configFile = "/boot/frc.json"
+
+class CameraConfig: pass
+
+team = None
+server = False
+cameraConfigs = []
+cameras = []
+
+def parseError(str):
+    """Report parse error."""
+    print("config error in '" + configFile + "': " + str, file=sys.stderr)
+
+def readCameraConfig(config):
+    """Read single camera configuration."""
+    cam = CameraConfig()
+
+    # name
+    try:
+        cam.name = config["name"]
+    except KeyError:
+        parseError("could not read camera name")
+        return False
+
+    # path
+    try:
+        cam.path = config["path"]
+    except KeyError:
+        parseError("camera '{}': could not read path".format(cam.name))
+        return False
+
+    # stream properties
+    cam.streamConfig = config.get("stream")
+
+    cam.config = config
+    cameraConfigs.append(cam)
+    return True
+
+def readConfig():
+    """Read configuration file."""
+    global team
+    global server
+
+    # parse file
+    try:
+        with open(configFile, "rt", encoding="utf-8") as f:
+            j = json.load(f)
+    except OSError as err:
+        print("could not open '{}': {}".format(configFile, err), file=sys.stderr)
+        return False
+
+    # top level must be an object
+    if not isinstance(j, dict):
+        parseError("must be JSON object")
+        return False
+
+    # team number
+    try:
+        team = j["team"]
+    except KeyError:
+        parseError("could not read team number")
+        return False
+
+    # ntmode (optional)
+    if "ntmode" in j:
+        s = j["ntmode"]
+        if s.lower() == "client":
+            server = False
+        elif s.lower() == "server":
+            server = True
+        else:
+            parseError("could not understand ntmode value '{}'".format(s))
+
+    # cameras
+    try:
+        cams = j["cameras"]
+    except KeyError:
+        parseError("could not read cameras")
+        return False
+    for c in cams:
+        if not readCameraConfig(c):
+            return False
+    return True
+
+def startCamera(config):
+    """Start running the camera."""
+    print("Starting camera '{}' on {}".format(config.name, config.path))
+    camera = UsbCamera(config.name, config.path)
+    server_obj = CameraServer.startAutomaticCapture(camera=camera)
+
+    camera.setConfigJson(json.dumps(config.config))
+    # Match your original use of VideoSource.ConnectionStrategy
+    camera.setConnectionStrategy(VideoSource.ConnectionStrategy.kConnectionKeepOpen)
+
+    if config.streamConfig is not None:
+        server_obj.setConfigJson(json.dumps(config.streamConfig))
+        print(f'ATTEMPTING TO SET streamConfig ... on {camera.getName()}')
+    else:
+        print(f'UNABLE TO SET streamConfig ... on {camera.getName()}')
+
+    return camera

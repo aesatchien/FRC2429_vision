@@ -1,0 +1,133 @@
+{
+    "cameras": [
+        {
+            "brightness": 48,
+            "fps": 120,
+            "height": 480,
+            "name": "arducam",
+            "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_Camera_UC762-video-index0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 45
+                },
+                {
+                    "name": "saturation",
+                    "value": 45
+                },
+                {
+                    "name": "white_balance_automatic",
+                    "value": false
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 0
+                },
+                {
+                    "name": "sharpness",
+                    "value": 0
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "auto_exposure",
+                    "value": 3
+                },
+                {
+                    "name": "exposure_time_absolute",
+                    "value": 8
+                },
+                {
+                    "name": "pan_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "tilt_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 0
+                }
+            ],
+            "stream": {
+                "properties": []
+            },
+            "white balance": 4500,
+            "width": 640
+        },
+        {
+            "brightness": 58,
+            "fps": 120,
+            "height": 480,
+            "name": "arducam",
+            "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_Camera_UC762-video-index1",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 45
+                },
+                {
+                    "name": "saturation",
+                    "value": 45
+                },
+                {
+                    "name": "white_balance_automatic",
+                    "value": false
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 0
+                },
+                {
+                    "name": "sharpness",
+                    "value": 0
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "auto_exposure",
+                    "value": 3
+                },
+                {
+                    "name": "exposure_time_absolute",
+                    "value": 8
+                },
+                {
+                    "name": "pan_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "tilt_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 0
+                }
+            ],
+            "stream": {
+                "properties": []
+            },
+            "white balance": 4500,
+            "width": 640
+        }
+    ],
+    "ntmode": "client",
+    "switched cameras": [],
+    "team": 2429
+}

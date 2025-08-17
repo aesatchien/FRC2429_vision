@@ -5,6 +5,7 @@
       "cameras": [
         {
           "name": "genius",
+          "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "GeniusLow",
           "table_name": "Cameras/GeniusLow",
@@ -32,6 +33,7 @@
       "cameras": [
         {
           "name": "c920",
+          "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "LogitechReef",
           "table_name": "Cameras/LogitechReef",
@@ -50,6 +52,7 @@
         },
         {
           "name": "arducam",
+          "raw_port": 1182,
           "processed_port": 1187,
           "stream_label": "ArducamHigh",
           "table_name": "Cameras/ArducamHigh",
@@ -78,6 +81,7 @@
       "cameras": [
         {
           "name": "arducam",
+          "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "ArducamLeft",
           "table_name": "Cameras/ArducamLeft",
@@ -96,6 +100,7 @@
         },
         {
           "name": "arducam",
+          "raw_port": 1182,
           "processed_port": 1187,
           "stream_label": "ArducamRight",
           "table_name": "Cameras/ArducamRight",

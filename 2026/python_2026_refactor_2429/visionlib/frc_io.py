@@ -12,6 +12,7 @@ team = None
 server = False
 cameraConfigs = []
 cameras = []
+servers = {}  # name -> MjpegServer
 
 def parseError(str):
     """Report parse error."""
@@ -93,7 +94,7 @@ def startCamera(config):
     print("Starting camera '{}' on {}".format(config.name, config.path))
     camera = UsbCamera(config.name, config.path)
     server_obj = CameraServer.startAutomaticCapture(camera=camera)
-
+    servers[config.name] = server_obj
     camera.setConfigJson(json.dumps(config.config))
     # Match your original use of VideoSource.ConnectionStrategy
     camera.setConnectionStrategy(VideoSource.ConnectionStrategy.kConnectionKeepOpen)
@@ -105,3 +106,16 @@ def startCamera(config):
         print(f'UNABLE TO SET streamConfig ... on {camera.getName()}')
 
     return camera
+
+def set_stream_port(name: str, port: int) -> bool:
+    srv = servers.get(name)
+    if not srv:
+        print(f"[frc_io] no server for '{name}'", file=sys.stderr)
+        return False
+    try:
+        srv.setPort(int(port))
+        return True
+    except Exception as e:
+        print(f"[frc_io] set_stream_port({name},{port}) failed: {e}", file=sys.stderr)
+        return False
+

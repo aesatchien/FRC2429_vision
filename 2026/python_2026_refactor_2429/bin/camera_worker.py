@@ -77,6 +77,10 @@ def main():
         max_tag_distance=cam_prof.get("max_tag_distance", 3)
     )
 
+    raw_port = cam_prof.get("raw_port")
+    if raw_port:
+        frc_io.set_stream_port(args.cam, int(raw_port))
+
     # stream + sink + NT + pipeline
     build_stream(ctx)
     attach_sink(ctx)

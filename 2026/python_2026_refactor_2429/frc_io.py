@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# frc_io.py — matches your current WPILib loader API/semantics
+# frc_io.py — functions taken from the WPILIB cameraserver script
 import sys, json
 from cscore import CameraServer, VideoSource, UsbCamera
 

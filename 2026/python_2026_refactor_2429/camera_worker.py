@@ -4,9 +4,9 @@ import numpy as np, cv2
 from ntcore import NetworkTableInstance
 from cscore import CameraServer
 from config_io import load_vision_cfg, select_profile
-from frc_io import readConfig, cameraConfigs, startCamera
+import frc_io  # <-- module import so we can set frc_io.configFile
 from camctx import CamCtx
-from streaming import build_stream, push_frame, is_gray
+from streaming import build_stream, push_frame
 from vision_worker import tick, attach_sink
 from ntio import init_cam_entries, init_global_flags
 from spartan_overlay_2025 import SpartanOverlay
@@ -29,17 +29,20 @@ def main():
 
     pin_to_cpu(args.cpu)
 
-    if not readConfig(args.frc):
-        log.error(f"could not read {args.frc}"); sys.exit(1)
-
-    # find this camera config
-    cc = next((c for c in cameraConfigs if c.name == args.cam), None)
-    if cc is None:
-        log.error(f"camera '{args.cam}' not found in {args.frc}; available: {[c.name for c in cameraConfigs]}")
+    # read frc.json and start ONLY this camera
+    frc_io.configFile = args.frc
+    if not frc_io.readConfig():
+        log.error(f"could not read {frc_io.configFile}")
         sys.exit(1)
 
-    cam = startCamera(cc)
+    cc = next((c for c in frc_io.cameraConfigs if c.name == args.cam), None)
+    if cc is None:
+        log.error(f"camera '{args.cam}' not found in {args.frc}; available: {[c.name for c in frc_io.cameraConfigs]}")
+        sys.exit(1)
 
+    cam = frc_io.startCamera(cc)
+
+    # per-host profile
     vcfg = load_vision_cfg(args.vision)
     prof = select_profile(vcfg)
     cam_prof = next((c for c in prof.get("cameras", []) if c["name"] == args.cam), None)
@@ -50,8 +53,8 @@ def main():
     # NT
     ntinst = NetworkTableInstance.getDefault()
     ntinst.startClient4(f"proc-{args.cam}")
-    # change to setServer(...) if off-robot
-    ntinst.setServerTeam(2429); ntinst.startDSClient()
+    ntinst.setServerTeam(2429)  # change to setServer("x.y.z.w") if off-robot
+    ntinst.startDSClient()
     nt_global = init_global_flags(ntinst)
 
     # Build context

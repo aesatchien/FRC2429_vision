@@ -1,4 +1,5 @@
 import time, cv2
+import json
 from cscore import CvSource, MjpegServer, VideoMode, HttpCamera, CameraServer
 
 def build_stream(ctx, compression_if_wide: int = 30):
@@ -33,3 +34,10 @@ def push_frame(ctx, frame):
         frame = cv2.resize(frame, (w2, h2))
     ctx.image_source.putFrame(frame)
     ctx.last_image_send = now
+
+def build_raw_stream(name: str, camera, port: int, stream_cfg: dict | None = None):
+    srv = CameraServer.addServer(f"{name}_raw", int(port))
+    srv.setSource(camera)
+    if stream_cfg:
+        srv.setConfigJson(json.dumps(stream_cfg))
+    return srv

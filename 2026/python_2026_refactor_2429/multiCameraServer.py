@@ -5,7 +5,7 @@ from spartan_overlay_2025 import SpartanOverlay
 
 from visionlib.config_io import load_vision_cfg, select_profile
 from visionlib.camctx import CamCtx
-from visionlib.streaming import build_stream, push_frame
+from visionlib.streaming import build_stream, push_frame, build_raw_stream
 from visionlib.vision_worker import attach_sink, tick
 from visionlib.ntio import init_global_flags, init_cam_entries
 from visionlib.util import run_in_thread, nudge_brightness
@@ -69,6 +69,10 @@ if __name__ == "__main__":
         )
 
         # Stream + sink + NT + pipeline
+        if c.get("raw_port"):
+            # camera object is `cam_obj`; profile entry is `c`; cfg is the matching frc_io camera config
+            cfg = next(cc for cc in frc_io.cameraConfigs if cc.name == c["name"])
+            build_raw_stream(c["name"], cam_obj, c["raw_port"], cfg.streamConfig)
         build_stream(ctx)
         attach_sink(ctx)
         init_cam_entries(ntinst, ctx)

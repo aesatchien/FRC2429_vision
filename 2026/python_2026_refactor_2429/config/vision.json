@@ -99,7 +99,7 @@
           "use_distortions": false
         },
         {
-          "name": "arducam",
+          "name": "arducam2",
           "raw_port": 1182,
           "processed_port": 1187,
           "stream_label": "ArducamRight",

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import os, sys, time, logging, argparse
 from ntcore import NetworkTableInstance
+from cscore import CameraServer
 from visionlib.config_io import load_vision_cfg, select_profile
 from visionlib import frc_io
 from visionlib.camctx import CamCtx
-from visionlib.streaming import build_stream, push_frame
+from visionlib.streaming import build_stream, push_frame, build_raw_stream
 from visionlib.vision_worker import tick, attach_sink
 from visionlib.ntio import init_cam_entries, init_global_flags
 from spartan_overlay_2025 import SpartanOverlay
@@ -78,8 +79,15 @@ def main():
         max_tag_distance=cam_prof.get("max_tag_distance", 3)
     )
 
-    if ctx.raw_port:
-        frc_io.set_stream_port(ctx.name, int(ctx.raw_port))
+    raw_port = cam_prof.get("raw_port")
+    print(f'{ctx.name} serving raw on {ctx.raw_port} and processed on {ctx.processed_port}', flush=True)
+    if raw_port:
+        # pass cc.streamConfig if you want width/fps/compression applied to raw
+        try:
+            sc = next(c for c in frc_io.cameraConfigs if c.name == args.cam).streamConfig
+        except StopIteration:
+            sc = None
+        build_raw_stream(args.cam, cam, raw_port, sc)
 
     # stream + sink + NT + pipeline
     build_stream(ctx)

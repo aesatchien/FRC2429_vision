@@ -89,22 +89,12 @@ def readConfig():
             return False
     return True
 
-def startCamera(config):
-    """Start running the camera."""
-    print("Starting camera '{}' on {}".format(config.name, config.path))
+def startCamera(config, *_, **__):
+    # UsbCamera only; no auto MJPEG server here
+    print(f"Starting camera '{config.name}' on {config.path}")
     camera = UsbCamera(config.name, config.path)
-    server_obj = CameraServer.startAutomaticCapture(camera=camera)
-    servers[config.name] = server_obj
     camera.setConfigJson(json.dumps(config.config))
-    # Match your original use of VideoSource.ConnectionStrategy
     camera.setConnectionStrategy(VideoSource.ConnectionStrategy.kConnectionKeepOpen)
-
-    if config.streamConfig is not None:
-        server_obj.setConfigJson(json.dumps(config.streamConfig))
-        print(f'ATTEMPTING TO SET streamConfig ... on {camera.getName()}')
-    else:
-        print(f'UNABLE TO SET streamConfig ... on {camera.getName()}')
-
     return camera
 
 def set_stream_port(name: str, port: int) -> bool:

@@ -62,6 +62,7 @@ def main():
     # Build context
     ctx = CamCtx(
         name=args.cam, camera=cam,
+        raw_port=cam_prof.get("raw_port"),
         processed_port=cam_prof.get("processed_port", 1186),
         table_name=cam_prof.get("table_name", f"Cameras/{args.cam}"),
         stream_fps=cam_prof.get("stream_fps", 30),
@@ -77,9 +78,8 @@ def main():
         max_tag_distance=cam_prof.get("max_tag_distance", 3)
     )
 
-    raw_port = cam_prof.get("raw_port")
-    if raw_port:
-        frc_io.set_stream_port(args.cam, int(raw_port))
+    if ctx.raw_port:
+        frc_io.set_stream_port(ctx.name, int(ctx.raw_port))
 
     # stream + sink + NT + pipeline
     build_stream(ctx)

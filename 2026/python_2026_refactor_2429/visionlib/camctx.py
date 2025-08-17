@@ -30,6 +30,7 @@ class CamCtx:
     # stream policy
     stream_fps: int = 16
     stream_max_width: int = 640
+    raw_port: int | None = 1181
     processed_port: int = 1186
     reduce_bandwidth: bool = True
 

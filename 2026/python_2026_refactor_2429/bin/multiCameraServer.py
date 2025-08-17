@@ -3,14 +3,14 @@ import sys, time, logging
 from ntcore import NetworkTableInstance
 from spartan_overlay_2025 import SpartanOverlay
 
-from config_io import load_vision_cfg, select_profile
-from camctx import CamCtx
-from streaming import build_stream, push_frame
-from vision_worker import attach_sink, tick
-from ntio import init_global_flags, init_cam_entries
-from util import run_in_thread, nudge_brightness
+from visionlib.config_io import load_vision_cfg, select_profile
+from visionlib.camctx import CamCtx
+from visionlib.streaming import build_stream, push_frame
+from visionlib.vision_worker import attach_sink, tick
+from visionlib.ntio import init_global_flags, init_cam_entries
+from visionlib.util import run_in_thread, nudge_brightness
 
-import frc_io  # read frc.json via module so we can set frc_io.configFile
+from visionlib import frc_io
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 log = logging.getLogger("vision")

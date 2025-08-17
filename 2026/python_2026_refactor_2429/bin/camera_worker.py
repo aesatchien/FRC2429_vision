@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 import os, sys, time, logging, argparse
-import numpy as np, cv2
 from ntcore import NetworkTableInstance
-from cscore import CameraServer
-from config_io import load_vision_cfg, select_profile
-import frc_io  # <-- module import so we can set frc_io.configFile
-from camctx import CamCtx
-from streaming import build_stream, push_frame
-from vision_worker import tick, attach_sink
-from ntio import init_cam_entries, init_global_flags
+from visionlib.config_io import load_vision_cfg, select_profile
+from visionlib import frc_io
+from visionlib.camctx import CamCtx
+from visionlib.streaming import build_stream, push_frame
+from visionlib.vision_worker import tick, attach_sink
+from visionlib.ntio import init_cam_entries, init_global_flags
 from spartan_overlay_2025 import SpartanOverlay
 
 log = logging.getLogger("camproc")
@@ -53,8 +51,12 @@ def main():
     # NT
     ntinst = NetworkTableInstance.getDefault()
     ntinst.startClient4(f"proc-{args.cam}")
-    ntinst.setServerTeam(2429)  # change to setServer("x.y.z.w") if off-robot
-    ntinst.startDSClient()
+    if os.environ.get("NT_SERVER"):
+        ntinst.setServer(os.environ["NT_SERVER"])  # e.g., "127.0.0.1"
+    else:
+        ntinst.setServerTeam(2429)
+        ntinst.startDSClient()
+
     nt_global = init_global_flags(ntinst)
 
     # Build context
@@ -72,8 +74,7 @@ def main():
         intrinsics=cam_prof.get("intrinsics"),
         distortions=cam_prof.get("distortions"),
         use_distortions=cam_prof.get("use_distortions", False),
-        max_tag_distance=cam_prof.get("max_tag_distance", 3),
-        tag_every_n=cam_prof.get("tag_every_n", 2)
+        max_tag_distance=cam_prof.get("max_tag_distance", 3)
     )
 
     # stream + sink + NT + pipeline
@@ -99,10 +100,15 @@ def main():
     log.info(f"{ctx.name}: streaming on {ctx.processed_port}")
 
     # main loop
+    last_print = 0.0
     while True:
         training = False if nt_global.get("training") is None else nt_global["training"].get()
         debug    = False if nt_global.get("debug")    is None else nt_global["debug"].get()
         tick(nt_global, ntinst, ctx, training, debug, push_frame)
+        now = time.time()
+        if now - last_print >= 1.0:
+            print(f"{ctx.name}: {ctx.fps:0.1f}fps  S:{ctx.success_counter}  F:{ctx.failure_counter}", flush=True)
+            last_print = now
 
 if __name__ == "__main__":
     main()

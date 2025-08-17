@@ -11,6 +11,7 @@ def init_cam_entries(ntinst, ctx):
     t = ntinst.getTable(ctx.table_name)
     ctx.nt["timestamp"]   = t.getDoubleTopic("_timestamp").publish()
     ctx.nt["frames"]      = t.getDoubleTopic("_frames").publish()
+    ctx.nt["fps"] = t.getDoubleTopic("_fps").publish()
     ctx.nt["connections_pub"] = t.getDoubleTopic("_connections").publish(PubSubOptions(keepDuplicates=True))
     ctx.nt["connections_sub"] = t.getDoubleTopic("_connections").subscribe(0)
     ctx.nt["colors"]      = t.getStringArrayTopic("colors").publish()

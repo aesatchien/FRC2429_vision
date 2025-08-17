@@ -68,3 +68,5 @@ def tick(nt_global, ntinst, ctx, training: bool, debug: bool, push_frame_fn):
         ctx.fps = (ctx.success_counter - ctx.previous_counts) / dt
         ctx.previous_counts, ctx.previous_time = ctx.success_counter, now
         ctx.nt["frames"].set(ctx.success_counter)
+        if "fps" in ctx.nt:
+            ctx.nt["fps"].set(ctx.fps)

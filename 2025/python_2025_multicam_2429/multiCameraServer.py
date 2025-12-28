@@ -390,6 +390,24 @@ if __name__ == "__main__":
                   'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 315.83, 'cy': 214.20 },
                   'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': False},
             }
+    elif ip_address == "10.24.29.12":  # this pair of cameras is used on the practicebot  #TODO: update intrinsics
+        cd = {0: {'name': 'c920_right', 'processed_port': 1186, 'stream_label': 'c920_right', 'table_name': "Cameras/c920_right",
+                  'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
+                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
+                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+                  'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3.25,  # 3 burned us once at Vegas
+                  'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
+                  'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
+                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
+              1: {'name': 'c920_left', 'processed_port': 1187, 'stream_label': 'c920_left', 'table_name': "Cameras/c920_left",
+                  'enabled': True, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
+                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
+                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+                  'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
+                  'orientation': {'tx': -.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': +90},
+                  'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
+                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
+            }
     else:
         # should I do this or just go for the default?
         # can I make the pi play a warning instead, like a beep, or do someting with the LED?

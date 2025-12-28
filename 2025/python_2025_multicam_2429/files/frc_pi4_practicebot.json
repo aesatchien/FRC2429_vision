@@ -157,7 +157,7 @@
             "width": 640
         }
     ],
-    "ntmode": "server",
+    "ntmode": "client",
     "switched cameras": [],
     "team": 2429
 }

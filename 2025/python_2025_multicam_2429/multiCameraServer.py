@@ -295,7 +295,8 @@ if __name__ == "__main__":
     else:
         print("Setting up NetworkTables client for team {}".format(team))
         ntinst.startClient4("CJHpi5")
-        ntinst.setServerTeam(2429)
+        # ntinst.setServerTeam(2429)
+        ntinst.setServer("10.24.29.2")
         #ntinst.setServerTeam(team)
         ntinst.startDSClient()
 
@@ -390,8 +391,8 @@ if __name__ == "__main__":
                   'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 315.83, 'cy': 214.20 },
                   'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': False},
             }
-    elif ip_address == "10.24.29.12":  # this pair of cameras is used on the practicebot  #TODO: update intrinsics
-        cd = {0: {'name': 'c920_top_left', 'processed_port': 1186, 'stream_label': 'c920_left', 'table_name': "Cameras/c920_left",
+    elif ip_address == "10.24.29.12":  # this pair of cameras is used on the practicebot  # TODO: update intrinsics
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table_name': "Cameras/LogitechReef",
                   'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
                   'find_tags': True, 'find_colors': False, 'colors': ['orange'],
@@ -399,7 +400,7 @@ if __name__ == "__main__":
                   'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
                   'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
                   'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
-              1: {'name': 'c920_bottom_right', 'processed_port': 1187, 'stream_label': 'c920_right', 'table_name': "Cameras/c920_right",
+              1: {'name': 'c920', 'processed_port': 1187, 'stream_label': 'ArducamHigh', 'table_name': "Cameras/ArducamHigh",
                   'enabled': True, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
                   'find_tags': True, 'find_colors': False, 'colors': ['orange'],
@@ -638,7 +639,7 @@ if __name__ == "__main__":
                 else:
                     msg = f"Cameras: {len(cameras)}  Avg {names[0]} FPS: {cam_fps[0]:0.1f}"
                     msg += f" Success:{successes[0]}  Failure:{fails[0]}"
-                print(msg, end='\r', flush=True)
+                #print(msg, end='\r', flush=True)
                 previous_time = ts
         except KeyboardInterrupt:  # not necessary since I'm trapping SIGNINT above
             print("\nCtrl+C trapped! Terminating threads and ending ...")

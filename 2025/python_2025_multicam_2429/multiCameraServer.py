@@ -354,7 +354,7 @@ if __name__ == "__main__":
     # {'fx': 563.95, 'fy': 564.05, 'cx': 324.73, 'cy': 236.09}  # arducam A at 640x480 tested at home 20250302 CJH and very accurate
     # {'fx': 308.67, 'fy':  309.11, 'cx': 351.14, 'cy': 247.39}  #  geniuscam at 640x480 measured 20250314, average of two, at 0.27, -0.2, -111 yaw
 
-    if ip_address == "10.24.29.12":  # this pi has the wide-fov tagcam
+    if ip_address == "10.24.29.14":  # this pi has the wide-fov tagcam
         cd = {0: {'name': 'genius', 'processed_port': 1186, 'stream_label': 'GeniusLow', 'table_name': "Cameras/GeniusLow",
                   'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
@@ -391,7 +391,7 @@ if __name__ == "__main__":
                   'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': False},
             }
     elif ip_address == "10.24.29.12":  # this pair of cameras is used on the practicebot  #TODO: update intrinsics
-        cd = {0: {'name': 'c920_right', 'processed_port': 1186, 'stream_label': 'c920_right', 'table_name': "Cameras/c920_right",
+        cd = {0: {'name': 'c920_top_left', 'processed_port': 1186, 'stream_label': 'c920_left', 'table_name': "Cameras/c920_left",
                   'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
                   'find_tags': True, 'find_colors': False, 'colors': ['orange'],
@@ -399,7 +399,7 @@ if __name__ == "__main__":
                   'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
                   'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
                   'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
-              1: {'name': 'c920_left', 'processed_port': 1187, 'stream_label': 'c920_left', 'table_name': "Cameras/c920_left",
+              1: {'name': 'c920_bottom_right', 'processed_port': 1187, 'stream_label': 'c920_right', 'table_name': "Cameras/c920_right",
                   'enabled': True, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
                   'find_tags': True, 'find_colors': False, 'colors': ['orange'],

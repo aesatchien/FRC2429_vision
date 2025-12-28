@@ -246,7 +246,7 @@ class SpartanOverlay(GripPipeline):
             self._filter_contours_solidity = [10.0, 100.0]
             self._filter_contours_box_fill = [10.0, 100]
             # above (y is 0 at top) or below this we ignore detections  - (.9*yres, yres) would ignore the top 90%
-            self.ignore_y = [0.3 * self.y_resolution, self.y_resolution]  # ignore top 30% - lights, etc
+            self.ignore_y = [0.4 * self.y_resolution, self.y_resolution]  # ignore top 30% - lights, etc
 
         elif self.color == 'purple':  # 2023 purple cubes
             self._hsv_threshold_hue = [117, 126]  # this is too close to blue...

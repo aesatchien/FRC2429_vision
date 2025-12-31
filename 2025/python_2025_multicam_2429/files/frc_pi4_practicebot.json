@@ -24,6 +24,10 @@
                     "name": "white_balance_automatic",
                     "value": false
                 },
+				{
+                    "name": "white_balance_temperature",
+                    "value": 3900
+                },
                 {
                     "name": "gain",
                     "value": 65
@@ -102,6 +106,10 @@
                     "name": "white_balance_automatic",
                     "value": false
                 },
+				{
+                    "name": "white_balance_temperature",
+                    "value": 3900
+                },				
                 {
                     "name": "gain",
                     "value": 65

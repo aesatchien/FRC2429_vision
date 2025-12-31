@@ -294,11 +294,20 @@ if __name__ == "__main__":
         ntinst.startServer()
     else:
         print("Setting up NetworkTables client for team {}".format(team))
-        ntinst.startClient4("CJHpi5")
+        ntinst.startClient4("CJHpi")
         # ntinst.setServerTeam(2429)
-        ntinst.setServer("10.24.29.2")
+        # if we are going to do an interaction with the sim
+        if len(sys.argv) >= 3:
+            server_ip = sys.argv[2]
+        else:
+            server_ip = "10.24.29.2"
+        ntinst.setServer(server_ip)
+        print(f'attempting to connect to server {server_ip}')
+
         #ntinst.setServerTeam(team)
         ntinst.startDSClient()
+        time.sleep(.20)
+        print(f'Connection established: {ntinst.isConnected()}')
 
     # start cameras
     # work around wpilibsuite/allwpilib#5055
@@ -392,20 +401,20 @@ if __name__ == "__main__":
                   'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': False},
             }
     elif ip_address == "10.24.29.12":  # this pair of cameras is used on the practicebot  # TODO: update intrinsics
-        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechReef', 'table_name': "Cameras/LogitechReef",
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogiTechLeft', 'table_name': "Cameras/LogiTechLeft",
                   'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
-                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'orange': {}, 'tags': {}},
-                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'yellow': {}, 'tags': {}},
+                  'find_tags': True, 'find_colors': True, 'colors': ['yellow'],  # need to remove colors and get from target_results
                   'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3.25,  # 3 burned us once at Vegas
-                  'orientation': {'tx': -0.33, 'ty': -0.2, 'tz': 0, 'rx': 0, 'ry': 30, 'rz': -90},
+                  'orientation': {'tx': 0, 'ty': 0.0, 'tz': 0, 'rx': 0, 'ry': -15, 'rz': +90},  # todo: check this
                   'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
                   'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
-              1: {'name': 'c920', 'processed_port': 1187, 'stream_label': 'ArducamHigh', 'table_name': "Cameras/ArducamHigh",
+              1: {'name': 'c920', 'processed_port': 1187, 'stream_label': 'LogiTechFront', 'table_name': "Cameras/LogiTechFront",
                   'enabled': True, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
-                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'orange': {}, 'tags': {}},
-                  'find_tags': True, 'find_colors': False, 'colors': ['orange'],
+                  'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'yellow': {}, 'tags': {}},
+                  'find_tags': True, 'find_colors': True, 'colors': ['yellow'],
                   'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
-                  'orientation': {'tx': -.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': +90},
+                  'orientation': {'tx': 0, 'ty': +0.0, 'tz': 0, 'rx': 0, 'ry': -15, 'rz': 0},
                   'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
                   'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
             }
@@ -467,7 +476,7 @@ if __name__ == "__main__":
     training_color = cam_table.getStringTopic('_training_color').publish()
 
 
-    for cam in cd.keys():  # set up everything you need in a camera
+    for idx, cam in enumerate(cd.keys()):  # set up everything you need in a camera
         cd[cam]['table'] = ntinst.getTable(cd[cam]['table_name'])
         cd[cam]['timestamp_entry'] = cd[cam]['table'].getDoubleTopic("_timestamp").publish()
         cd[cam]['timestamp_entry'].set(0)
@@ -490,8 +499,11 @@ if __name__ == "__main__":
         cd[cam]['frame_entry'] = cd[cam]['table'].getDoubleTopic("_frames").publish()
         cd[cam]['colors_entry'] = cd[cam]['table'].getStringArrayTopic("colors").publish()
         cd[cam]['colors_entry'].set(cd[cam]['colors'])
-        actual_colors = [key for key in cd[cam]['target_results'].keys() if key != 'tags']
-        cd[cam]['pipeline'] = SpartanOverlay(colors=actual_colors, camera=cd[cam]['name'], greyscale=cd[cam]['greyscale'],
+
+        # actual_colors = [key for key in cd[cam]['target_results'].keys() if key != 'tags']  # why did I do this?  it's a color bug
+        actual_colors = cd[cam]['colors']  # before I was feeding the pipeline that i had above, which squashed the colors i wanted
+
+        cd[cam]['pipeline'] = SpartanOverlay(colors=cd[cam]['colors'], camera=cd[cam]['name'], greyscale=cd[cam]['greyscale'],
                                              x_resolution=cd[cam]['x_resolution'], y_resolution=cd[cam]['y_resolution'],
                                              intrinsics=cd[cam]['intrinsics'], distortions=cd[cam]['distortions'],
                                              max_tag_distance=cd[cam]['max_tag_distance'])
@@ -507,6 +519,11 @@ if __name__ == "__main__":
         cd[cam]['previous_image_send'] = 0
         cd[cam]['failure_counter'] = 0
         cd[cam]['reduce_bandwidth'] = True
+
+        # make sure this is being parsed correctly
+        msg = f'camera {idx} named {cd[cam]["name"]} settings: actual_colors to the pipeline definition: {actual_colors} find_colors: {cd[cam]["find_colors"]}'
+        msg+= f' desired colors: {cd[cam]["colors"]} '
+        print(msg)
 
     # set up a pipeline for each camera
 
@@ -639,7 +656,7 @@ if __name__ == "__main__":
                 else:
                     msg = f"Cameras: {len(cameras)}  Avg {names[0]} FPS: {cam_fps[0]:0.1f}"
                     msg += f" Success:{successes[0]}  Failure:{fails[0]}"
-                #print(msg, end='\r', flush=True)
+                print(msg, end='\r', flush=True)
                 previous_time = ts
         except KeyboardInterrupt:  # not necessary since I'm trapping SIGNINT above
             print("\nCtrl+C trapped! Terminating threads and ending ...")

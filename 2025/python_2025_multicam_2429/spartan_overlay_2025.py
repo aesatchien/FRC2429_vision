@@ -299,9 +299,9 @@ class SpartanOverlay(GripPipeline):
         home = False
 
         if self.color == 'orange':  # 2024 orange rings - started 20240305
-            self._hsv_threshold_hue = [0, 7]  # unknown - probably need to wrap around this year - too close to red
-            self._hsv_threshold_saturation = [150, 254]  # unknown
-            self._hsv_threshold_value = [30, 254]  # unknown
+            self._hsv_threshold_hue = [0, 10]  # unknown - probably need to wrap around this year - too close to red
+            self._hsv_threshold_saturation = [50, 254]  # unknown
+            self._hsv_threshold_value = [10, 254]  # unknown
             self._blur_radius = 3  # do i need to blur more or less?
             self._filter_contours_max_ratio = 10  # ring lying flat on ground
             self._filter_contours_min_ratio = 2  # facing the circle

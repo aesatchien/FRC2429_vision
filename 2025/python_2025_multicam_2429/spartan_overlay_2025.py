@@ -336,18 +336,18 @@ class SpartanOverlay(GripPipeline):
                 self._hsv_threshold_value = [130, 255]  # tends to be a bit dark
 
         elif self.color == 'yellow':  # 2023 yellow cones
-            self._hsv_threshold_hue = [14, 21]
-            self._hsv_threshold_saturation = [128, 255]
-            self._hsv_threshold_value = [110, 255]
+            self._hsv_threshold_hue = [17, 23]
+            self._hsv_threshold_saturation = [150, 254]
+            self._hsv_threshold_value = [120, 254]
             if home:
                 self._hsv_threshold_hue = [11, 28]
                 self._hsv_threshold_saturation = [90, 255]
                 self._hsv_threshold_value = [90, 255]
-            self._filter_contours_max_ratio = 5  # 2 h/w so still gets a tall cone
-            self._filter_contours_min_ratio = 0.2  # 0.5 cone lying down
-            self._filter_contours_min_area = 100.0
-            self._filter_contours_min_height = 15
-            self._filter_contours_min_width = 15
+            self._filter_contours_max_ratio = 3  # 2 h/w so still gets a tall cone
+            self._filter_contours_min_ratio = .1  # 0.5 cone lying down
+            self._filter_contours_min_area = 2000.0
+            self._filter_contours_min_height = 30
+            self._filter_contours_min_width = 30
             self._filter_contours_max_width = 200
             self._filter_contours_max_height = 200
             #self._filter_contours_solidity = [50.0, 100.0]
@@ -553,7 +553,7 @@ class SpartanOverlay(GripPipeline):
             centroid_y = int(moments["m01"] / moments["m00"])  # also easier as y +h/2
             target_x = (-1.0 + 2.0 * centroid_x / self.x_resolution)  # could also be (x+w/2) / self.x_resolution
             target_y = (-1.0 + 2.0 * centroid_y / self.y_resolution)
-            self.rotation_to_target = target_x * camera_fov / 2.0
+            self.rotation_to_target = - target_x * camera_fov / 2.0
             self.distance_to_target = object_width / (
                         2.0 * math.tan(target_width_fraction_fov * math.radians(camera_fov) / 2.0))
             self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target

@@ -30,7 +30,7 @@
                 },
                 {
                     "name": "gain",
-                    "value": 65
+                    "value": 50
                 },
                 {
                     "name": "power_line_frequency",
@@ -50,7 +50,7 @@
                 },
                 {
                     "name": "exposure_time_absolute",
-                    "value": 16
+                    "value": 5
                 },
                 {
                     "name": "exposure_dynamic_framerate",
@@ -112,7 +112,7 @@
                 },				
                 {
                     "name": "gain",
-                    "value": 65
+                    "value": 50
                 },
                 {
                     "name": "power_line_frequency",
@@ -132,7 +132,7 @@
                 },
                 {
                     "name": "exposure_time_absolute",
-                    "value": 16
+                    "value": 5
                 },
                 {
                     "name": "exposure_dynamic_framerate",

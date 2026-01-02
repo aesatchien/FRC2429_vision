@@ -128,3 +128,5 @@ remove:
 sudo bash -c 'echo "blacklist btbcm" > /etc/modprobe.d/disable-bluetooth.conf && echo "blacklist hci_uart" >> /etc/modprobe.d/disable-bluetooth.conf && reboot'
 enable:
 sudo rm /etc/modprobe.d/disable-bluetooth.conf && sudo reboot
+
+

@@ -24,7 +24,7 @@ class SpartanOverlay(GripPipeline):
     field = ra.AprilTagField.k2025ReefscapeWelded
     layout = ra.AprilTagFieldLayout.loadField(field)
 
-    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, distortions=False, max_tag_distance=10):
+    def __init__(self, colors=['orange'], camera='c920', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, distortions=False, max_tag_distance=10):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
@@ -510,6 +510,7 @@ class SpartanOverlay(GripPipeline):
         # object parameters
         if self.color == 'yellow':
             object_width = 7 * 0.0254  # 2020 squishy yellow ball, 7 inches to meters
+            object_width = 8 * 0.0254  # 2023 cone - 8" wide at the base
         elif self.color == 'blue' or self.color == 'red':
             object_width = 9.5 * 0.0254  # 2022 big tennis ball, 9.5 inches to meters
         elif self.color == 'green':
@@ -529,6 +530,7 @@ class SpartanOverlay(GripPipeline):
             camera_fov = 55  # Lifecam 640x360
         elif self.camera == 'c920':
             camera_fov = 77  # logitech c920 in wide mode
+            camera_fov = 70  # logitech c920 in 640x360
         elif self.camera == 'geniuscam':
             camera_fov = 118  # Genius 120 352x288
             self.camera_shift = 0 # 14  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC

@@ -18,7 +18,7 @@
                 },
                 {
                     "name": "saturation",
-                    "value": 50
+                    "value": 55
                 },
                 {
                     "name": "white_balance_automatic",
@@ -55,14 +55,6 @@
                 {
                     "name": "exposure_dynamic_framerate",
                     "value": false
-                },
-                {
-                    "name": "pan_absolute",
-                    "value": 0
-                },
-                {
-                    "name": "tilt_absolute",
-                    "value": 0
                 },
                 {
                     "name": "focus_absolute",
@@ -100,7 +92,7 @@
                 },
                 {
                     "name": "saturation",
-                    "value": 50
+                    "value": 55
                 },
                 {
                     "name": "white_balance_automatic",
@@ -137,14 +129,6 @@
                 {
                     "name": "exposure_dynamic_framerate",
                     "value": false
-                },
-                {
-                    "name": "pan_absolute",
-                    "value": 0
-                },
-                {
-                    "name": "tilt_absolute",
-                    "value": 0
                 },
                 {
                     "name": "focus_absolute",

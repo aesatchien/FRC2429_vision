@@ -398,25 +398,25 @@ if __name__ == "__main__":
                   'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
                   'orientation': {'tx': -.33, 'ty': +0.2, 'tz': 0, 'rx': 0, 'ry': -25, 'rz': +90},
                   'intrinsics': {'fx': 563.95, 'fy': 564.05, 'cx': 315.83, 'cy': 214.20 },
-                  'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': False},
+                  'distortions': [ 5.586e-02, -7.083e-02,  1.842e-05, -2.274e-04, 3.2057355e-03], 'use_distortions': False, 'serial': None}
             }
     elif ip_address == "10.24.29.12":  # this pair of cameras is used on the practicebot  # TODO: update intrinsics
-        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogiTechLeft', 'table_name': "Cameras/LogiTechLeft",
+        cd = {0: {'name': 'c920', 'processed_port': 1186, 'stream_label': 'LogitechLeft', 'table_name': "Cameras/LogitechLeft",
                   'enabled': True, 'camera': cameras[0], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': False, 'target_results': {'yellow': {}, 'tags': {}},
                   'find_tags': True, 'find_colors': True, 'colors': ['yellow'],  # need to remove colors and get from target_results
                   'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3.25,  # 3 burned us once at Vegas
                   'orientation': {'tx': 0, 'ty': 0.0, 'tz': 0, 'rx': 0, 'ry': -15, 'rz': +90},  # todo: check this
-                  'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
-                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
-              1: {'name': 'c920', 'processed_port': 1187, 'stream_label': 'LogiTechFront', 'table_name': "Cameras/LogiTechFront",
+                  'intrinsics': {'fx': 462.925, 'fy': 463.621, 'cx': 320.77, 'cy': 175.12},
+                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False, 'serial': '046d:082d',},
+              1: {'name': 'c920', 'processed_port': 1187, 'stream_label': 'LogitechFront', 'table_name': "Cameras/LogitechFront",
                   'enabled': True, 'camera': cameras[1], 'table': None, 'image_source': None, 'cvstream': None, 'pipeline': None,
                   'x_resolution': 0, 'y_resolution': 0, 'sink': None, 'greyscale': True, 'target_results': {'yellow': {}, 'tags': {}},
                   'find_tags': True, 'find_colors': True, 'colors': ['yellow'],
-                  'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3,
+                  'stream_fps': 16, 'stream_max_width': 640, 'max_tag_distance': 3.25,
                   'orientation': {'tx': 0, 'ty': +0.0, 'tz': 0, 'rx': 0, 'ry': -15, 'rz': 0},
-                  'intrinsics': {'fx': 484.14, 'fy': 484.09, 'cx': 327.21, 'cy': 173.35 },
-                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False},
+                  'intrinsics': {'fx':484.18, 'fy':483.75, 'cx':320.95, 'cy':177.38},
+                  'distortions': [0.05556984, -0.17219326, -0.00125776,  0.00109908,  0.11627947], 'use_distortions': False, 'serial':'046d:08e5'},
             }
     else:
         # should I do this or just go for the default?
@@ -449,10 +449,24 @@ if __name__ == "__main__":
     # re-set camera parameters - may jump start them a bit
     for cam_idx in cd.keys():  # will be [0, 1] if we have two cameras, etc
         bright_list = [item.config["brightness"] for item in cameraConfigs]  # gets all the brightnesses, could instead just get the one at this index
+        exposure_list = [
+            next((p['value'] for p in item.config.get('properties', []) if p['name'] == 'exposure_time_absolute'), 5)
+            for item in cameraConfigs]
         cd[cam_idx]['camera'].setBrightness(bright_list[cam_idx]+1)  # seems to be a bug in 2023 code - setting brightness fixes exposure issues on boot
+        # cd[cam_idx]['camera'].setExposureManual(exposure_time_list[cam_idx]+1)
         time.sleep(0.25)
         print(f'Resetting brightness on cam {cam_idx} to {bright_list[cam_idx]}')
+        # cd[cam_idx]['camera'].setExposureManual(exposure_time_list[cam_idx])
         cd[cam_idx]['camera'].setBrightness(bright_list[cam_idx])
+
+        if cd[cam_idx]['name'] == 'c920':
+            # force exposure setting via v4l2-ctl as requested
+            video_device = f'/dev/video{cam_idx * 2}'  # 0->0, 1->2
+            exposure_val = int(exposure_list[cam_idx] * 20)
+            cmd = ['v4l2-ctl', '-d', video_device, f'--set-ctrl=exposure_time_absolute={exposure_val}']
+            print(f'Setting exposure on {video_device} to {exposure_val} via v4l2-ctl...')
+            subprocess.run(cmd)
+
     else:
         pass
 

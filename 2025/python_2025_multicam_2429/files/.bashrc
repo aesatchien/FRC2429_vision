@@ -113,6 +113,7 @@ if ! shopt -oq posix; then
 fi
 
 alias caminfo='ls -l /dev/v4l/by-id/'
+alias camsettings='v4l2-ctl -d /dev/video0 --list-ctrls-menus'
 alias gopy='cd ~/git/FRC2429_vision/2025/python_2025_multicam_2429'
 alias startcams='sudo systemctl start runCamera.service'
 alias stopcams='sudo systemctl stop runCamera.service'

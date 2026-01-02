@@ -6,7 +6,8 @@ from visionlib.config_io import load_vision_cfg, select_profile
 from visionlib import frc_io
 from visionlib.camctx import CamCtx
 from visionlib.streaming import build_stream, push_frame, build_raw_stream
-from visionlib.vision_worker import tick, attach_sink
+from visionlib.vision_worker import attach_sink
+from visionlib.threaded_pipeline import ThreadedVisionPipeline
 from visionlib.ntio import init_cam_entries, init_global_flags
 from visionlib.camera_control import set_camera_robust_defaults
 from spartan_overlay_2025 import SpartanOverlay
@@ -42,13 +43,12 @@ def main():
 
     cam = frc_io.startCamera(cc)
 
-    # DISABLED: VideoMode query to test if it resets parameters
-    # vm = cam.getVideoMode()
-    # width = vm.width if vm.width > 0 else 640
-    # height = vm.height if vm.height > 0 else 480
-    
-    width = 640
-    height = 480
+    # Re-enabled: Get actual camera resolution to ensure buffer sizes match
+    # We wait for connection to ensure we don't get a default 0x0
+    while not cam.isConnected(): time.sleep(0.1)
+    vm = cam.getVideoMode()
+    width = vm.width if vm.width > 0 else 640
+    height = vm.height if vm.height > 0 else 480
 
     # per-host profile
     vcfg = load_vision_cfg(args.vision)
@@ -119,21 +119,15 @@ def main():
 
     log.info(f"{ctx.name}: streaming on {ctx.processed_port}")
 
-    # main loop
+    # Start Threaded Pipeline
+    pipeline = ThreadedVisionPipeline(ctx, ntinst, nt_global, push_frame)
+    pipeline.start()
+
+    # Main thread just monitors or sleeps
     last_print = 0.0
     while True:
-        try:
-            training = False if nt_global.get("training") is None else nt_global["training"].get()
-            debug    = False if nt_global.get("debug")    is None else nt_global["debug"].get()
-            tick(nt_global, ntinst, ctx, training, debug, push_frame)
-            now = time.time()
-            if now - last_print >= 1.0:
-                print(f"{ctx.name}: {ctx.fps:0.1f}fps  S:{ctx.success_counter}  F:{ctx.failure_counter}", flush=True)
-                last_print = now
-        except Exception as e:
-            log.error(f"Error in vision loop: {traceback.format_exc()}")
-            ctx.failure_counter += 1
-            time.sleep(0.1) # Brief pause to recover
+        time.sleep(1.0)
+        print(f"{ctx.name}: {ctx.fps:0.1f}fps  S:{ctx.success_counter}  F:{ctx.failure_counter}", flush=True)
 
 if __name__ == "__main__":
     main()

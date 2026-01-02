@@ -6,12 +6,12 @@ from spartan_overlay_2025 import SpartanOverlay
 from visionlib.config_io import load_vision_cfg, select_profile
 from visionlib.camctx import CamCtx
 from visionlib.streaming import build_stream, push_frame, build_raw_stream
-from visionlib.vision_worker import attach_sink, tick
+from visionlib.vision_worker import attach_sink
 from visionlib.ntio import init_global_flags, init_cam_entries
-from visionlib.util import run_in_thread
 from visionlib.camera_control import set_camera_robust_defaults
 
 from visionlib import frc_io
+from visionlib.threaded_pipeline import ThreadedVisionPipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 log = logging.getLogger("vision")
@@ -97,15 +97,10 @@ if __name__ == "__main__":
         print(f"Added {ctx.name} stream on {ctx.processed_port} and serving table {ctx.table_name}")
 
     # Run workers
-    @run_in_thread
-    def worker(ctx, stop_flag):
-        while not stop_flag.is_set():
-            training = nt_global["training"].get()
-            debug = nt_global["debug"].get()
-            tick(nt_global, ntinst, ctx, training, debug, push_frame)
-
     for ctx in contexts:
-        worker(ctx)
+        log.info(f"Starting threaded pipeline for {ctx.name}")
+        pipeline = ThreadedVisionPipeline(ctx, ntinst, nt_global, push_frame)
+        pipeline.start()
 
     # Tiny stats loop
     while True:

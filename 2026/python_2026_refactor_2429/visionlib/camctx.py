@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import numpy as np
 
 @dataclass
 class CamCtx:
     name: str
+    camera_type: str              # c920, arducam, etc
     camera: Any                   # cscore.UsbCamera
     x_resolution: int = 0
     y_resolution: int = 0
@@ -19,18 +20,18 @@ class CamCtx:
     pipeline: Any = None          # SpartanOverlay
     find_tags: bool = True
     find_colors: bool = False
-    colors: list[str] = field(default_factory=lambda: ["orange"])
+    colors: List[str] = field(default_factory=lambda: ["orange"])
     greyscale: bool = False
     orientation: Dict[str, float] = field(default_factory=dict)
     intrinsics: Optional[Dict[str, float]] = None
-    distortions: Optional[list[float]] = None
+    distortions: Optional[List[float]] = None
     use_distortions: bool = False
     max_tag_distance: float = 3.0
 
     # stream policy
     stream_fps: int = 16
     stream_max_width: int = 640
-    raw_port: int | None = 1181
+    raw_port: Optional[int] = 1181
     processed_port: int = 1186
     reduce_bandwidth: bool = True
 

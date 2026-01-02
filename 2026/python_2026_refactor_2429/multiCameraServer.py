@@ -53,7 +53,7 @@ if __name__ == "__main__":
         ctx = CamCtx(
             name=c["name"],
             camera=cam_obj,
-            camera_name = c.get("camera_name", 'c920'),
+            camera_type= c.get("camera_type", 'c920'),
             processed_port=c.get("processed_port", 1186 + idx),
             table_name=c.get("table_name", f"Cameras/{c['name']}"),
             stream_fps=c.get("stream_fps", 16),
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         init_cam_entries(ntinst, ctx)
         ctx.pipeline = SpartanOverlay(
             colors=[k for k in ctx.colors if k != "tags"],
-            camera=ctx.camera_name,
+            camera=ctx.camera_type,
             greyscale=ctx.greyscale,
             x_resolution=ctx.x_resolution,
             y_resolution=ctx.y_resolution,

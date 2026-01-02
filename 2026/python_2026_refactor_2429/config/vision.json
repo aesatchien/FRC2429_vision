@@ -5,7 +5,7 @@
       "cameras": [
         {
           "name": "genius",
-          "camera_name": "genius",
+          "camera_type": "genius",
           "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "GeniusLow",
@@ -34,7 +34,7 @@
       "cameras": [
        {
           "name": "logitech c920 top left",
-          "camera_name": "c920",
+          "camera_type": "c920",
           "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "LogitechLeft",
@@ -54,7 +54,7 @@
         },
          {
           "name": "logitech c920 bottom front",
-          "camera_name": "c920",
+          "camera_type": "c920",
           "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "LogitechFront",
@@ -84,7 +84,7 @@
       "cameras": [
         {
           "name": "c920",
-          "camera_name": "c920",
+          "camera_type": "c920",
           "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "LogitechReef",
@@ -104,7 +104,7 @@
         },
         {
           "name": "arducam",
-          "camera_name": "c920",
+          "camera_type": "c920",
           "raw_port": 1182,
           "processed_port": 1187,
           "stream_label": "ArducamHigh",
@@ -134,6 +134,7 @@
       "cameras": [
         {
           "name": "arducam",
+          "camera_type": "arducam",
           "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "ArducamLeft",
@@ -153,6 +154,7 @@
         },
         {
           "name": "arducam2",
+          "camera_type": "arducam",
           "raw_port": 1182,
           "processed_port": 1187,
           "stream_label": "ArducamRight",

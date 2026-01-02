@@ -63,6 +63,7 @@ def main():
     # Build context
     ctx = CamCtx(
         name=args.cam, camera=cam,
+        camera_type= cam_prof.get("camera_type", 'c920'),
         raw_port=cam_prof.get("raw_port"),
         processed_port=cam_prof.get("processed_port", 1186),
         table_name=cam_prof.get("table_name", f"Cameras/{args.cam}"),

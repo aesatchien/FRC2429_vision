@@ -19,7 +19,10 @@ def init_cam_entries(ntinst, ctx):
 
     # per target color + tags
     ctx.nt["targets"] = {}
-    for key in ["orange","tags"]:
+    keys = list(ctx.colors)
+    if "tags" not in keys:
+        keys.append("tags")
+    for key in keys:
         ctx.nt["targets"][key] = {
             "id":       t.getDoubleTopic(f"{key}/id").publish(),
             "targets":  t.getDoubleTopic(f"{key}/targets").publish(),

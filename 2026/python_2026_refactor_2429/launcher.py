@@ -87,6 +87,7 @@ def main():
     ap.add_argument("--no-validate", action="store_true")
     ap.add_argument("--autorestart", action="store_true")
     ap.add_argument("--team", type=int, default=2429)
+    ap.add_argument("--ip", type=str, default='10.24.29.2')
     args = ap.parse_args()
 
     # host profile
@@ -104,9 +105,14 @@ def main():
     nt = NetworkTableInstance.getDefault()
     log.info("starting network client")
     nt.startClient4("launcher")
-    nt.setServerTeam(args.team)
+    nt.setServer(args.ip)
+    # nt.setServerTeam(args.team)
     nt.startDSClient()
-    fps_nt = {name: nt.getTable(f"Cameras/{name}").getDoubleTopic("_fps").subscribe(0.0) for name in cam_names}
+    
+    fps_nt = {}
+    for c in prof.get("cameras", []):
+        tname = c.get("table_name", f"Cameras/{c['name']}")
+        fps_nt[c["name"]] = nt.getTable(tname).getDoubleTopic("_fps").subscribe(0.0)
 
     # spawn workers; also parse stdout for FPS as fallback
     reserve = prof.get("reserve_cores", [0])

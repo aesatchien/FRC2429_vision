@@ -33,7 +33,7 @@
       "role": "practicebot",
       "cameras": [
        {
-          "name": "logitech c920 top left",
+          "name": "logitech_c920_top_left",
           "camera_type": "c920",
           "raw_port": 1181,
           "processed_port": 1186,
@@ -53,10 +53,10 @@
           "use_distortions": false
         },
          {
-          "name": "logitech c920 bottom front",
+          "name": "logitech_c920_bottom_front",
           "camera_type": "c920",
-          "raw_port": 1181,
-          "processed_port": 1186,
+          "raw_port": 1182,
+          "processed_port": 1187,
           "stream_label": "LogitechFront",
           "table_name": "Cameras/LogitechFront",
           "enabled": true,

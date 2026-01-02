@@ -24,7 +24,7 @@ class SpartanOverlay(GripPipeline):
     field = ra.AprilTagField.k2025ReefscapeWelded
     layout = ra.AprilTagFieldLayout.loadField(field)
 
-    def __init__(self, colors=['orange'], camera='lifecam', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, distortions=False, max_tag_distance=10):
+    def __init__(self, colors=['orange'], camera='c920', x_resolution=640, y_resolution=360, greyscale=False, intrinsics=None, distortions=False, max_tag_distance=10):
         super().__init__()
         self.debug = False  #  show HSV info as a written overlay
         self.hardcore = True  # if debugging, show even more info on HSV of detected contours
@@ -299,9 +299,9 @@ class SpartanOverlay(GripPipeline):
         home = False
 
         if self.color == 'orange':  # 2024 orange rings - started 20240305
-            self._hsv_threshold_hue = [0, 7]  # unknown - probably need to wrap around this year - too close to red
-            self._hsv_threshold_saturation = [150, 254]  # unknown
-            self._hsv_threshold_value = [30, 254]  # unknown
+            self._hsv_threshold_hue = [0, 10]  # unknown - probably need to wrap around this year - too close to red
+            self._hsv_threshold_saturation = [50, 254]  # unknown
+            self._hsv_threshold_value = [10, 254]  # unknown
             self._blur_radius = 3  # do i need to blur more or less?
             self._filter_contours_max_ratio = 10  # ring lying flat on ground
             self._filter_contours_min_ratio = 2  # facing the circle
@@ -336,18 +336,18 @@ class SpartanOverlay(GripPipeline):
                 self._hsv_threshold_value = [130, 255]  # tends to be a bit dark
 
         elif self.color == 'yellow':  # 2023 yellow cones
-            self._hsv_threshold_hue = [14, 21]
-            self._hsv_threshold_saturation = [128, 255]
-            self._hsv_threshold_value = [110, 255]
+            self._hsv_threshold_hue = [17, 23]
+            self._hsv_threshold_saturation = [150, 254]
+            self._hsv_threshold_value = [120, 254]
             if home:
                 self._hsv_threshold_hue = [11, 28]
                 self._hsv_threshold_saturation = [90, 255]
                 self._hsv_threshold_value = [90, 255]
-            self._filter_contours_max_ratio = 5  # 2 h/w so still gets a tall cone
-            self._filter_contours_min_ratio = 0.2  # 0.5 cone lying down
-            self._filter_contours_min_area = 100.0
-            self._filter_contours_min_height = 15
-            self._filter_contours_min_width = 15
+            self._filter_contours_max_ratio = 3  # 2 h/w so still gets a tall cone
+            self._filter_contours_min_ratio = .1  # 0.5 cone lying down
+            self._filter_contours_min_area = 2000.0
+            self._filter_contours_min_height = 30
+            self._filter_contours_min_width = 30
             self._filter_contours_max_width = 200
             self._filter_contours_max_height = 200
             #self._filter_contours_solidity = [50.0, 100.0]
@@ -510,6 +510,7 @@ class SpartanOverlay(GripPipeline):
         # object parameters
         if self.color == 'yellow':
             object_width = 7 * 0.0254  # 2020 squishy yellow ball, 7 inches to meters
+            object_width = 8 * 0.0254  # 2023 cone - 8" wide at the base
         elif self.color == 'blue' or self.color == 'red':
             object_width = 9.5 * 0.0254  # 2022 big tennis ball, 9.5 inches to meters
         elif self.color == 'green':
@@ -529,6 +530,7 @@ class SpartanOverlay(GripPipeline):
             camera_fov = 55  # Lifecam 640x360
         elif self.camera == 'c920':
             camera_fov = 77  # logitech c920 in wide mode
+            camera_fov = 70  # logitech c920 in 640x360
         elif self.camera == 'geniuscam':
             camera_fov = 118  # Genius 120 352x288
             self.camera_shift = 0 # 14  # had one at 14 pixels, another at -8 - apparently genius cams have poor QC
@@ -553,7 +555,7 @@ class SpartanOverlay(GripPipeline):
             centroid_y = int(moments["m01"] / moments["m00"])  # also easier as y +h/2
             target_x = (-1.0 + 2.0 * centroid_x / self.x_resolution)  # could also be (x+w/2) / self.x_resolution
             target_y = (-1.0 + 2.0 * centroid_y / self.y_resolution)
-            self.rotation_to_target = target_x * camera_fov / 2.0
+            self.rotation_to_target = - target_x * camera_fov / 2.0
             self.distance_to_target = object_width / (
                         2.0 * math.tan(target_width_fraction_fov * math.radians(camera_fov) / 2.0))
             self.strafe_to_target = math.sin(math.radians(self.rotation_to_target)) * self.distance_to_target

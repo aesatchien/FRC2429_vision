@@ -31,7 +31,10 @@ def tick(nt_global, ntinst, ctx, training: bool, debug: bool, push_frame_fn):
     ctx.nt["timestamp"].set(ts)
 
     # targets (colors + tags)
-    for key in ["orange", "tags"]:
+    keys = list(ctx.colors)
+    if "tags" not in keys:
+        keys.append("tags")
+    for key in keys:
         tgt = res.get(key, {})
         ctx.nt["targets"][key]["targets"].set(tgt.get("targets", 0))
         if tgt.get("targets", 0) > 0:

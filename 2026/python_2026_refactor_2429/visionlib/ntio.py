@@ -2,10 +2,24 @@ from ntcore import PubSubOptions
 
 def init_global_flags(ntinst):
     cams = ntinst.getTable("Cameras")
+    
+    # Publish global flags so they appear on the dashboard
+    # We keep the publishers in the return dict to prevent garbage collection
+    train_pub = cams.getBooleanTopic("_training").publish()
+    train_pub.set(False)
+    
+    debug_pub = cams.getBooleanTopic("_debug").publish()
+    debug_pub.set(False)
+
     training_sub = cams.getBooleanTopic("_training").subscribe(False)
     debug_sub    = cams.getBooleanTopic("_debug").subscribe(False)
     ts_sub       = ntinst.getDoubleTopic("/SmartDashboard/_timestamp").subscribe(0)
-    return {"training": training_sub, "debug": debug_sub, "timestamp": ts_sub}
+    return {
+        "training": training_sub, 
+        "debug": debug_sub, 
+        "timestamp": ts_sub,
+        "_pubs": [train_pub, debug_pub]
+    }
 
 def init_cam_entries(ntinst, ctx):
     t = ntinst.getTable(ctx.table_name)

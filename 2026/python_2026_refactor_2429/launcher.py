@@ -109,6 +109,9 @@ def main():
     # nt.setServerTeam(args.team)
     nt.startDSClient()
     
+    # Pass the IP to the worker processes so they connect to the same server
+    os.environ["NT_SERVER"] = args.ip
+
     fps_nt = {}
     for c in prof.get("cameras", []):
         tname = c.get("table_name", f"Cameras/{c['name']}")
@@ -146,6 +149,7 @@ def main():
         for key, ch in list(children.items()):
             rc = ch["p"].poll()
             if rc is None: continue
+            print("") # Clear the status line so the log isn't overwritten
             log.warning(f"{key} exited rc={rc}")
             ch["log"].flush(); ch["log"].close()
             if args.autorestart and not stopping["flag"]:

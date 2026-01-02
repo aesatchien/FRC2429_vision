@@ -79,6 +79,37 @@ def terminate(child, grace=2.0):
     except Exception:
         pass
 
+def kill_other_launchers():
+    # Find and kill other instances of launcher.py to prevent "Supervisor Wars"
+    # where a background launcher keeps restarting workers we try to kill.
+    my_pid = os.getpid()
+    try:
+        # pgrep -f finds processes matching the command line
+        pids = subprocess.check_output(["pgrep", "-f", "launcher.py"]).decode().split()
+        for pid_str in pids:
+            pid = int(pid_str)
+            if pid != my_pid:
+                log.warning(f"Killing duplicate launcher process {pid}")
+                subprocess.run(["kill", "-9", str(pid)], check=False)
+    except Exception:
+        pass
+
+def kill_existing_processes():
+    # Kill any existing camera processes (zombies or system service)
+    # 1. Stop the systemd service so it doesn't auto-restart the process we kill
+    try:
+        subprocess.run(["sudo", "systemctl", "stop", "camera-server"], check=False)
+    except Exception:
+        pass
+
+    # This prevents "Address already in use" and camera resource contention
+    for proc in ["camera_worker.py", "multiCameraServer.py"]:
+        try:
+            subprocess.run(["pkill", "-f", proc], check=False)
+        except Exception:
+            pass
+    time.sleep(1.0) # Allow time for cleanup
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--vision", default="/boot/vision.json")
@@ -89,6 +120,10 @@ def main():
     ap.add_argument("--team", type=int, default=2429)
     ap.add_argument("--ip", type=str, default='10.24.29.2')
     args = ap.parse_args()
+
+    # 1. Clean up environment
+    kill_other_launchers()
+    kill_existing_processes()
 
     # host profile
     vcfg = load_vision_cfg(args.vision)
@@ -130,6 +165,7 @@ def main():
         children[f"cam:{name}"] = child
         start_reader(name, child, stats)
         log.info(f"started {name} cpu={cpu} -> {log_path}")
+        time.sleep(2.0) # Stagger startup to prevent USB bandwidth race conditions
 
     # signals
     stopping = {"flag": False}

@@ -8,7 +8,8 @@ from visionlib.camctx import CamCtx
 from visionlib.streaming import build_stream, push_frame, build_raw_stream
 from visionlib.vision_worker import attach_sink, tick
 from visionlib.ntio import init_global_flags, init_cam_entries
-from visionlib.util import run_in_thread, nudge_brightness
+from visionlib.util import run_in_thread
+from visionlib.camera_control import set_camera_robust_defaults
 
 from visionlib import frc_io
 
@@ -88,10 +89,9 @@ if __name__ == "__main__":
             max_tag_distance=ctx.max_tag_distance,
         )
 
-        # Optional brightness override
-        b = prof.get("brightness_overrides", {}).get(ctx.name)
-        if b is not None:
-            nudge_brightness(ctx.camera, b)
+        # Apply robust defaults (brightness nudge + v4l2 exposure)
+        cfg = next((cc for cc in frc_io.cameraConfigs if cc.name == ctx.name), None)
+        set_camera_robust_defaults(ctx.camera, cfg, ctx.camera_type)
 
         contexts.append(ctx)
         print(f"Added {ctx.name} stream on {ctx.processed_port} and serving table {ctx.table_name}")

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, sys, time, logging, argparse, subprocess
+import os, sys, time, logging, argparse, subprocess, traceback
 from ntcore import NetworkTableInstance
 from cscore import CameraServer
 from visionlib.config_io import load_vision_cfg, select_profile
@@ -8,6 +8,7 @@ from visionlib.camctx import CamCtx
 from visionlib.streaming import build_stream, push_frame, build_raw_stream
 from visionlib.vision_worker import tick, attach_sink
 from visionlib.ntio import init_cam_entries, init_global_flags
+from visionlib.camera_control import set_camera_robust_defaults
 from spartan_overlay_2025 import SpartanOverlay
 
 log = logging.getLogger("camproc")
@@ -41,6 +42,14 @@ def main():
 
     cam = frc_io.startCamera(cc)
 
+    # DISABLED: VideoMode query to test if it resets parameters
+    # vm = cam.getVideoMode()
+    # width = vm.width if vm.width > 0 else 640
+    # height = vm.height if vm.height > 0 else 480
+    
+    width = 640
+    height = 480
+
     # per-host profile
     vcfg = load_vision_cfg(args.vision)
     prof = select_profile(vcfg)
@@ -63,6 +72,8 @@ def main():
     # Build context
     ctx = CamCtx(
         name=args.cam, camera=cam,
+        x_resolution=width,
+        y_resolution=height,
         camera_type= cam_prof.get("camera_type", 'c920'),
         raw_port=cam_prof.get("raw_port"),
         processed_port=cam_prof.get("processed_port", 1186),
@@ -102,44 +113,27 @@ def main():
         max_tag_distance=ctx.max_tag_distance
     )
 
-    # optional brightness override
-    b = prof.get("brightness_overrides", {}).get(ctx.name)
-    if b is not None:
-        try:
-            cam.setBrightness(int(b)+1); time.sleep(0.2); cam.setBrightness(int(b))
-        except Exception as e:
-            log.debug(f"brightness nudge failed: {e}")
-
-    # RESTORED: Manual exposure via v4l2-ctl for c920 on Linux
-    # The c920 sometimes ignores cscore exposure settings or needs a push.
-    if ctx.camera_type == "c920" and sys.platform.startswith("linux"):
-        try:
-            # Find exposure in the FRC config for this camera (cc was found earlier)
-            props = cc.config.get("properties", [])
-            val = next((p["value"] for p in props if p["name"] == "exposure_time_absolute"), None)
-            
-            if val is not None:
-                exp_val = int(val * 20) # Multiplier from 2025 code
-                path = cam.getPath()    # e.g. /dev/video0
-                if path.startswith("/dev/video"):
-                    cmd = ["v4l2-ctl", "-d", path, f"--set-ctrl=exposure_time_absolute={exp_val}"]
-                    log.info(f"Setting exposure on {path} to {exp_val} (v4l2-ctl)")
-                    subprocess.run(cmd, capture_output=True)
-        except Exception as e:
-            log.warning(f"Could not set v4l2 exposure: {e}")
+    # Apply robust defaults (brightness nudge + v4l2 exposure)
+    # cc is the CameraConfig object from frc_io
+    set_camera_robust_defaults(cam, cc, ctx.camera_type)
 
     log.info(f"{ctx.name}: streaming on {ctx.processed_port}")
 
     # main loop
     last_print = 0.0
     while True:
-        training = False if nt_global.get("training") is None else nt_global["training"].get()
-        debug    = False if nt_global.get("debug")    is None else nt_global["debug"].get()
-        tick(nt_global, ntinst, ctx, training, debug, push_frame)
-        now = time.time()
-        if now - last_print >= 1.0:
-            print(f"{ctx.name}: {ctx.fps:0.1f}fps  S:{ctx.success_counter}  F:{ctx.failure_counter}", flush=True)
-            last_print = now
+        try:
+            training = False if nt_global.get("training") is None else nt_global["training"].get()
+            debug    = False if nt_global.get("debug")    is None else nt_global["debug"].get()
+            tick(nt_global, ntinst, ctx, training, debug, push_frame)
+            now = time.time()
+            if now - last_print >= 1.0:
+                print(f"{ctx.name}: {ctx.fps:0.1f}fps  S:{ctx.success_counter}  F:{ctx.failure_counter}", flush=True)
+                last_print = now
+        except Exception as e:
+            log.error(f"Error in vision loop: {traceback.format_exc()}")
+            ctx.failure_counter += 1
+            time.sleep(0.1) # Brief pause to recover
 
 if __name__ == "__main__":
     main()

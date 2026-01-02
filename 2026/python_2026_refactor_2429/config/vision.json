@@ -1,10 +1,11 @@
 {
   "hosts": {
-    "10.24.29.12": {
+    "10.24.29.11": {
       "role": "back-tagcam",
       "cameras": [
         {
           "name": "genius",
+          "camera_name": "genius",
           "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "GeniusLow",
@@ -28,11 +29,62 @@
       }
     },
 
+        "10.24.29.12": {
+      "role": "practicebot",
+      "cameras": [
+       {
+          "name": "logitech c920 top left",
+          "camera_name": "c920",
+          "raw_port": 1181,
+          "processed_port": 1186,
+          "stream_label": "LogitechLeft",
+          "table_name": "Cameras/LogitechLeft",
+          "enabled": true,
+          "greyscale": false,
+          "find_tags": true,
+          "find_colors": true,
+          "colors": ["yellow"],
+          "stream_fps": 16,
+          "stream_max_width": 640,
+          "max_tag_distance": 3,
+          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+          "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
+          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+          "use_distortions": false
+        },
+         {
+          "name": "logitech c920 bottom front",
+          "camera_name": "c920",
+          "raw_port": 1181,
+          "processed_port": 1186,
+          "stream_label": "LogitechFront",
+          "table_name": "Cameras/LogitechFront",
+          "enabled": true,
+          "greyscale": false,
+          "find_tags": true,
+          "find_colors": false,
+          "colors": ["yellow"],
+          "stream_fps": 16,
+          "stream_max_width": 640,
+          "max_tag_distance": 3,
+          "orientation": { "tx": -0.33, "ty": -0.20, "tz": 0, "rx": 0, "ry": 30, "rz": -90 },
+          "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
+          "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
+          "use_distortions": false
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
+
     "10.24.29.13": {
       "role": "elevator-top",
       "cameras": [
         {
           "name": "c920",
+          "camera_name": "c920",
           "raw_port": 1181,
           "processed_port": 1186,
           "stream_label": "LogitechReef",
@@ -52,6 +104,7 @@
         },
         {
           "name": "arducam",
+          "camera_name": "c920",
           "raw_port": 1182,
           "processed_port": 1187,
           "stream_label": "ArducamHigh",

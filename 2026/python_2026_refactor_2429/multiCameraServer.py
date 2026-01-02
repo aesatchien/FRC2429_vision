@@ -53,6 +53,7 @@ if __name__ == "__main__":
         ctx = CamCtx(
             name=c["name"],
             camera=cam_obj,
+            camera_name = c.get("camera_name", 'c920'),
             processed_port=c.get("processed_port", 1186 + idx),
             table_name=c.get("table_name", f"Cameras/{c['name']}"),
             stream_fps=c.get("stream_fps", 16),
@@ -65,7 +66,7 @@ if __name__ == "__main__":
             intrinsics=c.get("intrinsics"),
             distortions=c.get("distortions"),
             use_distortions=c.get("use_distortions", False),
-            max_tag_distance=c.get("max_tag_distance", 3),
+            max_tag_distance=c.get("max_tag_distance", 3.5),
         )
 
         # Stream + sink + NT + pipeline
@@ -78,7 +79,7 @@ if __name__ == "__main__":
         init_cam_entries(ntinst, ctx)
         ctx.pipeline = SpartanOverlay(
             colors=[k for k in ctx.colors if k != "tags"],
-            camera=ctx.name,
+            camera=ctx.camera_name,
             greyscale=ctx.greyscale,
             x_resolution=ctx.x_resolution,
             y_resolution=ctx.y_resolution,

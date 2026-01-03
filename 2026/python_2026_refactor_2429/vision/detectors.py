@@ -124,7 +124,7 @@ class HSVDetector:
         self.cam = camera_model
         self.fov_h = self.cam.get_fov()
 
-    def process(self, image, color, training=False):
+    def process(self, image, color, training=False, train_box=None):
         # 1. Get Config
         cfg = get_hsv_config(color, self.cam.width, self.cam.height)
         if not cfg: return {}
@@ -138,6 +138,14 @@ class HSVDetector:
         # 3. Threshold
         lower = np.array([cfg['_hsv_threshold_hue'][0], cfg['_hsv_threshold_saturation'][0], cfg['_hsv_threshold_value'][0]])
         upper = np.array([cfg['_hsv_threshold_hue'][1], cfg['_hsv_threshold_saturation'][1], cfg['_hsv_threshold_value'][1]])
+        
+        stats = {}
+        if training:
+            stats = self._calc_training_stats(hsv, self.cam.width, self.cam.height, train_box)
+            if stats:
+                lower = np.array([stats['hue'][0], stats['sat'][0], stats['val'][0]])
+                upper = np.array([stats['hue'][1], stats['sat'][1], stats['val'][1]])
+
         mask = cv2.inRange(hsv, lower, upper)
         
         # 4. Contours
@@ -199,15 +207,19 @@ class HSVDetector:
             results['cy'].append(cy)
             
         # 8. Training Stats (if requested)
-        if training:
-            results['training_stats'] = self._calc_training_stats(hsv, self.cam.width, self.cam.height)
+        if training and stats:
+            results['training_stats'] = stats
             
         return results
 
-    def _calc_training_stats(self, hsv_img, w, h):
+    def _calc_training_stats(self, hsv_img, w, h, train_box=None):
         # Sample center box
         cw, ch = 10, 20
-        cx, cy = w // 2, h // 2
+        if train_box and len(train_box) >= 2:
+            cx = int(w * train_box[0])
+            cy = int(h * train_box[1])
+        else:
+            cx, cy = w // 2, h // 2
         sample = hsv_img[cy-ch:cy+ch, cx-cw:cx+cw, :]
         
         if sample.size == 0: return {}

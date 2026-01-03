@@ -146,12 +146,13 @@ class ThreadedVisionPipeline:
                 # Check training/debug flags from NT global
                 training = False if self.nt_global.get("training") is None else self.nt_global["training"].get()
                 debug = False if self.nt_global.get("debug") is None else self.nt_global["debug"].get()
+                train_box = self.nt_global.get("training_box").get() if self.nt_global.get("training_box") else [0.5, 0.5]
 
                 # Run HSV Detector for each color
                 res = {}
                 for color in self.ctx.colors:
                     if color == 'tags': continue
-                    color_res = self.ctx.hsv_detector.process(local_img, color, training=training)
+                    color_res = self.ctx.hsv_detector.process(local_img, color, training=training, train_box=train_box)
                     res[color] = color_res
                     
                     # Hoist training stats to top level so overlay_drawer can find it
@@ -262,11 +263,12 @@ class ThreadedVisionPipeline:
                 # We need to ensure these are updated regularly from NT
                 training = False if self.nt_global.get("training") is None else self.nt_global["training"].get()
                 debug = False if self.nt_global.get("debug") is None else self.nt_global["debug"].get()
+                train_box = self.nt_global.get("training_box").get() if self.nt_global.get("training_box") else [0.5, 0.5]
 
                 # Draw Overlay using the dedicated drawer
                 # This keeps the stream thread clean and the visualization logic centralized
                 try:
-                    draw_overlays(draw_img, tags, colors, self.ctx, training=training, debug=debug)
+                    draw_overlays(draw_img, tags, colors, self.ctx, training=training, debug=debug, train_box=train_box)
                 except Exception as e:
                     log.error(f"Overlay drawing error: {traceback.format_exc()}")
                     # Draw a red X or error message on the image if overlay fails

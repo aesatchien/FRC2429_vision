@@ -11,14 +11,19 @@ def init_global_flags(ntinst):
     debug_pub = cams.getBooleanTopic("_debug").publish()
     debug_pub.set(False)
 
+    box_pub = cams.getDoubleArrayTopic("_training_box").publish()
+    box_pub.set([0.5, 0.5])
+
     training_sub = cams.getBooleanTopic("_training").subscribe(False)
     debug_sub    = cams.getBooleanTopic("_debug").subscribe(False)
+    box_sub      = cams.getDoubleArrayTopic("_training_box").subscribe([0.5, 0.5])
     # ts_sub       = ntinst.getDoubleTopic("/SmartDashboard/_timestamp").subscribe(0)
     return {
         "training": training_sub, 
         "debug": debug_sub, 
+        "training_box": box_sub,
         # "timestamp": ts_sub,
-        "_pubs": [train_pub, debug_pub]
+        "_pubs": [train_pub, debug_pub, box_pub]
     }
 
 def init_cam_entries(ntinst, ctx):

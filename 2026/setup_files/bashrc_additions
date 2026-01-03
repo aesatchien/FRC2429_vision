@@ -1,0 +1,19 @@
+# FRC 2429 Environment
+
+# Activate Virtual Environment automatically
+if [ -f "$HOME/robo2025/bin/activate" ]; then
+    source "$HOME/robo2025/bin/activate"
+fi
+
+# Aliases
+alias ll='ls -l'
+alias caminfo='ls -l /dev/v4l/by-id/'
+alias gopy='cd ~/git/FRC2429_vision/2026/python_2026_refactor_2429'
+alias startcams='sudo systemctl start runCamera.service'
+alias stopcams='sudo systemctl stop runCamera.service'
+alias restartcams='sudo systemctl restart runCamera.service'
+alias logcams='tail -f ~/logs/runCamera.log'
+
+# WiFi Control (useful for competition to ensure only Ethernet is active)
+alias stopwlan='sudo bash -c "echo \"blacklist brcmfmac\" > /etc/modprobe.d/disable-wifi.conf && reboot"'
+alias startwlan='sudo rm /etc/modprobe.d/disable-wifi.conf && sudo reboot'

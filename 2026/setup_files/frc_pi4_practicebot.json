@@ -3,8 +3,8 @@
         {
             "brightness": 45,
             "fps": 30,
-            "height": 720,
-            "name": "logitech_c920_top_left",
+            "height": 360,
+            "name": "logitech c920 top left",
             "path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_EA3BCE4F-video-index0",
             "pixel format": "mjpeg",
             "properties": [
@@ -72,13 +72,13 @@
             "stream": {
                 "properties": []
             },
-            "width": 1280
+            "width": 640
         },
         {
             "brightness": 45,
             "fps": 30,
-            "height": 720,
-            "name": "logitech_c920_bottom_front",
+            "height": 360,
+            "name": "logitech c920 bottom front",
             "path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_357F611F-video-index0",
             "pixel format": "mjpeg",
             "properties": [
@@ -146,7 +146,7 @@
             "stream": {
                 "properties": []
             },
-            "width": 1280
+            "width": 640
         }
     ],
     "ntmode": "client",

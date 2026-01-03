@@ -1,0 +1,17 @@
+#!/bin/sh
+### TYPE: upload-python
+
+# Wait for network to settle
+echo "Waiting 3 seconds for network..."
+sleep 3
+
+export PYTHONUNBUFFERED=1
+
+# Activate the virtual environment
+# Note: The setup script ensures this path exists.
+# Using "." is POSIX compliant (same as source)
+. $HOME/robo2025/bin/activate
+
+# Run the Multi-Process Supervisor
+# This script will spawn the individual camera nodes
+python3 main_single_processor.py --autorestart --vision config/vision.json --frc /boot/frc.json

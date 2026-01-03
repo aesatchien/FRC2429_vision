@@ -1,6 +1,7 @@
 # FRC 2429 Vision — 2026 Refactor
 
-Small, testable modules; two run modes: **single‑process** (classic) and **multi‑process** (one process per camera).
+Small, testable modules; two run modes: **single‑process** (classic) and **multi‑process** (one process per camera).  
+Now featuring a threaded pipeline (Acquisition, Tags, HSV, NT, Stream) for higher performance.
 
 ---
 ## Folder Structure

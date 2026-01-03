@@ -1,0 +1,16 @@
+[Unit]
+Description=FRC Vision Camera Service
+After=network.target
+
+[Service]
+ExecStart=/home/pi/git/FRC2429_vision/2026/python_2026_refactor_2429/runCamera
+WorkingDirectory=/home/pi/git/FRC2429_vision/2026/python_2026_refactor_2429
+User=pi
+Group=pi
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/pi/logs/runCamera.log
+StandardError=append:/home/pi/logs/runCamera.err.log
+
+[Install]
+WantedBy=multi-user.target

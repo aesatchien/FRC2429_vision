@@ -47,7 +47,7 @@
           "stream_fps": 16,
           "stream_max_width": 640,
           "max_tag_distance": 3,
-          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+          "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 },
           "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
           "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
           "use_distortions": false
@@ -62,12 +62,12 @@
           "enabled": true,
           "greyscale": false,
           "find_tags": true,
-          "find_colors": false,
+          "find_colors": true,
           "colors": ["yellow"],
           "stream_fps": 16,
           "stream_max_width": 640,
           "max_tag_distance": 3,
-          "orientation": { "tx": -0.33, "ty": -0.20, "tz": 0, "rx": 0, "ry": 30, "rz": -90 },
+          "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 },
           "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
           "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
           "use_distortions": false

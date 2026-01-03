@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# frc_io.py — functions taken from the WPILIB cameraserver script
+# wpi_rio.py — functions taken from the WPILIB cameraserver script
 import sys, json
 from cscore import CameraServer, VideoSource, UsbCamera
 
@@ -100,12 +100,12 @@ def startCamera(config, *_, **__):
 def set_stream_port(name: str, port: int) -> bool:
     srv = servers.get(name)
     if not srv:
-        print(f"[frc_io] no server for '{name}'", file=sys.stderr)
+        print(f"[rio] no server for '{name}'", file=sys.stderr)
         return False
     try:
         srv.setPort(int(port))
         return True
     except Exception as e:
-        print(f"[frc_io] set_stream_port({name},{port}) failed: {e}", file=sys.stderr)
+        print(f"[rio] set_stream_port({name},{port}) failed: {e}", file=sys.stderr)
         return False
 

@@ -14,7 +14,7 @@ def set_camera_robust_defaults(camera, frc_config, camera_type="c920"):
     if not frc_config:
         return
 
-    # frc_config is the CameraConfig object from frc_io
+    # frc_config is the CameraConfig object from rio
     # It has a .config dictionary attribute containing the JSON data
     config_dict = getattr(frc_config, "config", {})
     

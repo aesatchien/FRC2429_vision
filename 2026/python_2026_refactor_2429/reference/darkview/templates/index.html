@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+  <title>Multi-Camera Viewer</title>
+  <style>
+    body { font-family: sans-serif; }
+    .controls-grid { display: flex; flex-wrap: wrap; gap: 40px; margin-bottom: 15px; }
+    .control-group { border: 1px solid #eee; padding: 10px; border-radius: 5px; }
+    .control-group strong { display: block; margin-bottom: 5px; }
+    .status-container .rec-wrap { margin-top: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 400px; }
+    .status-container .progress-bar { width: 100%; height: 18px; background: #ddd; }
+    .status-container .progress-fill { width: 100%; height: 100%; background: #c00; }
+    .status-container .rec-text { margin-top: 4px; font-family: monospace; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h2>Live Camera Stream</h2>
+
+  <div class="controls-grid">
+    <div class="control-group">
+      <strong>Live View:</strong>
+      {% for stream_id in stream_ids %}
+        <button onclick="changeStream('{{ stream_id }}')">{{ stream_id }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="control-group">
+      <strong>Streams to Record:</strong>
+      {% for stream_id in stream_ids %}
+        <label><input type="checkbox" name="stream_select" value="{{ stream_id }}" onchange="updateRecordOptions()"> {{ stream_id }}</label><br>
+      {% endfor %}
+    </div>
+
+    <div class="control-group">
+      <strong>Record Type:</strong>
+      <label><input type="radio" name="frame_type" value="outlined" checked> Outlined</label><br>
+      <label><input type="radio" name="frame_type" value="raw_frame" id="raw_record_option"> Raw</label><br>
+      <small id="raw_record_note" style="display:none; color: #666;">Raw is only available for source cameras.</small>
+    </div>
+
+    <div class="control-group">
+      <strong>Actions:</strong>
+      <button onclick="startRecordings()">Record Selected (10s)</button><br>
+      <button onclick="runAlignment()" style="margin-top: 10px;">Align Cams</button>
+    </div>
+  </div>
+
+  <div id="status-container" class="status-container"></div>
+
+  <img id="video_stream" src="/stream/{{ stream_ids[0] if stream_ids else '' }}" width="1280" height="720" alt="Live video stream">
+
+  <script>
+    let currentStreamId = "{{ stream_ids[0] if stream_ids else '' }}";
+
+    function changeStream(streamId) {
+      document.getElementById('video_stream').src = '/stream/' + streamId;
+      currentStreamId = streamId;
+    }
+
+    function updateRecordOptions() {
+      const selectedStreams = Array.from(document.querySelectorAll('input[name="stream_select"]:checked')).map(cb => cb.value);
+      const rawOption = document.getElementById('raw_record_option');
+      const rawNote = document.getElementById('raw_record_note');
+      const hasProcessedStream = selectedStreams.some(id => id === 'fusion');
+
+      if (hasProcessedStream) {
+        rawOption.disabled = true;
+        rawNote.style.display = 'inline';
+        if (rawOption.checked) {
+          document.querySelector('input[name="frame_type"][value="outlined"]').checked = true;
+        }
+      } else {
+        rawOption.disabled = false;
+        rawNote.style.display = 'none';
+      }
+    }
+
+    function startRecordings() {
+      const streams = Array.from(document.querySelectorAll('input[name="stream_select"]:checked')).map(cb => cb.value);
+      if (streams.length === 0) {
+        alert('Please select at least one stream to record.');
+        return;
+      }
+      const frame_type = document.querySelector('input[name="frame_type"]:checked').value;
+
+      fetch('/record/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ streams, frame_type })
+      }).then(res => res.json()).then(data => {
+        console.log('Record request response:', data);
+        pollStatus();
+      });
+    }
+
+    function runAlignment() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Aligning...';
+
+      fetch('/align', { method: 'POST' })
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(err => { throw new Error(err.message); });
+          }
+          return res.json();
+        })
+        .then(data => {
+          const dx = data.dx.toFixed(2);
+          const dy = data.dy.toFixed(2);
+          alert(`Alignment complete!\n\nEstimated offsets:\ndx = ${dx}\ndy = ${dy}\n\nUpdate FUSION_CONFIG in config.py with these values:\n'overlap_trim_x': ${Math.round(dx)},\n'overlap_trim_y': ${Math.round(dy)},`);
+        })
+        .catch(error => {
+          console.error('Alignment failed:', error);
+          alert(`Alignment failed: ${error.message}`);
+        })
+        .finally(() => {
+          btn.disabled = false;
+          btn.textContent = 'Align Cams';
+        });
+    }
+
+    function pollStatus() {
+      fetch('/record_status').then(res => res.json()).then(statuses => {
+        const container = document.getElementById('status-container');
+        const activeIds = Object.keys(statuses);
+
+        activeIds.forEach(id => {
+          const s = statuses[id];
+          let bar = document.getElementById(`rec-status-${id}`);
+          if (!bar) {
+            bar = document.createElement('div');
+            bar.id = `rec-status-${id}`;
+            bar.className = 'rec-wrap';
+            bar.innerHTML = `<div>Recording <strong>${id}</strong>...</div><div class="progress-bar"><div class="progress-fill"></div></div><div class="rec-text"></div>`;
+            container.appendChild(bar);
+          }
+          const pct = Math.max(0, Math.min(100, 100 * (s.duration - s.remaining) / s.duration));
+          bar.querySelector('.progress-fill').style.width = pct + '%';
+          bar.querySelector('.rec-text').textContent = `Remaining: ${s.remaining.toFixed(1)}s → ${s.filename || ''}`;
+        });
+
+        container.querySelectorAll('.rec-wrap').forEach(bar => {
+          const id = bar.id.replace('rec-status-', '');
+          if (!activeIds.includes(id)) bar.remove();
+        });
+
+        const anyActive = activeIds.length > 0;
+        setTimeout(pollStatus, anyActive ? 1000 : 20000);
+      }).catch(error => setTimeout(pollStatus, 20000));
+    }
+
+    window.onload = () => {
+      updateRecordOptions();
+      pollStatus();
+    };
+  </script>
+
+</body>
+</html>

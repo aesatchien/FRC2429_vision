@@ -1,43 +1,48 @@
 #!/usr/bin/env python3
-import sys, time, logging
+import sys, time, logging, argparse
 from ntcore import NetworkTableInstance
-from spartan_overlay_2025 import SpartanOverlay
 
-from visionlib.config_io import load_vision_cfg, select_profile
-from visionlib.camctx import CamCtx
-from visionlib.streaming import build_stream, push_frame, build_raw_stream
-from visionlib.vision_worker import attach_sink
-from visionlib.ntio import init_global_flags, init_cam_entries
-from visionlib.camera_control import set_camera_robust_defaults
+from vision.wpi_config import load_vision_cfg, select_profile
+from vision.camera_context import CameraContext
+from vision.wpi_stream import build_stream, push_frame, build_raw_stream
+from vision.wpi_attach_sink import attach_sink
+from vision.network import init_global_flags, init_cam_entries
+from vision.camera_controls import set_camera_robust_defaults
 
-from visionlib import frc_io
-from visionlib.threaded_pipeline import ThreadedVisionPipeline
+from vision import wpi_rio
+from vision.threaded_pipeline import ThreadedVisionPipeline
+from vision.camera_model import CameraModel
+from vision.detectors import TagDetector, HSVDetector
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 log = logging.getLogger("vision")
 
 if __name__ == "__main__":
-    # --- Read /boot/frc.json (or argv override) ---
-    if len(sys.argv) >= 2:
-        frc_io.configFile = sys.argv[1]
-    if not frc_io.readConfig():
-        log.error(f"could not read {frc_io.configFile}")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ip", default="10.24.29.2", help="NetworkTables server IP")
+    parser.add_argument("--frc", default="/boot/frc.json", help="Path to frc.json")
+    parser.add_argument("--vision", default="/boot/vision.json", help="Path to vision.json")
+    args = parser.parse_args()
+
+    wpi_rio.configFile = args.frc
+    if not wpi_rio.readConfig():
+        log.error(f"could not read {wpi_rio.configFile}")
         sys.exit(1)
 
     # Start NetworkTables
     ntinst = NetworkTableInstance.getDefault()
-    log.info("Starting NT client for team 2429")
+    log.info(f"Starting NT client connecting to {args.ip}")
     ntinst.startClient4("CJHpi5")
-    ntinst.setServerTeam(2429)
+    ntinst.setServer(args.ip)
     ntinst.startDSClient()
 
     # Start cameras from frc.json (local list) and map by name
-    cams = [frc_io.startCamera(cfg) for cfg in frc_io.cameraConfigs]
-    name_to_cam = {cc.name: cam for cc, cam in zip(frc_io.cameraConfigs, cams)}
+    cams = [wpi_rio.startCamera(cfg) for cfg in wpi_rio.cameraConfigs]
+    name_to_cam = {cc.name: cam for cc, cam in zip(wpi_rio.cameraConfigs, cams)}
     log.info(f"FRC cameras: {list(name_to_cam.keys())}")
 
     # Select per-host vision profile
-    vcfg = load_vision_cfg()
+    vcfg = load_vision_cfg(args.vision)
     prof = select_profile(vcfg)
 
     # Global NT flags
@@ -51,7 +56,7 @@ if __name__ == "__main__":
             log.warning(f"camera '{c['name']}' not found; skipping")
             continue
 
-        ctx = CamCtx(
+        ctx = CameraContext(
             name=c["name"],
             camera=cam_obj,
             camera_type= c.get("camera_type", 'c920'),
@@ -72,25 +77,22 @@ if __name__ == "__main__":
 
         # Stream + sink + NT + pipeline
         if c.get("raw_port"):
-            # camera object is `cam_obj`; profile entry is `c`; cfg is the matching frc_io camera config
-            cfg = next(cc for cc in frc_io.cameraConfigs if cc.name == c["name"])
+            # camera object is `cam_obj`; profile entry is `c`; cfg is the matching rio camera config
+            cfg = next(cc for cc in wpi_rio.cameraConfigs if cc.name == c["name"])
             build_raw_stream(c["name"], cam_obj, c["raw_port"], cfg.streamConfig)
         build_stream(ctx)
         attach_sink(ctx)
         init_cam_entries(ntinst, ctx)
-        ctx.pipeline = SpartanOverlay(
-            colors=[k for k in ctx.colors if k != "tags"],
-            camera=ctx.camera_type,
-            greyscale=ctx.greyscale,
-            x_resolution=ctx.x_resolution,
-            y_resolution=ctx.y_resolution,
-            intrinsics=ctx.intrinsics,
-            distortions=ctx.distortions,
-            max_tag_distance=ctx.max_tag_distance,
+        
+        cam_model = CameraModel(
+            ctx.x_resolution, ctx.y_resolution, ctx.camera_type,
+            ctx.intrinsics, ctx.distortions
         )
+        ctx.tag_detector = TagDetector(cam_model)
+        ctx.hsv_detector = HSVDetector(cam_model)
 
         # Apply robust defaults (brightness nudge + v4l2 exposure)
-        cfg = next((cc for cc in frc_io.cameraConfigs if cc.name == ctx.name), None)
+        cfg = next((cc for cc in wpi_rio.cameraConfigs if cc.name == ctx.name), None)
         set_camera_robust_defaults(ctx.camera, cfg, ctx.camera_type)
 
         contexts.append(ctx)

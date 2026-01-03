@@ -2,15 +2,16 @@
 import os, sys, time, logging, argparse, subprocess, traceback
 from ntcore import NetworkTableInstance
 from cscore import CameraServer
-from visionlib.config_io import load_vision_cfg, select_profile
-from visionlib import frc_io
-from visionlib.camctx import CamCtx
-from visionlib.streaming import build_stream, push_frame, build_raw_stream
-from visionlib.vision_worker import attach_sink
-from visionlib.threaded_pipeline import ThreadedVisionPipeline
-from visionlib.ntio import init_cam_entries, init_global_flags
-from visionlib.camera_control import set_camera_robust_defaults
-from spartan_overlay_2025 import SpartanOverlay
+from vision.wpi_config import load_vision_cfg, select_profile
+from vision import wpi_rio
+from vision.camera_context import CameraContext
+from vision.wpi_stream import build_stream, push_frame, build_raw_stream
+from vision.wpi_attach_sink import attach_sink
+from vision.threaded_pipeline import ThreadedVisionPipeline
+from vision.network import init_cam_entries, init_global_flags
+from vision.camera_controls import set_camera_robust_defaults
+from vision.camera_model import CameraModel
+from vision.detectors import TagDetector, HSVDetector
 
 log = logging.getLogger("camproc")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -31,17 +32,17 @@ def main():
     pin_to_cpu(args.cpu)
 
     # read frc.json and start ONLY this camera
-    frc_io.configFile = args.frc
-    if not frc_io.readConfig():
-        log.error(f"could not read {frc_io.configFile}")
+    wpi_rio.configFile = args.frc
+    if not wpi_rio.readConfig():
+        log.error(f"could not read {wpi_rio.configFile}")
         sys.exit(1)
 
-    cc = next((c for c in frc_io.cameraConfigs if c.name == args.cam), None)
+    cc = next((c for c in wpi_rio.cameraConfigs if c.name == args.cam), None)
     if cc is None:
-        log.error(f"camera '{args.cam}' not found in {args.frc}; available: {[c.name for c in frc_io.cameraConfigs]}")
+        log.error(f"camera '{args.cam}' not found in {args.frc}; available: {[c.name for c in wpi_rio.cameraConfigs]}")
         sys.exit(1)
 
-    cam = frc_io.startCamera(cc)
+    cam = wpi_rio.startCamera(cc)
 
     # Re-enabled: Get actual camera resolution to ensure buffer sizes match
     # We wait for connection to ensure we don't get a default 0x0
@@ -70,7 +71,7 @@ def main():
     nt_global = init_global_flags(ntinst)
 
     # Build context
-    ctx = CamCtx(
+    ctx = CameraContext(
         name=args.cam, camera=cam,
         x_resolution=width,
         y_resolution=height,
@@ -96,7 +97,7 @@ def main():
     if raw_port:
         # pass cc.streamConfig if you want width/fps/compression applied to raw
         try:
-            sc = next(c for c in frc_io.cameraConfigs if c.name == args.cam).streamConfig
+            sc = next(c for c in wpi_rio.cameraConfigs if c.name == args.cam).streamConfig
         except StopIteration:
             sc = None
         build_raw_stream(args.cam, cam, raw_port, sc)
@@ -105,16 +106,14 @@ def main():
     build_stream(ctx)
     attach_sink(ctx)
     init_cam_entries(ntinst, ctx)
-    ctx.pipeline = SpartanOverlay(
-        colors=[k for k in ctx.colors if k != "tags"],
-        camera=ctx.name, greyscale=ctx.greyscale,
-        x_resolution=ctx.x_resolution, y_resolution=ctx.y_resolution,
-        intrinsics=ctx.intrinsics, distortions=ctx.distortions,
-        max_tag_distance=ctx.max_tag_distance
-    )
+    
+    # Initialize Detectors
+    cam_model = CameraModel(ctx.x_resolution, ctx.y_resolution, ctx.camera_type, ctx.intrinsics, ctx.distortions)
+    ctx.tag_detector = TagDetector(cam_model)
+    ctx.hsv_detector = HSVDetector(cam_model)
 
     # Apply robust defaults (brightness nudge + v4l2 exposure)
-    # cc is the CameraConfig object from frc_io
+    # cc is the CameraConfig object from rio
     set_camera_robust_defaults(cam, cc, ctx.camera_type)
 
     log.info(f"{ctx.name}: streaming on {ctx.processed_port}")

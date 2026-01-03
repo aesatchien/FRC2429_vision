@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, List
 import numpy as np
 
 @dataclass
-class CamCtx:
+class CameraContext:
     name: str
     camera_type: str              # c920, arducam, etc
     camera: Any                   # cscore.UsbCamera
@@ -17,7 +17,9 @@ class CamCtx:
     sink: Any = None              # cscore.CvSink
 
     # vision pipeline + options
-    pipeline: Any = None          # SpartanOverlay
+    # pipeline: Any = None        # REMOVED: SpartanOverlay
+    tag_detector: Any = None      # TagDetector
+    hsv_detector: Any = None      # HSVDetector
     find_tags: bool = True
     find_colors: bool = False
     colors: List[str] = field(default_factory=lambda: ["orange"])

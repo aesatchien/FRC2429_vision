@@ -4,8 +4,10 @@ import cv2
 import numpy as np
 import traceback
 import logging
+import copy
+import ntcore
 
-from visionlib.overlay_drawer import draw_overlays
+from vision.visual_overlays import draw_overlays
 log = logging.getLogger("pipeline")
 
 class ThreadedVisionPipeline:
@@ -72,6 +74,11 @@ class ThreadedVisionPipeline:
                         self.frame_cv.notify_all() # Wake up detectors
                 else:
                     self.ctx.failure_counter += 1
+                    # If we fail too many times, maybe we should try to restart the camera?
+                    # For now, just log occasionally or update status
+                    if self.ctx.failure_counter % 100 == 0:
+                         log.warning(f"Camera acquisition failing... count={self.ctx.failure_counter}")
+                         # Optionally update NT status here if desired
                     time.sleep(0.005)
             except Exception as e:
                 log.error(f"Acquisition error: {traceback.format_exc()}")
@@ -96,18 +103,16 @@ class ThreadedVisionPipeline:
                         local_ts = self.latest_ts
 
                 if local_img is None or not self.ctx.find_tags:
+                    with self.result_lock:
+                        self.latest_tag_results = {}
                     time.sleep(0.01)
                     continue
 
-                # Run pipeline ONLY for tags, NO overlay drawing
-                # We assume SpartanOverlay.process is thread-safe if we don't draw
-                res, tags = self.ctx.pipeline.process(
-                    local_img, method="size", 
-                    training=False, debug=False, 
-                    find_tags=True, find_colors=False, 
-                    draw_overlay=False, # Crucial: Don't modify image
+                # Run Tag Detector
+                tags = self.ctx.tag_detector.detect(
+                    local_img, 
                     cam_orientation=self.ctx.orientation,
-                    use_distortions=self.ctx.use_distortions
+                    max_distance=self.ctx.max_tag_distance
                 )
                 
                 with self.result_lock:
@@ -133,20 +138,25 @@ class ThreadedVisionPipeline:
                         local_img = self.latest_frame
 
                 if local_img is None or not self.ctx.find_colors:
+                    with self.result_lock:
+                        self.latest_color_results = {}
                     time.sleep(0.01)
                     continue
 
+                # Check training/debug flags from NT global
                 training = False if self.nt_global.get("training") is None else self.nt_global["training"].get()
                 debug = False if self.nt_global.get("debug") is None else self.nt_global["debug"].get()
 
-                res, _ = self.ctx.pipeline.process(
-                    local_img, method="size",
-                    training=training, debug=debug,
-                    find_tags=False, find_colors=True,
-                    draw_overlay=False,
-                    cam_orientation=self.ctx.orientation,
-                    use_distortions=self.ctx.use_distortions
-                )
+                # Run HSV Detector for each color
+                res = {}
+                for color in self.ctx.colors:
+                    if color == 'tags': continue
+                    color_res = self.ctx.hsv_detector.process(local_img, color, training=training)
+                    res[color] = color_res
+                    
+                    # Hoist training stats to top level so overlay_drawer can find it
+                    if training and 'training_stats' in color_res:
+                        res['training_stats'] = color_res['training_stats']
 
                 with self.result_lock:
                     self.latest_color_results = res
@@ -160,13 +170,12 @@ class ThreadedVisionPipeline:
         while self.running:
             time.sleep(0.02) # 50Hz update rate
             try:
+                # Heartbeat
+                # self.ctx.nt["timestamp"].set(ntcore._now())
+
                 with self.result_lock:
                     tags = self.latest_tag_results
                     colors = self.latest_color_results
-                    ts = self.latest_result_ts
-
-                # Update Timestamp
-                self.ctx.nt["timestamp"].set(ts)
 
                 # Update Colors
                 keys = list(self.ctx.colors)
@@ -174,14 +183,40 @@ class ThreadedVisionPipeline:
                     tgt = colors.get(key, {})
                     self.ctx.nt["targets"][key]["targets"].set(tgt.get("targets", 0))
                     if tgt.get("targets", 0) > 0:
-                        self.ctx.nt["targets"][key]["id"].set(tgt.get("ids", [0])[0])
-                        self.ctx.nt["targets"][key]["distance"].set(tgt.get("distances", [0])[0])
-                        self.ctx.nt["targets"][key]["rotation"].set(tgt.get("rotations", [0])[0])
-                        self.ctx.nt["targets"][key]["strafe"].set(tgt.get("strafes", [0])[0])
+                        # Safely get first element of lists, defaulting to 0 if list is empty
+                        ids = tgt.get("ids", [])
+                        dists = tgt.get("distances", [])
+                        rots = tgt.get("rotations", [])
+                        strafes = tgt.get("strafes", [])
+                        self.ctx.nt["targets"][key]["id"].set(ids[0] if ids else 0)
+                        self.ctx.nt["targets"][key]["distance"].set(dists[0] if dists else 0)
+                        self.ctx.nt["targets"][key]["rotation"].set(rots[0] if rots else 0)
+                        self.ctx.nt["targets"][key]["strafe"].set(strafes[0] if strafes else 0)
                     else:
                         # Zero out if lost
+                        self.ctx.nt["targets"][key]["id"].set(0)
                         self.ctx.nt["targets"][key]["distance"].set(0)
                         self.ctx.nt["targets"][key]["rotation"].set(0)
+                        self.ctx.nt["targets"][key]["strafe"].set(0)
+
+                # Update Tags Summary (targets/tags)
+                # We pick the closest tag to report as the primary target
+                tag_count = len(tags)
+                self.ctx.nt["targets"]["tags"]["targets"].set(tag_count)
+                
+                if tag_count > 0:
+                    # Sort tags by distance to find the "best" one
+                    best_tag = min(tags.values(), key=lambda x: x['dist'])
+                    
+                    self.ctx.nt["targets"]["tags"]["id"].set(best_tag['id'])
+                    self.ctx.nt["targets"]["tags"]["distance"].set(best_tag['dist'])
+                    self.ctx.nt["targets"]["tags"]["rotation"].set(best_tag.get('rotation', 0))
+                    self.ctx.nt["targets"]["tags"]["strafe"].set(best_tag.get('strafe', 0))
+                else:
+                    self.ctx.nt["targets"]["tags"]["id"].set(0)
+                    self.ctx.nt["targets"]["tags"]["distance"].set(0)
+                    self.ctx.nt["targets"]["tags"]["rotation"].set(0)
+                    self.ctx.nt["targets"]["tags"]["strafe"].set(0)
 
                 # Update Tags
                 if len(tags) > 0:
@@ -189,11 +224,11 @@ class ThreadedVisionPipeline:
                     for i in range(2):
                         if i < len(keys):
                             k = keys[i]; d = tags[k]
-                            self.ctx.nt["tag_poses"][i].set([ts, d["id"], d["tx"], d["ty"], d["tz"], d["rx"], d["ry"], d["rz"]])
+                            self.ctx.nt["tag_poses"][i].set([d["id"], d["tx"], d["ty"], d["tz"], d["rx"], d["ry"], d["rz"]])
                         else:
-                            self.ctx.nt["tag_poses"][i].set([ts] + [0]*7)
+                            self.ctx.nt["tag_poses"][i].set([0]*7)
                 else:
-                    for i in range(2): self.ctx.nt["tag_poses"][i].set([ts] + [0]*7)
+                    for i in range(2): self.ctx.nt["tag_poses"][i].set([0]*7)
 
                 self.ntinst.flush()
             except Exception as e:
@@ -224,12 +259,18 @@ class ThreadedVisionPipeline:
                     colors = self.latest_color_results
 
                 # Get flags for drawing
+                # We need to ensure these are updated regularly from NT
                 training = False if self.nt_global.get("training") is None else self.nt_global["training"].get()
                 debug = False if self.nt_global.get("debug") is None else self.nt_global["debug"].get()
 
                 # Draw Overlay using the dedicated drawer
                 # This keeps the stream thread clean and the visualization logic centralized
-                draw_overlays(draw_img, tags, colors, self.ctx, training=training, debug=debug)
+                try:
+                    draw_overlays(draw_img, tags, colors, self.ctx, training=training, debug=debug)
+                except Exception as e:
+                    log.error(f"Overlay drawing error: {traceback.format_exc()}")
+                    # Draw a red X or error message on the image if overlay fails
+                    cv2.putText(draw_img, "OVERLAY ERROR", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
                 # Push to stream
                 self.push_frame_fn(self.ctx, draw_img)

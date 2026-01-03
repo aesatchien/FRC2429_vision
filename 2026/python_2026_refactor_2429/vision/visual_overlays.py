@@ -57,10 +57,10 @@ def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=
 
         # Draw detailed text for primary target
         if len(contours) > 0:
-            dist = res.get('distances', [0])[0]
-            strafe = res.get('strafes', [0])[0]
-            height = res.get('heights', [0])[0]
-            rot = res.get('rotations', [0])[0]
+            dist = res.get('distances', [0])[0] if res.get('distances') else 0
+            strafe = res.get('strafes', [0])[0] if res.get('strafes') else 0
+            height = res.get('heights', [0])[0] if res.get('heights') else 0
+            rot = res.get('rotations', [0])[0] if res.get('rotations') else 0
             
             text = f"Dist: {dist:3.2f} Str: {strafe:2.1f} H: {height:2.0f} Rot: {rot:+2.0f} deg"
             cv2.putText(image, text, (int(0.02 * w_res), 27), 1, 0.9, (255, 255, 0), 1)
@@ -82,10 +82,16 @@ def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=
     # 2. Draw AprilTags
     if len(tag_results) > 0:
         for t_id, t_data in tag_results.items():
+            # Parse tag ID safely
+            try:
+                tag_num = int(str(t_id).replace('tag', ''))
+            except ValueError:
+                tag_num = 0
+
             # Draw Polygon
             if 'corners' in t_data:
                 corners = np.array(t_data['corners']).reshape((-1, 1, 2)).astype(dtype=np.int32)
-                color = (255, 75, 0) if int(t_id) > 12 else (0, 0, 255) # 2025 colors
+                color = (255, 75, 0) if tag_num > 12 else (0, 0, 255) # 2025 colors
                 cv2.polylines(image, [corners], isClosed=True, color=color, thickness=2)
 
             # Center point
@@ -93,7 +99,7 @@ def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=
             cy = int(t_data.get('cy', 0))
             
             # Draw ID
-            cv2.putText(image, f'{t_id:2d}', (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(image, str(t_id), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
             # Draw 3D Axes if we have pose data and intrinsics
             if ctx.intrinsics and ctx.distortions and 'tx' in t_data:
@@ -147,5 +153,10 @@ def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=
         cv2.putText(image, hue_msg, (2, 21), 1, 0.8, (0, 255, 200), 1)
         cv2.putText(image, sat_msg, (2, 32), 1, 0.8, (0, 255, 200), 1)
         cv2.putText(image, val_msg, (2, 43), 1, 0.8, (0, 255, 200), 1)
+        
+        # Draw the sampling rectangle (center of screen)
+        cx, cy = w_res // 2, h_res // 2
+        # Match HSVDetector sampling size (cw=10, ch=20)
+        cv2.rectangle(image, (cx - 10, cy - 20), (cx + 10, cy + 20), (255, 255, 255), 2)
 
     return image

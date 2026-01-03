@@ -13,18 +13,18 @@ def init_global_flags(ntinst):
 
     training_sub = cams.getBooleanTopic("_training").subscribe(False)
     debug_sub    = cams.getBooleanTopic("_debug").subscribe(False)
-    ts_sub       = ntinst.getDoubleTopic("/SmartDashboard/_timestamp").subscribe(0)
+    # ts_sub       = ntinst.getDoubleTopic("/SmartDashboard/_timestamp").subscribe(0)
     return {
         "training": training_sub, 
         "debug": debug_sub, 
-        "timestamp": ts_sub,
+        # "timestamp": ts_sub,
         "_pubs": [train_pub, debug_pub]
     }
 
 def init_cam_entries(ntinst, ctx):
     t = ntinst.getTable(ctx.table_name)
-    ctx.nt["timestamp"]   = t.getDoubleTopic("_timestamp").publish()
-    ctx.nt["frames"]      = t.getDoubleTopic("_frames").publish()
+    ctx.nt["frames"]      = t.getIntegerTopic("_frames").publish()
+    # ctx.nt["timestamp"]   = t.getIntegerTopic("_timestamp").publish()
     ctx.nt["fps"] = t.getDoubleTopic("_fps").publish()
     ctx.nt["connections_pub"] = t.getDoubleTopic("_connections").publish(PubSubOptions(keepDuplicates=True))
     ctx.nt["connections_sub"] = t.getDoubleTopic("_connections").subscribe(0)
@@ -36,10 +36,12 @@ def init_cam_entries(ntinst, ctx):
     keys = list(ctx.colors)
     if "tags" not in keys:
         keys.append("tags")
+    # Only force updates on the 'targets' count for latency checks to save bandwidth
+    heartbeat_options = PubSubOptions(keepDuplicates=True)
     for key in keys:
         ctx.nt["targets"][key] = {
             "id":       t.getDoubleTopic(f"{key}/id").publish(),
-            "targets":  t.getDoubleTopic(f"{key}/targets").publish(),
+            "targets":  t.getDoubleTopic(f"{key}/targets").publish(heartbeat_options),
             "distance": t.getDoubleTopic(f"{key}/distance").publish(),
             "rotation": t.getDoubleTopic(f"{key}/rotation").publish(),
             "strafe":   t.getDoubleTopic(f"{key}/strafe").publish(),

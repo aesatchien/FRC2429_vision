@@ -106,8 +106,7 @@ class SpartanOverlay(GripPipeline):
         self.contours = {}
         for color in self.colors:
             self.results.update({color:{'targets': 0, 'previous_targets': 0, 'ids':[], 'distances': [],
-                                        'strafes': [], 'heights': [], 'rotations':[], 'contours':[], 
-                                        'bounding_rects': [], 'cx': [], 'cy': []}})
+                                        'strafes': [], 'heights': [], 'rotations':[], 'contours':[]}})
             self.contours.update({color: {'contours': []}})
 
         self.targets = 0
@@ -142,8 +141,7 @@ class SpartanOverlay(GripPipeline):
             self.color = color
             self.results.update(
                 {color: {'targets': 0, 'previous_targets': self.results[color]['targets'], 'ids': [], 'distances': [],
-                         'strafes': [], 'heights': [], 'rotations': [], 'contours': [], 
-                         'bounding_rects': [], 'cx': [], 'cy': []}})
+                         'strafes': [], 'heights': [], 'rotations': [], 'contours': []}})
             self.contours.update({color: {'contours': []}})
 
             if self.training and idx == 0:
@@ -164,9 +162,6 @@ class SpartanOverlay(GripPipeline):
                 if targets > 0:
                     self.bounding_box_sort_contours(method='center')
                     self.contours[self.color]['contours'] = self.filter_contours_output  # TODO - sort these
-                    # Pass geometry to results for the overlay drawer
-                    self.results[self.color]['contours'] = self.filter_contours_output
-                    self.results[self.color]['bounding_rects'] = self.bounding_boxes
                     self.get_target_attributes()  # updates self.results
             else:
                 self.filter_contours_output = []
@@ -176,11 +171,26 @@ class SpartanOverlay(GripPipeline):
         if find_tags:
             self.find_apriltags(draw_tags=draw_overlay, use_distortions=use_distortions)
 
-        # Pass training stats if active
-        if self.training:
-            self.results['training_stats'] = {
-                'hue': self.temp_hue, 'sat': self.temp_sat, 'val': self.temp_val
-            }
+        # reporting results
+        targets_found = [self.results[c]['targets'] > 0 for c in self.colors]
+        targets_found.append(self.results['tags']['targets'] > 0)  # append the apriltag search results
+
+        if not skip_overlay:  # how much time does this cost us, esp since nobody looks anyway?  Seems like it's not the bottleneck
+            if any(targets_found):
+                for color in self.colors:
+                    if draw_overlay:
+                        self.color = color
+                        self.filter_contours_output = self.contours[self.color]['contours']
+                        self.overlay_bounding_boxes()  # needs to know the color
+            else:
+                pass
+
+            if len(self.colors) != 1:
+                self.simple_text_overlay()  # designed for multiple colors
+            else:
+                self.overlay_text()
+            if self.training:
+                self.overlay_color_stats()
 
         return self.results, self.tags
 
@@ -260,14 +270,28 @@ class SpartanOverlay(GripPipeline):
 
                     # attempt to denoise the data - should probably see if this is actually wanted
                     #tx, ty, tz, rx, ry, rz = self.tagmanager.update(tag.getId(), tx, ty, tz, rx, ry, rz)
-                    center = tag.getCenter()
                     self.tags.update({f'tag{tag.getId():02d}': {'id': tag.getId(), 'rotation': pose.rotation().x, 'distance': pose.z,
-                                                  'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz, 
-                                                  'cx': center.x, 'cy': center.y,
-                                                  'corners': tag.getCorners([0]*8) # Pass corners for drawing
-                                                  }})
+                                                  'tx': tx, 'ty': ty, 'tz': tz, 'rx': rx, 'ry': ry, 'rz': rz}})
                 except Exception as e:
                     print(f'Attempted to get field frame but got error {e} on tag id {tag.getId()}')
+
+        if draw_tags:
+            good_tags = [tag.getId() for tag in tags]
+            for idy, tag in enumerate(original_tags):
+                print_tag_labels = False
+                if print_tag_labels:
+                    # these lines print the camera to tag pose translation and rotation - just for debugging
+                    self.image = cv2.putText(self.image, f'ID: {tag.getId():02d} pose t:{str(poses[idy].translation())}', (self.x_resolution//20, 20 * (idy+1)), 1, 0.7,(255, 255, 200), 1)
+                    self.image = cv2.putText(self.image,f'     pose r:{str(poses[idy].rotation())}',(self.x_resolution // 20, 10+ 20 * (idy + 1)), 1, 0.7, (255, 255, 200), 1)
+                # color = ([255 * int(i) for i in f'{(idy + 1) % 7:03b}'])  # trick for unique colors if we want them
+                # color = (255, 75, 0) if tag.getId() in [1, 2, 6, 7, 8, 14, 15, 16] else (0, 0, 255)  # 2024 blue and red tags - opencv is BGR
+                color = (255, 75, 0) if tag.getId() > 12 else (0, 0, 255)  # 2025 blue and red tags - opencv is BGR
+                color = (0, 255, 0) if tag.getId() not in good_tags else color  # make the rejected ones green (ambiguity or distance)
+                center = tag.getCenter()
+                center = [int(center.x), int(center.y)]
+                corners = np.array(tag.getCorners([0] * 8)).reshape((-1, 1, 2)).astype(dtype=np.int32)
+                self.image = cv2.polylines(self.image, [corners], isClosed=True, color=color, thickness=2)
+                self.image = cv2.putText(self.image, f'{tag.getId():2d}', center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     def set_hsv(self):
         # each color has a different set of rules for segmenting it
@@ -406,6 +430,23 @@ class SpartanOverlay(GripPipeline):
         self.training_data = t
         # self.color = f'{hue_mean:0f}_{sat_mean:0f}_{val_mean:0f}'
 
+    def overlay_color_stats(self):
+        x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+        hue_std = np.std(self.training_data[:, :, 0])
+        sat_std = np.std(self.training_data[:, :, 1])
+        val_std = np.std(self.training_data[:, :, 2])
+        hue_msg = f"hue min max mean std: {self.temp_hue[0]:.0f} {self.temp_hue[1]:.0f} {(self.temp_hue[1]+self.temp_hue[0])//2:.0f} {hue_std:.0f}"
+        sat_msg = f"sat min max mean std: {self.temp_sat[0]:.0f} {self.temp_sat[1]:.0f}  {(self.temp_sat[1]+self.temp_sat[0])//2:.0f} {sat_std:.0f}"
+        val_msg = f"val min max mean std : {self.temp_val[0]:.0f} {self.temp_val[1]:.0f}  {(self.temp_val[1]+self.temp_val[0])//2:.0f} {val_std:.0f}"
+
+        # self.image = cv2.putText(self.image, hue_msg, (x_center, 2 * y_center - 34), 1, 0.9, (0, 255, 200), 1)
+        # self.image = cv2.putText(self.image, sat_msg, (x_center, 2 * y_center - 20), 1, 0.9, (0, 255, 200), 1)
+        # self.image = cv2.putText(self.image, val_msg, (x_center, 2 * y_center - 6), 1, 0.9, (0, 255, 200), 1)
+        cv2.rectangle(self.image, (0, 0), (self.x_resolution, 35), (0, 0, 0), -1)
+
+        self.image = cv2.putText(self.image, hue_msg, (2, 10), 1, 0.8, (0, 255, 200), 1)
+        self.image = cv2.putText(self.image, sat_msg, (2, 21), 1, 0.8, (0, 255, 200), 1)
+        self.image = cv2.putText(self.image, val_msg, (2, 32), 1, 0.8, (0, 255, 200), 1)
 
     def bounding_box_sort_contours(self, method='size'):
         """Get sorted contours and bounding boxes from our list of filtered contours
@@ -525,8 +566,178 @@ class SpartanOverlay(GripPipeline):
             self.results[self.color]['distances'].append(self.distance_to_target)
             self.results[self.color]['strafes'].append(self.strafe_to_target)
             self.results[self.color]['heights'].append(self.height)
-            self.results[self.color]['cx'].append(centroid_x)
-            self.results[self.color]['cy'].append(centroid_y)
+
+
+    def overlay_bounding_boxes(self, contours=False):
+        """Draw a box around all of our contours with the main one emphasized"""
+
+        for ix, contour in enumerate(self.filter_contours_output):
+            primary_colors = {'yellow': (0, 255, 0), 'purple':(0, 0, 255), 'green':(255, 255, 255)}
+            secondary_colors = {'yellow': (255, 255, 0), 'purple':(255, 0, 255), 'green':(255, 255, 255)}
+            text_colors = {'yellow': (0, 255, 255), 'purple':(255, 255, 0), 'green':(255, 255, 255)}
+            if ix == 0:
+                box_color = primary_colors[self.color] if self.color in primary_colors.keys() else (255, 255, 127)
+                thickness = 2
+            else:
+                box_color = secondary_colors[self.color] if self.color in secondary_colors.keys() else (255, 255, 127)
+                thickness = 1  # maybe make thicker for green?
+            rect = cv2.boundingRect(contour)
+            x, y, w, h = rect
+            # print(rect)
+            if contours or self.debug or self.training:
+                self.image = cv2.drawContours(self.image, self.filter_contours_output, ix, box_color, thickness)
+            else:
+                self.image = cv2.rectangle(self.image, (int(rect[0]), int(rect[1])),
+                                       (int(rect[0] + rect[2]), int(rect[1] + rect[3])), box_color, thickness)
+            # test fill percent and solidity
+            if self.debug or self.training:
+                text_color = text_colors[self.color] if self.color in text_colors.keys() else (255, 255, 127)
+
+                box_fill, solidity = self.get_solidity(contour)
+                self.image = cv2.putText(self.image, f'bf {int(box_fill)}, sol {int(solidity)}', (int(x), int(y)-17), 1, 1, text_color, 1, 1)
+                # self.image = cv2.putText(self.image, f'{box_fill:.0f}, {solidity:.0f}', (int(x), int(y)-20), 1, 1, text_color, 1, 1)
+
+                if self.hardcore:
+                    mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
+                    mask = cv2.drawContours(mask, self.filter_contours_output, ix, (0, 0, 0), -1)  # False (zero) inside the contour
+                    mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=3)  # have to cut off the edges a bit (grow the True region)
+                    t = np.ma.masked_where(mask == 1, cv2.cvtColor(self.original_image, cv2.COLOR_BGR2HSV))  # data is valid if mask is False
+                    hue = t[:, :, 0].compressed().mean();
+                    sat = t[:, :, 1].compressed().mean();
+                    val = t[:, :, 2].compressed().mean();  # don't want messages about masked format strings
+                    self.image = cv2.putText(self.image, f'hsv {hue:.0f},{sat:.0f},{val:.0f}', (int(x), int(y)-3), 1, 1, text_color, 1, 1)
+                    self.image = cv2.putText(self.image, f'wh {w:02d},{h:02d}', (int(x), min(self.y_resolution, int(y+h+25))), 1, 1, text_color, 1, 1)
+                    self.image = cv2.putText(self.image, f'{x:03d},{y:03d}', (int(x), min(self.y_resolution, int(y+h+10))), 1, 1., text_color, 1, 1)
+                else:
+                    self.image = cv2.putText(self.image, f'{w:02d},{h:02d}', (int(x+w), int(y+w)), 1, 1.5, text_color, 1, 1)
+
+    def simple_text_overlay(self, location='top', show_lines=False):
+
+        """Write our object information to the image"""
+
+        if location == 'top':
+            info_text_location = (2, 10)
+            target_text_location = (int(0.7 * self.x_resolution), 13)
+            target_area_text_location = (int(0.02 * self.x_resolution), 27)
+            # black bar at top of image
+            cv2.rectangle(self.image, (0, int(0.12 * self.y_resolution)), (self.x_resolution, 0), (0, 0, 0), -1)
+        else:
+            info_text_location = (2, -14 + self.y_resolution)
+            target_text_location = (int(0.7 * self.x_resolution), -13 + self.y_resolution)
+            target_area_text_location = (int(0.02 * self.x_resolution), -2 + self.y_resolution)
+            # black bar at bottom of image
+            cv2.rectangle(self.image, (0, int(0.90 * self.y_resolution)), (self.x_resolution, self.y_resolution),
+                          (0, 0, 0), -1)
+
+        info_text_color = (0, 255, 255)
+        target_text_color = (255, 255, 0)
+        target_warning_color = (20, 20, 255)
+        target_count_message = ''
+        for idx, color in enumerate(self.colors):
+            targets = self.results[color]['targets']
+            target_count_message = target_count_message + f'{color[0].upper()}:{targets} '
+        target_count_message = target_count_message + f'T:{self.results["tags"]["targets"]} '
+
+        cv2.putText(self.image, target_count_message, target_area_text_location, 1, 0.9, target_text_color, 1)
+
+        self.end_time = time.time()
+        cv2.putText(self.image, f"MS: {int(1000 * (self.end_time - self.start_time)):03d} {self.colors} ",
+                    info_text_location, 1, 0.9, info_text_color, 1)
+
+
+    def overlay_text(self, location='top', show_lines=True, box=False):
+        """Write our object information to the image"""
+        self.end_time = time.time()
+        if location == 'top':
+            info_text_location = (int(0.035 * self.x_resolution), 12)
+            target_text_location = (int(0.7 * self.x_resolution), 13)
+            target_area_text_location = (int(0.02 * self.x_resolution), 27)
+            # black bar at top of image
+            if box:
+                cv2.rectangle(self.image, (0, int(0.08 * self.y_resolution)), (self.x_resolution, 0), (0, 0, 0), -1)
+        else:
+            info_text_location = (int(0.035 * self.x_resolution), -15 + self.y_resolution)
+            target_text_location = (int(0.7 * self.x_resolution), -13 + self.y_resolution)
+            target_area_text_location = (int(0.02 * self.x_resolution), -2 + self.y_resolution)
+            # black bar at bottom of image
+            if box:
+                cv2.rectangle(self.image, (0, int(0.90 * self.y_resolution)), (self.x_resolution, self.y_resolution), (0, 0, 0), -1)
+
+        info_text_color = (0, 255, 255)
+        target_text_color = (255, 255, 0)
+        target_warning_color = (20, 20, 255)
+
+        if len(self.filter_contours_output) > 0:  # contours found
+            cv2.putText(self.image,
+                        f"Dist: {self.distance_to_target:3.2f} Str: {self.strafe_to_target:2.1f} H: {self.height:2.0f} AR: {self.aspect_ratio:1.1f} Rot: {self.rotation_to_target:+2.0f} deg",
+                        target_area_text_location, 1, 0.9, target_text_color, 1)
+            # decorations - target lines, boxes, bullseyes, etc
+            # TODO - add decorations for when we have a target - needs the camera_shift to do it right
+            if show_lines:
+                cv2.line(self.image, (int(0.4 * self.x_resolution + self.camera_shift), int(0.9 * self.y_resolution)),
+                         (int(0.4 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)), (0, 255, 0),
+                         2)
+                cv2.line(self.image, (int(0.6 * self.x_resolution + self.camera_shift), int(0.9* self.y_resolution)),
+                         (int(0.6 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)), (0, 255, 0),
+                         2)
+            if self.debug:
+                # display the stats on the main target we found
+                x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+                mask = np.ones_like(self.image)  # True everywhere, so this would mask all data (mask=True means ignore the data)
+                mask = cv2.drawContours(mask, self.filter_contours_output, 0, (0, 0, 0), -1)  # False (zero) inside the contour
+                # mask = np.stack((self.hsv_threshold_output>>7,)*3, axis=-1)  # isn't this better than the contours?
+                mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)  # have to cut off the edges a bit (grow the True region)
+                # mask is 1 if using contours, 0 if using the hsv_threshold_output
+                t = np.ma.masked_where(mask == 1, cv2.cvtColor(self.original_image,
+                                                               cv2.COLOR_BGR2HSV))  # data is valid if mask is False
+
+                self.hue_stats = t[:, :, 0].compressed();
+                self.sat_stats = t[:, :, 1].compressed();
+                self.val_stats = t[:, :, 2].compressed()  # don't want messages about masked format strings
+
+                if len(self.hue_stats) > 0:
+                    self.image = cv2.putText(self.image, f"hue min max mean: {self.hue_stats.min()} {self.hue_stats.max()} {self.hue_stats.mean():.1f}",
+                                             (x_center // 20, y_center - 30), 1, 0.9, (0, 255, 200), 1)
+                    self.image = cv2.putText(self.image, f"sat min max mean: {self.sat_stats.min()} {self.sat_stats.max()} {self.sat_stats.mean():.1f}",
+                                             (x_center // 20, y_center - 20), 1, 0.9, (0, 255, 200), 1)
+                    self.image = cv2.putText(self.image, f"val min max mean: {self.val_stats.min()} {self.val_stats.max()} {self.val_stats.mean():.1f}",
+                                             (x_center // 20, y_center - 10), 1, 0.9, (0, 255, 200), 1)
+        else:  # no contours
+            # decorations - target lines, boxes, bullseyes, etc for when there is no target recognized
+            # TODO - add decorations for when we do not have a target
+            if show_lines:
+                cv2.line(self.image, (int(0.4 * self.x_resolution + self.camera_shift), int(0.9 * self.y_resolution)),
+                         (int(0.4 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)),
+                         (127, 127, 127), 1)
+                cv2.line(self.image, (int(0.6 * self.x_resolution + self.camera_shift), int(0.9 * self.y_resolution)),
+                         (int(0.6 * self.x_resolution + self.camera_shift), int(0.14 * self.y_resolution)),
+                         (127, 127, 127), 1)
+
+            if self.debug:
+                x_center, y_center = self.x_resolution // 2, self.y_resolution // 2
+                width, height = 10, 20
+                t = cv2.cvtColor(self.image, cv2.COLOR_BGR2HSV)[y_center - height:y_center + height,
+                    x_center - width:x_center + width, :]
+                hue_stats = t[:, :, 0];
+                sat_stats = t[:, :, 1];
+                val_stats = t[:, :, 2]
+                cv2.putText(self.image, f"Center HSV: {int(hue_stats.mean()):3d} {int(sat_stats.mean()):3d} {int(val_stats.mean()):3d}",
+                            target_area_text_location, 1, 0.9, info_text_color, 1)
+
+        cv2.putText(self.image,
+                    f"MS: {int(1000 * (self.end_time - self.start_time)):03d} {self.color} bogeys: {len(self.filter_contours_output):2d}  tags: {self.results['tags']['targets']:2d}",
+                    info_text_location, 1, 0.9, info_text_color, 1)
+
+
+    def get_solidity(self, contour):
+        rect = cv2.boundingRect(contour)
+        x, y, w, h = rect
+        box_area = w * h  # area of the bounding box
+        area = cv2.contourArea(contour)  # area of the contour
+        hull = cv2.convexHull(contour)  # area of the hull of the contour
+        solidity = 100 * area / cv2.contourArea(hull)  # this measurement came with GRIP, i don't like it
+        box_fill = 100 * area / box_area
+        return box_fill, solidity
 
     def find_centers(self, contours):  # group the items
         x_centers = []

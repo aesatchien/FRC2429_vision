@@ -2,14 +2,14 @@
 import sys, os, time, signal, subprocess, argparse, logging, threading, re
 from pathlib import Path
 from ntcore import NetworkTableInstance
-from visionlib.config_io import load_vision_cfg, select_profile
-from visionlib import frc_io
+from vision.wpi_config import load_vision_cfg, select_profile
+from vision import wpi_rio
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 log = logging.getLogger("launcher")
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent if HERE.name == "bin" else HERE
-CAM_WORKER = str(HERE / "camera_worker.py")
+CAM_WORKER_MODULE = "vision.camera_node"
 
 def cpu_map_for_profile(profile, reserve_cores):
     n = os.cpu_count() or 4
@@ -26,10 +26,10 @@ def cpu_map_for_profile(profile, reserve_cores):
     return mapping
 
 def validate_cams_against_frc(frc_json):
-    frc_io.configFile = frc_json
-    if not frc_io.readConfig():
-        raise RuntimeError(f"could not read {frc_io.configFile}")
-    return [c.name for c in frc_io.cameraConfigs]
+    wpi_rio.configFile = frc_json
+    if not wpi_rio.readConfig():
+        raise RuntimeError(f"could not read {wpi_rio.configFile}")
+    return [c.name for c in wpi_rio.cameraConfigs]
 
 def spawn(proc_cmd, log_path):
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -103,7 +103,7 @@ def kill_existing_processes():
         pass
 
     # This prevents "Address already in use" and camera resource contention
-    for proc in ["camera_worker.py", "multiCameraServer.py"]:
+    for proc in ["vision.camera_node", "camera_node.py", "main_single_processor.py"]:
         try:
             subprocess.run(["pkill", "-f", proc], check=False)
         except Exception:
@@ -158,14 +158,14 @@ def main():
     children, stats = {}, {}
     for cam in prof.get("cameras", []):
         name = cam["name"]; cpu = cpu_map.get(name)
-        cmd = [sys.executable, CAM_WORKER, "--cam", name, "--vision", args.vision, "--frc", args.frc]
+        cmd = [sys.executable, "-m", CAM_WORKER_MODULE, "--cam", name, "--vision", args.vision, "--frc", args.frc]
         if cpu is not None: cmd += ["--cpu", str(cpu)]
         log_path = Path(args.logdir) / f"camera-{name}.log"
         child = spawn(cmd, log_path)
         children[f"cam:{name}"] = child
         start_reader(name, child, stats)
         log.info(f"started {name} cpu={cpu} -> {log_path}")
-        time.sleep(2.0) # Stagger startup to prevent USB bandwidth race conditions
+        time.sleep(1.0) # Stagger startup to prevent USB bandwidth race conditions
 
     # signals
     stopping = {"flag": False}

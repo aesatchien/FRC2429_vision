@@ -11,11 +11,11 @@ python_2026_refactor_2429/
 │  ├─ launcher.py                # Multi‑process supervisor (spawns camera_worker per cam)
 │  ├─ multiCameraServer.py       # Single‑process (all cams in one process)
 │  └─ camera_worker.py           # Per‑camera process (capture → overlay → NT → stream)
-├─ visionlib/                    # Library modules (rarely change at events)
+├─ vision/                    # Library modules (rarely change at events)
 │  ├─ __init__.py
 │  ├─ camctx.py                  # CamCtx dataclass: per‑camera state & options
 │  ├─ config_io.py               # Load vision.json + select host profile by IP/hostname
-│  ├─ frc_io.py                  # WPILib frc.json loader + startCamera()
+│  ├─ rio.py                  # WPILib frc.json loader + startCamera()
 │  ├─ ntio.py                    # NetworkTables topics (publish/subscribe wiring)
 │  ├─ streaming.py               # CvSource/MjpegServer helpers + push_frame()
 │  ├─ vision_worker.py           # Per‑frame loop: grab → process → NT updates → stream
@@ -34,7 +34,7 @@ python_2026_refactor_2429/
 - **bin/launcher.py** — Reads `config/vision.json`, validates names vs `/boot/frc.json`, spawns one `camera_worker.py` per camera, prints one live line with `FPS S F` per cam, writes logs to `./logs/`.
 - **bin/multiCameraServer.py** — Classic single‑process runtime; starts all cameras and runs worker threads in one process.
 - **bin/camera_worker.py** — One camera end‑to‑end (capture → overlay → NT → MJPEG). Prints `name: XX.Xfps  S:#  F:#` once per second.
-- **visionlib/** — Implementation modules: context, IO, NT topics, streaming, frame tick, overlay, tag utilities, legacy GRIP, and helpers.
+- **vision/** — Implementation modules: context, IO, NT topics, streaming, frame tick, overlay, tag utilities, legacy GRIP, and helpers.
 - **config/vision.json** — Host‑specific runtime (which cameras to run, processed ports, stream FPS/size, orientations, etc.).
 - **/boot/frc.json** — WPILib camera bring‑up (device path, format, width/height, exposure, etc.). Names must match `vision.json`.
 

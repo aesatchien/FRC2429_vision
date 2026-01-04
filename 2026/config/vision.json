@@ -29,7 +29,7 @@
       }
     },
 
-        "10.24.29.12": {
+    "10.24.29.12": {
       "role": "practicebot",
       "cameras": [
         {
@@ -80,7 +80,7 @@
       }
     },
 
-            "10.24.29.13": {
+    "10.24.29.13": {
       "role": "practicebot_orangepi",
       "cameras": [
         {
@@ -183,8 +183,8 @@
       }
     },
 
-    "192.168.86.30": {
-      "role": "arducam-test",
+    "10.24.29.15": {
+      "role": "arducam-practicebot-test",
       "cameras": [
         {
           "name": "arducam",

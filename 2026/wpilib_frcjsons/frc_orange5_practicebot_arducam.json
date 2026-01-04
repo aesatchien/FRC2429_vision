@@ -1,0 +1,115 @@
+{
+    "cameras": [
+        {
+            "brightness": 48,
+            "fps": 60,
+            "height": 600,
+            "name": "arducam",
+            "path": "/dev/v4l/by-path/platform-xhci-hcd.14.auto-usb-0:1:1.0-video-index0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 45
+                },
+                {
+                    "name": "saturation",
+                    "value": 45
+                },
+                {
+                    "name": "white_balance_automatic",
+                    "value": false
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 0
+                },
+                {
+                    "name": "sharpness",
+                    "value": 0
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "auto_exposure",
+                    "value": 1
+                },
+				{
+					"name": "exposure_auto_priority", 
+					"value": 0
+				},
+				{
+					"name": "exposure_time_absolute", 
+					"value": 3
+				}
+            ],
+            "stream": {
+                "properties": []
+            },
+            "width": 800
+        },
+        {
+            "brightness": 58,
+            "fps": 60,
+            "height": 600,
+            "name": "arducam2",
+            "path": "platform-fc880000.usb-usb-0:1:1.0-video-index0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 45
+                },
+                {
+                    "name": "saturation",
+                    "value": 45
+                },
+                {
+                    "name": "white_balance_automatic",
+                    "value": false
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 0
+                },
+                {
+                    "name": "sharpness",
+                    "value": 0
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "auto_exposure",
+                    "value": 1
+                },
+				{
+					"name": "exposure_auto_priority",
+					"value": 0
+				},
+				{
+					"name": "exposure_time_absolute",
+					"value": 3
+				}
+            ],
+            "stream": {
+                "properties": []
+            },
+            "width": 800
+        }
+    ],
+    "ntmode": "client",
+    "switched cameras": [],
+    "team": 2429
+}

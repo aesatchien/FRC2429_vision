@@ -146,7 +146,7 @@ class ThreadedVisionPipeline:
                 # Check training/debug flags from NT global
                 training = False if self.nt_global.get("training") is None else self.nt_global["training"].get()
                 debug = False if self.nt_global.get("debug") is None else self.nt_global["debug"].get()
-                train_box = self.nt_global.get("training_box").get() if self.nt_global.get("training_box") else [0.5, 0.5]
+                train_box = self.nt_global["training_box"].getDoubleArray([0.5, 0.5])
 
                 # Run HSV Detector for each color
                 res = {}
@@ -263,7 +263,7 @@ class ThreadedVisionPipeline:
                 # We need to ensure these are updated regularly from NT
                 training = False if self.nt_global.get("training") is None else self.nt_global["training"].get()
                 debug = False if self.nt_global.get("debug") is None else self.nt_global["debug"].get()
-                train_box = self.nt_global.get("training_box").get() if self.nt_global.get("training_box") else [0.5, 0.5]
+                train_box = self.nt_global["training_box"].getDoubleArray([0.5, 0.5])
 
                 # Draw Overlay using the dedicated drawer
                 # This keeps the stream thread clean and the visualization logic centralized

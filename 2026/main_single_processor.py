@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
         # Apply robust defaults (brightness nudge + v4l2 exposure)
         cfg = next((cc for cc in wpi_rio.cameraConfigs if cc.name == ctx.name), None)
-        set_camera_robust_defaults(ctx.camera, cfg, ctx.camera_type)
+        set_camera_robust_defaults(ctx.camera, cfg, ctx.camera_type, delay=2.5)
 
         contexts.append(ctx)
         print(f"Added {ctx.name} stream on {ctx.processed_port} and serving table {ctx.table_name}")

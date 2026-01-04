@@ -48,6 +48,7 @@ def main():
     # We wait for connection to ensure we don't get a default 0x0
     while not cam.isConnected(): time.sleep(0.1)
     vm = cam.getVideoMode()
+
     width = vm.width if vm.width > 0 else 640
     height = vm.height if vm.height > 0 else 480
 

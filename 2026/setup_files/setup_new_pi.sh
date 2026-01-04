@@ -22,6 +22,10 @@ sudo cp "$SCRIPT_DIR/ethernet.nmconnection" /etc/NetworkManager/system-connectio
 sudo chmod 600 /etc/NetworkManager/system-connections/ethernet.nmconnection
 sudo nmcli connection reload
 
+# Ensure the runCamera script is executable
+echo "Making runCamera script executable..."
+chmod +x "$SCRIPT_DIR/runCamera"
+
 # Copy and enable runCamera.service
 echo "Installing runCamera.service..."
 sudo cp "$SCRIPT_DIR/runCamera.service" /etc/systemd/system/

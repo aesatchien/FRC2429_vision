@@ -8,7 +8,7 @@ fi
 # Aliases
 alias ll='ls -l'
 alias caminfo='ls -l /dev/v4l/by-id/'
-alias gopy='cd ~/git/FRC2429_vision/2026/python_2026_refactor_2429'
+alias gopy='cd ~/git/FRC2429_vision/2026'
 alias startcams='sudo systemctl start runCamera.service'
 alias stopcams='sudo systemctl stop runCamera.service'
 alias restartcams='sudo systemctl restart runCamera.service'

@@ -79,30 +79,10 @@ def terminate(child, grace=2.0):
     except Exception:
         pass
 
-def kill_other_launchers():
-    # Find and kill other instances of launcher.py to prevent "Supervisor Wars"
-    # where a background launcher keeps restarting workers we try to kill.
-    my_pid = os.getpid()
-    try:
-        # pgrep -f finds processes matching the command line
-        pids = subprocess.check_output(["pgrep", "-f", "launcher.py"]).decode().split()
-        for pid_str in pids:
-            pid = int(pid_str)
-            if pid != my_pid:
-                log.warning(f"Killing duplicate launcher process {pid}")
-                subprocess.run(["kill", "-9", str(pid)], check=False)
-    except Exception:
-        pass
-
 def kill_existing_processes():
-    # Kill any existing camera processes (zombies or system service)
-    # 1. Stop the systemd service so it doesn't auto-restart the process we kill
-    try:
-        subprocess.run(["sudo", "systemctl", "stop", "camera-server"], check=False)
-    except Exception:
-        pass
-
-    # This prevents "Address already in use" and camera resource contention
+    # Kill any existing camera worker processes (zombies)
+    # We do NOT stop the service here anymore to prevent self-termination loops.
+    # If running manually, YOU must stop the service first: sudo systemctl stop runCamera
     for proc in ["vision.camera_node", "camera_node.py", "main_single_processor.py"]:
         try:
             subprocess.run(["pkill", "-f", proc], check=False)
@@ -129,6 +109,11 @@ def main():
     vcfg = load_vision_cfg(args.vision)
     prof = select_profile(vcfg)
     cam_names = [c["name"] for c in prof.get("cameras", [])]
+    
+    log.info(f"Selected profile: '{prof.get('role', 'unknown')}' with {len(cam_names)} cameras")
+    if not cam_names:
+        log.warning("No cameras found in this profile. Exiting.")
+        return
 
     # optional frc.json validation
     if not args.no_validate:

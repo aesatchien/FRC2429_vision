@@ -22,6 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("--ip", default="10.24.29.2", help="NetworkTables server IP")
     parser.add_argument("--frc", default="/boot/frc.json", help="Path to frc.json")
     parser.add_argument("--vision", default="/boot/vision.json", help="Path to vision.json")
+    parser.add_argument("--autorestart", action="store_true", help="Ignored; for compatibility with launcher")
     args = parser.parse_args()
 
     wpi_rio.configFile = args.frc
@@ -44,6 +45,11 @@ if __name__ == "__main__":
     # Select per-host vision profile
     vcfg = load_vision_cfg(args.vision)
     prof = select_profile(vcfg)
+    
+    cam_count = len(prof.get("cameras", []))
+    log.info(f"Selected profile: '{prof.get('role', 'unknown')}' with {cam_count} cameras")
+    if cam_count == 0:
+        log.warning("No cameras found in profile! (Check IP address or vision.json)")
 
     # Global NT flags
     nt_global = init_global_flags(ntinst)

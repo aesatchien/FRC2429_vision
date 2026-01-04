@@ -34,7 +34,10 @@ class TagDetector:
         # Field Layout (Optional)
         if field_layout is None:
             try:
-                field = ra.AprilTagField.k2025ReefscapeWelded
+                if hasattr(ra.AprilTagField, "k2025ReefscapeWelded"):
+                    field = ra.AprilTagField.k2025ReefscapeWelded
+                else:
+                    field = ra.AprilTagField.k2025Reefscape
                 self.layout = ra.AprilTagFieldLayout.loadField(field)
             except:
                 self.layout = None

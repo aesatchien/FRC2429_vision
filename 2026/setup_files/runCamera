@@ -2,8 +2,14 @@
 ### TYPE: upload-python
 
 # Wait for network to settle
-echo "Waiting 3 seconds for network..."
-sleep 3
+echo "Waiting for IP address..."
+
+# With Static IP, this should be instant. We loop just in case interface is down.
+while [ -z "$(hostname -I | grep 10.)" ]; do
+    sleep 1
+done
+echo "Network up: $(hostname -I)"
+sleep 0.5
 
 export PYTHONUNBUFFERED=1
 

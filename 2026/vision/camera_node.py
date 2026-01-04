@@ -114,7 +114,7 @@ def main():
 
     # Apply robust defaults (brightness nudge + v4l2 exposure)
     # cc is the CameraConfig object from rio
-    set_camera_robust_defaults(cam, cc, ctx.camera_type)
+    set_camera_robust_defaults(cam, cc, ctx.camera_type, delay=3.0)
 
     log.info(f"{ctx.name}: streaming on {ctx.processed_port}")
 

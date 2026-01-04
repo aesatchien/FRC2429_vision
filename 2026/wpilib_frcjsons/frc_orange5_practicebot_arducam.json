@@ -2,8 +2,8 @@
     "cameras": [
         {
             "brightness": 48,
-            "fps": 60,
-            "height": 600,
+            "fps": 50,
+            "height": 800,
             "name": "arducam",
             "path": "/dev/v4l/by-path/platform-xhci-hcd.14.auto-usb-0:1:1.0-video-index0",
             "pixel format": "mjpeg",
@@ -46,20 +46,20 @@
 				},
 				{
 					"name": "exposure_time_absolute", 
-					"value": 3
+					"value": 40
 				}
             ],
             "stream": {
                 "properties": []
             },
-            "width": 800
+            "width": 1280
         },
         {
             "brightness": 58,
-            "fps": 60,
-            "height": 600,
+            "fps": 50,
+            "height": 800,
             "name": "arducam2",
-            "path": "platform-fc880000.usb-usb-0:1:1.0-video-index0",
+            "path": "/dev/v4l/by-path/platform-xhci-hcd.11.auto-usb-0:1:1.0-video-index0",
             "pixel format": "mjpeg",
             "properties": [
                 {
@@ -100,13 +100,13 @@
 				},
 				{
 					"name": "exposure_time_absolute",
-					"value": 3
+					"value": 40
 				}
             ],
             "stream": {
                 "properties": []
             },
-            "width": 800
+            "width": 1280
         }
     ],
     "ntmode": "client",

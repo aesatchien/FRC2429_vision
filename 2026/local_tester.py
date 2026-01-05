@@ -31,12 +31,15 @@ Interactive Controls (in the OpenCV window):
 import cv2
 import time
 import argparse
+from ntcore import NetworkTableInstance
 
 from vision.camera_model import CameraModel
 from vision.detectors import TagDetector, HSVDetector
 from vision.visual_overlays import draw_overlays
+from vision.network import init_cam_entries, update_cam_entries
+from vision.wpi_config import load_vision_cfg
 
-# Mock context object for passing data to the overlay drawer
+# Mock context object for passing data to the overlay drawer and NT
 class MockContext:
     def __init__(self, name, colors, intrinsics, distortions, camera_type):
         self.name = name
@@ -44,10 +47,21 @@ class MockContext:
         self.intrinsics = intrinsics
         self.distortions = distortions
         self.camera_type = camera_type
+        self.table_name = f"Cameras/{name}"
+        self.nt = {}
+        
+        # Stats
+        self.success_counter = 0
+        self.fps = 0.0
+        self.previous_time = time.time()
+        self.previous_counts = 0
 
 def main():
     parser = argparse.ArgumentParser(description="Local vision pipeline tester.")
     parser.add_argument("--camera", type=int, default=0, help="Camera index (e.g., 0 for /dev/video0)")
+    parser.add_argument("--ip", default="127.0.0.1", help="NetworkTables server IP (default: localhost)")
+    parser.add_argument("--config", default="config/vision.json", help="Path to vision.json")
+    parser.add_argument("--profile", default="local", help="Host profile to load from vision.json")
     args = parser.parse_args()
 
     # --- Initialization ---
@@ -62,27 +76,42 @@ def main():
     print(f"Camera resolution: {width}x{height}")
 
     # --- Component Setup ---
-    # IMPORTANT: For accurate results, copy these values from your config/vision.json
-    camera_type = 'c920'
-    intrinsics = {'fx': 484, 'fy': 484, 'cx': width / 2, 'cy': height / 2}
-    distortions = [0.0, 0.0, 0.0, 0.0, 0.0]
+    # Load configuration from vision.json
+    vcfg = load_vision_cfg(args.config)
+    profile = vcfg.get("hosts", {}).get(args.profile)
+    if not profile:
+        print(f"Warning: Profile '{args.profile}' not found in {args.config}. Using defaults.")
+        cam_cfg = {}
+    else:
+        # Use the first camera in the profile
+        cam_cfg = profile.get("cameras", [{}])[0]
+        print(f"Loaded config for camera: {cam_cfg.get('name', 'unknown')}")
+
+    camera_type = cam_cfg.get("camera_type", 'c920')
+    intrinsics = cam_cfg.get("intrinsics", {'fx': 484, 'fy': 484, 'cx': width / 2, 'cy': height / 2})
+    distortions = cam_cfg.get("distortions", [])
+    colors_to_cycle = cam_cfg.get("colors", ["orange", "yellow", "purple", "green"])
+    orientation = cam_cfg.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0})
 
     cam_model = CameraModel(width, height, camera_type, intrinsics, distortions)
     tag_detector = TagDetector(cam_model)
     hsv_detector = HSVDetector(cam_model)
 
     # --- State for Interactive Loop ---
-    colors_to_cycle = ["orange", "yellow", "purple", "green"]
     color_idx = 0
     training_mode = False
     debug_mode = False
-    find_tags = True
-    find_colors = True
     train_box = [0.5, 0.5] # Normalized [x, y] center
     paused = False
 
     # Mock context for the overlay drawer
     mock_ctx = MockContext("LocalTest", colors_to_cycle, intrinsics, distortions, camera_type)
+
+    # --- NetworkTables Setup ---
+    ntinst = NetworkTableInstance.getDefault()
+    ntinst.startClient4("LocalTester")
+    ntinst.setServer(args.ip)
+    init_cam_entries(ntinst, mock_ctx)
 
     print("\n--- Interactive Controls ---")
     print("  't' - Toggle Training Mode")
@@ -130,16 +159,27 @@ def main():
                 print("Error: Failed to grab frame")
                 break
             frame = new_frame
+            
+            # Update Stats
+            mock_ctx.success_counter += 1
+            if mock_ctx.success_counter % 10 == 0:
+                now = time.time()
+                dt = max(now - mock_ctx.previous_time, 1e-3)
+                mock_ctx.fps = (mock_ctx.success_counter - mock_ctx.previous_counts) / dt
+                mock_ctx.previous_counts, mock_ctx.previous_time = mock_ctx.success_counter, now
+                
+                if "frames" in mock_ctx.nt: mock_ctx.nt["frames"].set(mock_ctx.success_counter)
+                if "fps" in mock_ctx.nt: mock_ctx.nt["fps"].set(mock_ctx.fps)
 
         if frame is None: continue
 
         # --- Detection ---
-        tag_results = tag_detector.detect(frame) if find_tags else {}
+        tag_results = tag_detector.detect(frame, cam_orientation=orientation)
         
         current_color = colors_to_cycle[color_idx]
         hsv_results = {
             current_color: hsv_detector.process(frame, current_color, training=training_mode, train_box=train_box)
-        } if find_colors else {}
+        }
 
         # Hoist training stats for the overlay drawer
         if training_mode and hsv_results.get(current_color, {}).get('training_stats'):
@@ -150,6 +190,9 @@ def main():
         display_frame = frame.copy()
         draw_overlays(display_frame, tag_results, hsv_results, mock_ctx, training=training_mode, debug=debug_mode, train_box=train_box)
         cv2.imshow("Local Tester", display_frame)
+        
+        # --- NetworkTables Update ---
+        update_cam_entries(mock_ctx, tag_results, hsv_results, ntinst)
 
     cap.release()
     cv2.destroyAllWindows()

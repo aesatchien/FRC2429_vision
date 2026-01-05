@@ -8,6 +8,7 @@ import copy
 import ntcore
 
 from vision.visual_overlays import draw_overlays
+from vision.network import update_cam_entries
 log = logging.getLogger("pipeline")
 
 class ThreadedVisionPipeline:
@@ -205,63 +206,7 @@ class ThreadedVisionPipeline:
                     tags = self.latest_tag_results
                     colors = self.latest_color_results
 
-                # Update Colors
-                keys = list(self.ctx.colors)
-                for key in keys:
-                    tgt = colors.get(key, {})
-                    self.ctx.nt["targets"][key]["targets"].set(tgt.get("targets", 0))
-                    if tgt.get("targets", 0) > 0:
-                        # Safely get first element of lists, defaulting to 0 if list is empty
-                        ids = tgt.get("ids", [])
-                        dists = tgt.get("distances", [])
-                        rots = tgt.get("rotations", [])
-                        strafes = tgt.get("strafes", [])
-                        self.ctx.nt["targets"][key]["id"].set(ids[0] if ids else 0)
-                        self.ctx.nt["targets"][key]["distance"].set(dists[0] if dists else 0)
-                        self.ctx.nt["targets"][key]["rotation"].set(rots[0] if rots else 0)
-                        self.ctx.nt["targets"][key]["strafe"].set(strafes[0] if strafes else 0)
-                    else:
-                        # Zero out if lost
-                        self.ctx.nt["targets"][key]["id"].set(0)
-                        self.ctx.nt["targets"][key]["distance"].set(0)
-                        self.ctx.nt["targets"][key]["rotation"].set(0)
-                        self.ctx.nt["targets"][key]["strafe"].set(0)
-
-                # Update Tags Summary (targets/tags)
-                # We pick the closest tag to report as the primary target
-                tag_count = len(tags)
-                self.ctx.nt["targets"]["tags"]["targets"].set(tag_count)
-                
-                if tag_count > 0:
-                    # Sort tags by distance to find the "best" one
-                    best_tag = min(tags.values(), key=lambda x: x['dist'])
-                    
-                    self.ctx.nt["targets"]["tags"]["id"].set(best_tag['id'])
-                    self.ctx.nt["targets"]["tags"]["distance"].set(best_tag['dist'])
-                    self.ctx.nt["targets"]["tags"]["rotation"].set(best_tag.get('rotation', 0))
-                    self.ctx.nt["targets"]["tags"]["strafe"].set(best_tag.get('strafe', 0))
-                else:
-                    self.ctx.nt["targets"]["tags"]["id"].set(0)
-                    self.ctx.nt["targets"]["tags"]["distance"].set(0)
-                    self.ctx.nt["targets"]["tags"]["rotation"].set(0)
-                    self.ctx.nt["targets"]["tags"]["strafe"].set(0)
-
-                # Update Tags (Odometry)
-                # Filter for tags that are actually in the layout (valid field pose)
-                # so we don't send (0,0,0) to the robot's odometry for practice tags.
-                odo_tags = [t for t in tags.values() if t.get("in_layout", False)]
-
-                if len(odo_tags) > 0:
-                    for i in range(2):
-                        if i < len(odo_tags):
-                            d = odo_tags[i]
-                            self.ctx.nt["tag_poses"][i].set([d["id"], d["tx"], d["ty"], d["tz"], d["rx"], d["ry"], d["rz"]])
-                        else:
-                            self.ctx.nt["tag_poses"][i].set([0]*7)
-                else:
-                    for i in range(2): self.ctx.nt["tag_poses"][i].set([0]*7)
-
-                self.ntinst.flush()
+                update_cam_entries(self.ctx, tags, colors, self.ntinst)
                 self._update_stats("NT")
             except Exception as e:
                 log.error(f"NT update error: {traceback.format_exc()}")

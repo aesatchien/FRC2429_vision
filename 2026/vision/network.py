@@ -56,3 +56,57 @@ def init_cam_entries(ntinst, ctx):
         t.getDoubleArrayTopic("poses/tag1").publish(),
         t.getDoubleArrayTopic("poses/tag2").publish()
     ]
+
+def update_cam_entries(ctx, tags, colors, ntinst):
+    """
+    Shared logic to update NetworkTables from detection results.
+    Used by both threaded_pipeline.py (production) and local_tester.py (dev).
+    """
+    # Update Colors
+    for key in ctx.colors:
+        tgt = colors.get(key, {})
+        ctx.nt["targets"][key]["targets"].set(tgt.get("targets", 0))
+        if tgt.get("targets", 0) > 0:
+            ids = tgt.get("ids", [])
+            dists = tgt.get("distances", [])
+            rots = tgt.get("rotations", [])
+            strafes = tgt.get("strafes", [])
+            ctx.nt["targets"][key]["id"].set(ids[0] if ids else 0)
+            ctx.nt["targets"][key]["distance"].set(dists[0] if dists else 0)
+            ctx.nt["targets"][key]["rotation"].set(rots[0] if rots else 0)
+            ctx.nt["targets"][key]["strafe"].set(strafes[0] if strafes else 0)
+        else:
+            ctx.nt["targets"][key]["id"].set(0)
+            ctx.nt["targets"][key]["distance"].set(0)
+            ctx.nt["targets"][key]["rotation"].set(0)
+            ctx.nt["targets"][key]["strafe"].set(0)
+
+    # Update Tags Summary
+    tag_count = len(tags)
+    ctx.nt["targets"]["tags"]["targets"].set(tag_count)
+    
+    if tag_count > 0:
+        best_tag = min(tags.values(), key=lambda x: x['dist'])
+        ctx.nt["targets"]["tags"]["id"].set(best_tag['id'])
+        ctx.nt["targets"]["tags"]["distance"].set(best_tag['dist'])
+        ctx.nt["targets"]["tags"]["rotation"].set(best_tag.get('rotation', 0))
+        ctx.nt["targets"]["tags"]["strafe"].set(best_tag.get('strafe', 0))
+    else:
+        ctx.nt["targets"]["tags"]["id"].set(0)
+        ctx.nt["targets"]["tags"]["distance"].set(0)
+        ctx.nt["targets"]["tags"]["rotation"].set(0)
+        ctx.nt["targets"]["tags"]["strafe"].set(0)
+
+    # Update Tag Poses (Odometry)
+    odo_tags = [t for t in tags.values() if t.get("in_layout", False)]
+    if len(odo_tags) > 0:
+        for i in range(2):
+            if i < len(odo_tags):
+                d = odo_tags[i]
+                ctx.nt["tag_poses"][i].set([d["id"], d["tx"], d["ty"], d["tz"], d["rx"], d["ry"], d["rz"]])
+            else:
+                ctx.nt["tag_poses"][i].set([0]*7)
+    else:
+        for i in range(2): ctx.nt["tag_poses"][i].set([0]*7)
+
+    ntinst.flush()

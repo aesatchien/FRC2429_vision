@@ -285,6 +285,23 @@
       }
     },
 
+    "local": {
+      "role": "local-tester",
+      "cameras": [
+        {
+          "name": "webcam",
+          "camera_type": "c920",
+          "colors": ["orange", "yellow", "purple", "green"],
+          "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 },
+          "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 320, "cy": 240 },
+          "distortions": [],
+          "stream_max_width": 640,
+          "find_tags": true,
+          "find_colors": true
+        }
+      ]
+    },
+
     "reef-high": {
       "role": "hostname-fallback",
       "cameras": []

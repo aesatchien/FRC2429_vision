@@ -66,6 +66,7 @@ class TagDetector:
                 
             # Field Pose Calculation
             tx, ty, tz, rx, ry, rz = 0,0,0,0,0,0
+            in_layout = False
             
             if self.layout and cam_orientation:
                 try:
@@ -85,13 +86,14 @@ class TagDetector:
                     )
                     pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(), geo.CoordinateSystem.NWU())
                     
-                    tag_field_pose = self.layout.getTagPose(tag.getId())
+                    tag_field_pose = self.layout.getTagPose(tag.getId())  # returns None if tag not in field layout
                     if tag_field_pose:
                         robot_pose = objectToRobotPose(tag_field_pose, pose_nwu, robot_to_cam)
                         t = robot_pose.translation()
                         r = robot_pose.rotation()
                         tx, ty, tz = t.x, t.y, t.z
                         rx, ry, rz = r.x, r.y, r.z
+                        in_layout = True
                 except Exception:
                     pass # Layout lookup failed
 
@@ -108,6 +110,7 @@ class TagDetector:
 
             results[f'tag{tag.getId():02d}'] = {
                 'id': tag.getId(),
+                'in_layout': in_layout,
                 'tx': tx, 'ty': ty, 'tz': tz,
                 'rx': rx, 'ry': ry, 'rz': rz,
                 'dist': pose.z,

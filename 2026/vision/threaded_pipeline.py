@@ -246,12 +246,15 @@ class ThreadedVisionPipeline:
                     self.ctx.nt["targets"]["tags"]["rotation"].set(0)
                     self.ctx.nt["targets"]["tags"]["strafe"].set(0)
 
-                # Update Tags
-                if len(tags) > 0:
-                    keys = list(tags.keys())
+                # Update Tags (Odometry)
+                # Filter for tags that are actually in the layout (valid field pose)
+                # so we don't send (0,0,0) to the robot's odometry for practice tags.
+                odo_tags = [t for t in tags.values() if t.get("in_layout", False)]
+
+                if len(odo_tags) > 0:
                     for i in range(2):
-                        if i < len(keys):
-                            k = keys[i]; d = tags[k]
+                        if i < len(odo_tags):
+                            d = odo_tags[i]
                             self.ctx.nt["tag_poses"][i].set([d["id"], d["tx"], d["ty"], d["tz"], d["rx"], d["ry"], d["rz"]])
                         else:
                             self.ctx.nt["tag_poses"][i].set([0]*7)

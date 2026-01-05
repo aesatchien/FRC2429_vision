@@ -16,11 +16,12 @@ class TagDetector:
         
         # Config (2025 defaults are aggressive, tuning down)
         qt = self.detector.getQuadThresholdParameters()
-        qt.minClusterPixels = 10
+        qt.minClusterPixels = 25  # Filter out small noise (1 bit is ~177px at close range)
         self.detector.setQuadThresholdParameters(qt)
         
         cfg = self.detector.getConfig()
-        cfg.numThreads = 2
+        cfg.numThreads = 1
+        cfg.quadDecimate = 1.5    # Downsample image 1.5x (huge speedup, slight range loss)
         self.detector.setConfig(cfg)
 
         # Pose Estimator

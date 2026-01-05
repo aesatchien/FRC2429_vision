@@ -127,7 +127,10 @@ def main():
     last_print = 0.0
     while True:
         time.sleep(1.0)
-        print(f"{ctx.name}: {ctx.fps:0.1f}fps  S:{ctx.success_counter}  F:{ctx.failure_counter}", flush=True)
+        # Format thread stats
+        tf = getattr(ctx, "thread_fps", {})
+        stats = " ".join([f"{k}:{v:0.0f}" for k,v in tf.items()])
+        print(f"{ctx.name}: {ctx.fps:0.1f}fps ({stats}) S:{ctx.success_counter} F:{ctx.failure_counter}", flush=True)
 
 if __name__ == "__main__":
     main()

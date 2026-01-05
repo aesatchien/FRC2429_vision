@@ -42,6 +42,15 @@ class ThreadedVisionPipeline:
             threading.Thread(target=self._thread_stream, name="Stream", daemon=True),
         ]
 
+        # --- Performance Stats ---
+        # We attach this to ctx so external printers (camera_node.py) can see it
+        self.ctx.thread_fps = {k: 0.0 for k in ["Acq", "Tags", "HSV", "NT", "Stream"]}
+        self._stats_meta = {k: {"count": 0, "last": time.time()} for k in self.ctx.thread_fps}
+        
+        # NT Publishers for stats
+        t_stats = self.ntinst.getTable(self.ctx.table_name).getSubTable("_threads")
+        self.nt_thread_fps = {k: t_stats.getDoubleTopic(k).publish() for k in self.ctx.thread_fps}
+
     def start(self):
         self.running = True
         for t in self.threads:
@@ -52,6 +61,19 @@ class ThreadedVisionPipeline:
         self.running = False
         for t in self.threads:
             t.join(timeout=1.0)
+
+    def _update_stats(self, name):
+        s = self._stats_meta[name]
+        s["count"] += 1
+        if s["count"] >= 10: # Update every 10 loops
+            now = time.time()
+            dt = now - s["last"]
+            if dt > 0.001:
+                fps = s["count"] / dt
+                self.ctx.thread_fps[name] = fps
+                self.nt_thread_fps[name].set(fps)
+            s["last"] = now
+            s["count"] = 0
 
     # ---------------------------------------------------------
     # 1. Image Acquisition Thread
@@ -72,6 +94,7 @@ class ThreadedVisionPipeline:
                         self.latest_ts = ts
                         self.frame_id += 1
                         self.frame_cv.notify_all() # Wake up detectors
+                    self._update_stats("Acq")
                 else:
                     self.ctx.failure_counter += 1
                     # If we fail too many times, maybe we should try to restart the camera?
@@ -105,6 +128,7 @@ class ThreadedVisionPipeline:
                 if local_img is None or not self.ctx.find_tags:
                     with self.result_lock:
                         self.latest_tag_results = {}
+                    self._update_stats("Tags")
                     time.sleep(0.01)
                     continue
 
@@ -118,6 +142,7 @@ class ThreadedVisionPipeline:
                 with self.result_lock:
                     self.latest_tag_results = tags
                     self.latest_result_ts = local_ts
+                self._update_stats("Tags")
             except Exception as e:
                 log.error(f"Tag thread error: {traceback.format_exc()}")
 
@@ -140,6 +165,7 @@ class ThreadedVisionPipeline:
                 if local_img is None or not self.ctx.find_colors:
                     with self.result_lock:
                         self.latest_color_results = {}
+                    self._update_stats("HSV")
                     time.sleep(0.01)
                     continue
 
@@ -161,6 +187,7 @@ class ThreadedVisionPipeline:
 
                 with self.result_lock:
                     self.latest_color_results = res
+                self._update_stats("HSV")
             except Exception as e:
                 log.error(f"HSV thread error: {traceback.format_exc()}")
 
@@ -232,6 +259,7 @@ class ThreadedVisionPipeline:
                     for i in range(2): self.ctx.nt["tag_poses"][i].set([0]*7)
 
                 self.ntinst.flush()
+                self._update_stats("NT")
             except Exception as e:
                 log.error(f"NT update error: {traceback.format_exc()}")
 
@@ -287,5 +315,6 @@ class ThreadedVisionPipeline:
                     self.ctx.nt["frames"].set(self.ctx.success_counter)
                     if "fps" in self.ctx.nt:
                         self.ctx.nt["fps"].set(self.ctx.fps)
+                self._update_stats("Stream")
             except Exception as e:
                 log.error(f"Stream thread error: {traceback.format_exc()}")

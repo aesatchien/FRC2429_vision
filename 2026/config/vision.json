@@ -1,6 +1,6 @@
 {
   "hosts": {
-    "10.24.29.11": {
+    "10.24.29.99": {
       "role": "back-tagcam",
       "cameras": [
         {
@@ -29,8 +29,8 @@
       }
     },
 
-    "10.24.29.12": {
-      "role": "practicebot",
+    "10.24.29.11": {
+      "role": "practicebot_pi4",
       "cameras": [
         {
           "name": "logitech_c920_bottom_front",
@@ -80,7 +80,8 @@
       }
     },
 
-    "10.24.29.13": {
+
+    "10.24.29.12": {
       "role": "practicebot_orangepi_logi",
       "cameras": [
         {
@@ -97,7 +98,7 @@
           "colors": ["yellow"],
           "stream_fps": 16,
           "stream_max_width": 640,
-          "max_tag_distance": 3,
+          "max_tag_distance": 4.5,
           "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 },
           "intrinsics": { "fx": 968.36, "fy": 967.51, "cx": 641.91, "cy": 354.77 },
           "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
@@ -118,7 +119,7 @@
           "colors": ["yellow"],
           "stream_fps": 16,
           "stream_max_width": 640,
-          "max_tag_distance": 3,
+          "max_tag_distance": 4.5,
           "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 },
           "intrinsics": { "fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24 },
           "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
@@ -131,8 +132,8 @@
       }
     },
 
-    "10.24.29.15": {
-      "role": "arducam-practicebot-test",
+    "10.24.29.13": {
+      "role": "practicebot_pi5_arducams",
       "cameras": [
         {
           "name": "arducam",
@@ -148,7 +149,57 @@
           "colors": ["orange"],
           "stream_fps": 16,
           "stream_max_width": 640,
-          "max_tag_distance": 3,
+          "max_tag_distance": 4.5,
+          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+          "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 360},
+          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+          "use_distortions": false
+        },
+        {
+          "name": "arducam2",
+          "camera_type": "arducam",
+          "raw_port": 1182,
+          "processed_port": 1187,
+          "stream_label": "ArducamRight",
+          "table_name": "Cameras/ArducamRight",
+          "enabled": true,
+          "greyscale": true,
+          "find_tags": true,
+          "find_colors": false,
+          "colors": ["orange"],
+          "stream_fps": 16,
+          "stream_max_width": 640,
+          "max_tag_distance": 4.5,
+          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+          "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 360},
+          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+          "use_distortions": false
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
+
+    "10.24.29.15": {
+      "role": "practicebot_orangepi_arducams",
+      "cameras": [
+        {
+          "name": "arducam",
+          "camera_type": "arducam",
+          "raw_port": 1181,
+          "processed_port": 1186,
+          "stream_label": "ArducamLeft",
+          "table_name": "Cameras/ArducamLeft",
+          "enabled": true,
+          "greyscale": true,
+          "find_tags": true,
+          "find_colors": false,
+          "colors": ["orange"],
+          "stream_fps": 16,
+          "stream_max_width": 640,
+          "max_tag_distance": 4.5,
           "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
           "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 400},
           "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
@@ -168,7 +219,8 @@
           "colors": ["orange"],
           "stream_fps": 16,
           "stream_max_width": 640,
-          "max_tag_distance": 3,
+          "enable_overlay": true,
+          "max_tag_distance": 4.5,
           "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
           "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 400},
           "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],

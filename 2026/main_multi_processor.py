@@ -12,16 +12,10 @@ ROOT = HERE.parent if HERE.name == "bin" else HERE
 CAM_WORKER_MODULE = "vision.camera_node"
 
 def cpu_map_for_profile(profile, reserve_cores):
-    n = os.cpu_count() or 4
-    avail = [c for c in range(n) if c not in set(reserve_cores)]
     mapping = {}
-    i = 0
     for cam in profile.get("cameras", []):
         name = cam["name"]
         cpu = cam.get("cpu")
-        if cpu is None:
-            cpu = avail[i % len(avail)] if avail else None
-            i += 1
         mapping[name] = cpu
     return mapping
 
@@ -102,7 +96,7 @@ def main():
     args = ap.parse_args()
 
     # 1. Clean up environment
-    kill_other_launchers()
+    # kill_other_launchers()
     kill_existing_processes()
 
     # host profile

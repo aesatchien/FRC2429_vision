@@ -62,9 +62,18 @@ if __name__ == "__main__":
             log.warning(f"camera '{c['name']}' not found; skipping")
             continue
 
+        # Get actual camera resolution to ensure buffer sizes match
+        # We wait for connection to ensure we don't get a default 0x0
+        while not cam_obj.isConnected(): time.sleep(0.1)
+        vm = cam_obj.getVideoMode()
+        width = vm.width if vm.width > 0 else 640
+        height = vm.height if vm.height > 0 else 480
+
         ctx = CameraContext(
             name=c["name"],
             camera=cam_obj,
+            x_resolution=width,
+            y_resolution=height,
             camera_type= c.get("camera_type", 'c920'),
             processed_port=c.get("processed_port", 1186 + idx),
             table_name=c.get("table_name", f"Cameras/{c['name']}"),
@@ -113,7 +122,10 @@ if __name__ == "__main__":
     # Tiny stats loop
     while True:
         time.sleep(1.0)
-        msg = " ".join(
-            [f"{ctx.name}:{ctx.fps:0.1f}fps S:{ctx.success_counter} F:{ctx.failure_counter}" for ctx in contexts]
-        )
-        print(msg, end="\r", flush=True)
+        parts = []
+        for ctx in contexts:
+            tf = getattr(ctx, "thread_fps", {})
+            stats = " ".join([f"{k}:{v:0.0f}" for k,v in tf.items()])
+            parts.append(f"{ctx.name}:{ctx.fps:0.1f}fps [{stats}]")
+        print("  ".join(parts), end="\r", flush=True)
+        # print(msg, end="\r", flush=True)

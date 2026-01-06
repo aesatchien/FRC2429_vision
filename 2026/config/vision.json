@@ -6,22 +6,28 @@
         {
           "name": "genius",
           "camera_type": "genius",
-          "raw_port": 1181,
-          "processed_port": 1186,
-          "stream_label": "GeniusLow",
-          "table_name": "Cameras/GeniusLow",
-          "enabled": true,
-          "greyscale": false,
-          "find_tags": true,
-          "find_colors": false,
-          "colors": ["orange"],
-          "stream_fps": 16,
-          "stream_max_width": 320,
-          "max_tag_distance": 2,
-          "orientation": { "tx": 0.27, "ty": -0.20, "tz": 0, "rx": 0, "ry": 0, "rz": -115 },
-          "intrinsics": { "fx": 308.67, "fy": 309.11, "cx": 351.14, "cy": 247.39 },
-          "distortions": [-0.01547, 0.13807, -0.00068, 0.00119, 0.2233, 0.00301, 0.10055, 0.27034],
-          "use_distortions": false
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "GeniusLow",
+            "table_name": "Cameras/GeniusLow",
+            "stream_max_width": 320,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 2,
+            "orientation": { "tx": 0.27, "ty": -0.20, "tz": 0, "rx": 0, "ry": 0, "rz": -115 },
+            "intrinsics": { "fx": 308.67, "fy": 309.11, "cx": 351.14, "cy": 247.39 },
+            "distortions": [-0.01547, 0.13807, -0.00068, 0.00119, 0.2233, 0.00301, 0.10055, 0.27034],
+            "use_distortions": false
+          }
         }
       ],
       "brightness_overrides": {
@@ -29,50 +35,62 @@
       }
     },
 
-    "10.24.29.11": {
+    "10.24.29.12": {
       "role": "practicebot_pi4",
       "cameras": [
         {
           "name": "logitech_c920_bottom_front",
           "camera_type": "c920",
-          "raw_port": 1181,
-          "processed_port": 1186,
-          "stream_label": "LogitechFront",
-          "table_name": "Cameras/LogitechFront",
-          "enabled": true,
-          "greyscale": false,
-          "find_tags": true,
-          "find_colors": true,
-          "colors": ["yellow"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 3,
-          "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 },
-          "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
-          "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
-          "use_distortions": false,
-          "serial": "046d:08e5"
+          "serial": "046d:08e5",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "LogitechFront",
+            "table_name": "Cameras/LogitechFront",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": true,
+            "colors": ["yellow"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 3,
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 },
+            "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
+            "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
+            "use_distortions": false
+          }
         },
         {
           "name": "logitech_c920_top_left",
           "camera_type": "c920",
-          "raw_port": 1182,
-          "processed_port": 1187,
-          "stream_label": "LogitechLeft",
-          "table_name": "Cameras/LogitechLeft",
-          "enabled": true,
-          "greyscale": false,
-          "find_tags": true,
-          "find_colors": true,
-          "colors": ["yellow"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 3,
-          "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 },
-          "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
-          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
-          "use_distortions": false,
-          "serial": "046d:082d"
+          "serial": "046d:082d",
+          "labeling": {
+            "raw_port": 1182,
+            "processed_port": 1187,
+            "stream_label": "LogitechLeft",
+            "table_name": "Cameras/LogitechLeft",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": true,
+            "colors": ["yellow"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 3,
+            "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 },
+            "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
+            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "use_distortions": false
+          }
         }
       ],
       "brightness_overrides": {
@@ -81,50 +99,62 @@
     },
 
 
-    "10.24.29.12": {
+    "10.24.29.13": {
       "role": "practicebot_orangepi_logi",
       "cameras": [
         {
           "name": "logitech_c920_bottom_front",
           "camera_type": "c920",
-          "raw_port": 1181,
-          "processed_port": 1186,
-          "stream_label": "LogitechFront",
-          "table_name": "Cameras/LogitechFront",
-          "enabled": true,
-          "greyscale": false,
-          "find_tags": true,
-          "find_colors": true,
-          "colors": ["yellow"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 4.5,
-          "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 },
-          "intrinsics": { "fx": 968.36, "fy": 967.51, "cx": 641.91, "cy": 354.77 },
-          "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
-          "use_distortions": false,
-          "serial": "046d:08e5"
+          "serial": "046d:08e5",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "LogitechFront",
+            "table_name": "Cameras/LogitechFront",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": true,
+            "colors": ["yellow"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 4.5,
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 },
+            "intrinsics": { "fx": 968.36, "fy": 967.51, "cx": 641.91, "cy": 354.77 },
+            "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
+            "use_distortions": false
+          }
         },
         {
           "name": "logitech_c920_top_left",
           "camera_type": "c920",
-          "raw_port": 1182,
-          "processed_port": 1187,
-          "stream_label": "LogitechLeft",
-          "table_name": "Cameras/LogitechLeft",
-          "enabled": true,
-          "greyscale": false,
-          "find_tags": true,
-          "find_colors": true,
-          "colors": ["yellow"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 4.5,
-          "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 },
-          "intrinsics": { "fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24 },
-          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
-          "use_distortions": false,
-          "serial": "046d:082d"
+          "serial": "046d:082d",
+          "labeling": {
+            "raw_port": 1182,
+            "processed_port": 1187,
+            "stream_label": "LogitechLeft",
+            "table_name": "Cameras/LogitechLeft",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": true,
+            "colors": ["yellow"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 4.5,
+            "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 },
+            "intrinsics": { "fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24 },
+            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "use_distortions": false
+          }
         }
       ],
       "brightness_overrides": {
@@ -132,48 +162,70 @@
       }
     },
 
-    "10.24.29.13": {
+    "10.24.29.133": {
       "role": "practicebot_pi5_arducams",
       "cameras": [
         {
           "name": "arducam",
           "camera_type": "arducam",
-          "raw_port": 1181,
-          "processed_port": 1186,
-          "stream_label": "ArducamLeft",
-          "table_name": "Cameras/ArducamLeft",
-          "enabled": true,
-          "greyscale": true,
-          "find_tags": true,
-          "find_colors": false,
-          "colors": ["orange"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 4.5,
-          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
-          "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 360},
-          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
-          "use_distortions": false
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "ArducamLeft",
+            "table_name": "Cameras/ArducamLeft",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "decimate": 2.0,
+            "min_cluster_pixels": 25,
+            "threads": 2
+          },
+          "camera_properties": {
+            "max_tag_distance": 4.5,
+            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+            "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 360},
+            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "use_distortions": false
+          }
         },
         {
           "name": "arducam2",
           "camera_type": "arducam",
-          "raw_port": 1182,
-          "processed_port": 1187,
-          "stream_label": "ArducamRight",
-          "table_name": "Cameras/ArducamRight",
-          "enabled": true,
-          "greyscale": true,
-          "find_tags": true,
-          "find_colors": false,
-          "colors": ["orange"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 4.5,
-          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
-          "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 360},
-          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
-          "use_distortions": false
+          "labeling": {
+            "raw_port": 1182,
+            "processed_port": 1187,
+            "stream_label": "ArducamRight",
+            "table_name": "Cameras/ArducamRight",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
+            "threads": 2
+          },
+          "camera_properties": {
+            "max_tag_distance": 4.5,
+            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+            "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 360},
+            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "use_distortions": false
+          }
         }
       ],
       "brightness_overrides": {
@@ -188,43 +240,55 @@
         {
           "name": "arducam",
           "camera_type": "arducam",
-          "raw_port": 1181,
-          "processed_port": 1186,
-          "stream_label": "ArducamLeft",
-          "table_name": "Cameras/ArducamLeft",
-          "enabled": true,
-          "greyscale": true,
-          "find_tags": true,
-          "find_colors": false,
-          "colors": ["orange"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 4.5,
-          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
-          "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 400},
-          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
-          "use_distortions": false
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "ArducamLeft",
+            "table_name": "Cameras/ArducamLeft",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 4.5,
+            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+            "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 400},
+            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "use_distortions": false
+          }
         },
         {
           "name": "arducam2",
           "camera_type": "arducam",
-          "raw_port": 1182,
-          "processed_port": 1187,
-          "stream_label": "ArducamRight",
-          "table_name": "Cameras/ArducamRight",
-          "enabled": true,
-          "greyscale": true,
-          "find_tags": true,
-          "find_colors": false,
-          "colors": ["orange"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
+          "labeling": {
+            "raw_port": 1182,
+            "processed_port": 1187,
+            "stream_label": "ArducamRight",
+            "table_name": "Cameras/ArducamRight",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
           "enable_overlay": true,
-          "max_tag_distance": 4.5,
-          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
-          "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 400},
-          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
-          "use_distortions": false
+          "camera_properties": {
+            "max_tag_distance": 4.5,
+            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+            "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 400},
+            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "use_distortions": false
+          }
         }
       ],
       "brightness_overrides": {
@@ -239,44 +303,56 @@
         {
           "name": "c920",
           "camera_type": "c920",
-          "raw_port": 1181,
-          "processed_port": 1186,
-          "stream_label": "LogitechReef",
-          "table_name": "Cameras/LogitechReef",
-          "enabled": true,
-          "greyscale": false,
-          "find_tags": true,
-          "find_colors": false,
-          "colors": ["orange"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 3,
-          "orientation": { "tx": -0.33, "ty": -0.20, "tz": 0, "rx": 0, "ry": 30, "rz": -90 },
-          "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
-          "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
-          "use_distortions": false,
-          "serial": ""
+          "serial": "",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "LogitechReef",
+            "table_name": "Cameras/LogitechReef",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 3,
+            "orientation": { "tx": -0.33, "ty": -0.20, "tz": 0, "rx": 0, "ry": 30, "rz": -90 },
+            "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
+            "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
+            "use_distortions": false
+          }
         },
         {
           "name": "arducam",
           "camera_type": "c920",
-          "raw_port": 1182,
-          "processed_port": 1187,
-          "stream_label": "ArducamHigh",
-          "table_name": "Cameras/ArducamHigh",
-          "enabled": true,
-          "greyscale": true,
-          "find_tags": true,
-          "find_colors": false,
-          "colors": ["orange"],
-          "stream_fps": 16,
-          "stream_max_width": 640,
-          "max_tag_distance": 3,
-          "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
-          "intrinsics": { "fx": 563.95, "fy": 564.05, "cx": 315.83, "cy": 214.20 },
-          "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
-          "use_distortions": false,
-          "serial": ""
+          "serial": "",
+          "labeling": {
+            "raw_port": 1182,
+            "processed_port": 1187,
+            "stream_label": "ArducamHigh",
+            "table_name": "Cameras/ArducamHigh",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 3,
+            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
+            "intrinsics": { "fx": 563.95, "fy": 564.05, "cx": 315.83, "cy": 214.20 },
+            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "use_distortions": false
+          }
         }
       ],
       "brightness_overrides": {
@@ -291,13 +367,20 @@
         {
           "name": "webcam",
           "camera_type": "c920",
-          "colors": ["orange", "yellow", "purple", "green"],
-          "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 },
-          "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 320, "cy": 240 },
-          "distortions": [],
-          "stream_max_width": 640,
-          "find_tags": true,
-          "find_colors": true
+          "labeling": {
+            "stream_max_width": 640
+          },
+          "activities": {
+            "find_tags": true,
+            "find_colors": true,
+            "colors": ["orange", "yellow", "purple", "green"]
+          },
+          "camera_properties": {
+            "max_tag_distance": 5,
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 },
+            "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 320, "cy": 240 },
+            "distortions": []
+          }
         }
       ]
     },

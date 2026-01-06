@@ -43,10 +43,14 @@ def readCameraConfig(config):
     cameraConfigs.append(cam)
     return True
 
-def readConfig():
+def readConfig(config_path=None):
     """Read configuration file."""
     global team
     global server
+    global configFile
+
+    if config_path is not None:
+        configFile = config_path
 
     # parse file
     try:
@@ -108,4 +112,3 @@ def set_stream_port(name: str, port: int) -> bool:
     except Exception as e:
         print(f"[rio] set_stream_port({name},{port}) failed: {e}", file=sys.stderr)
         return False
-

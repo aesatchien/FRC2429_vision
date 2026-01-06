@@ -5,76 +5,107 @@ import time
 
 class TagFilter:
     def __init__(self, max_dt=1.0, max_averages=20, max_std=0.1):
-        self.current_time = time.time()
-        self.previous_time = self.current_time
         self.max_dt = max_dt
         self.max_averages = max_averages
         self.max_std = max_std
-        self.max_translation = 0.05 # 0.1 # arbitryary for now, if moving 1 m/s you'd move .02 m/frame at 50FPS
-        self.max_rotation = 0.1  # 0.05  #  harder - radians and we spin really fast - like 6.28/s so
+        
+        # Thresholds: If motion exceeds this per frame, reset the filter (don't average)
+        self.max_translation = 0.05 # meters
+        self.max_rotation = 0.1     # radians
+        
         self.is_stable = False
+        self.prev_time = 0.0
 
-        # Use fixed-size arrays initialized with NaN for efficiency
-        self.history = {key: np.full(max_averages, np.nan) for key in ["tx", "ty", "tz", "rx", "ry", "rz"]}
-        self.index = 0  # Rolling index to track position
+        # History buffer: [Rows=Samples, Cols=6 (tx,ty,tz,rx,ry,rz)]
+        self.history = np.zeros((max_averages, 6), dtype=np.float64)
+        self.head = 0  # Write pointer
+        self.size = 0  # Number of valid samples
+        self.last_raw = np.zeros(6) # Keep track of last raw input for motion check
 
-    def get_values(self, index):
-        """Retrieve [tx, ty, tz, rx, ry, rz] at a given history index safely."""
-        if self.index == 0:
-            raise ValueError("No data has been recorded yet.")
-        return [float(self.history[key][index % self.max_averages]) for key in ["tx", "ty", "tz", "rx", "ry", "rz"]]
-
-    def reset(self, tx, ty, tz, rx, ry, rz):
-        new_values = np.array([tx, ty, tz, rx, ry, rz])
-        for key in self.history:
-            self.history[key].fill(np.nan)  # Reset all values to NaN
-            self.history[key][0] = new_values[["tx", "ty", "tz", "rx", "ry", "rz"].index(key)]
-        self.index = 1  # Reset index to start fresh
+    def reset(self, values, now):
+        self.head = 0
+        self.size = 1
+        self.history[0] = values
+        self.last_raw = values
+        self.prev_time = now
+        self.is_stable = True # Single point is technically stable
 
     def update(self, tx, ty, tz, rx, ry, rz):
-        # if we're stable, average the tag values, otherwise reset and return current values
-        self.current_time = time.time()
-        dt = self.current_time - self.previous_time
-
+        now = time.time()
+        dt = now - self.prev_time
         new_values = np.array([tx, ty, tz, rx, ry, rz])
 
-        # If max time delta is exceeded, reset history to only the latest values
-        if dt > self.max_dt or self.index == 0:
-            self.reset(tx, ty, tz, rx, ry, rz)
-            # print(".", end=" ")
-        else:
-            # Rolling update without reallocation - see if we moved too much
-            txi, tyi, tzi, rxi, ryi, rzi = self.get_values(self.index - 1)
-            d_translation = np.sqrt((tx - txi) ** 2 + (ty - tyi) ** 2 + (tz - tzi) ** 2)
-            d_rotation = np.sqrt((rx - rxi) ** 2 + (ry - ryi) ** 2 + (rz - rzi) ** 2)
-            if d_translation > self.max_translation or d_rotation > self.max_rotation:
-                # we're probably moving, so reset
-                self.reset(tx, ty, tz, rx, ry, rz)
-            else:
-                for key in self.history:
-                    self.history[key][self.index % self.max_averages] = new_values[
-                        ["tx", "ty", "tz", "rx", "ry", "rz"].index(key)]
-                    # if self.index %500==2:
-                    #     std_devs = np.array([np.nanstd(self.history[key]) for key in self.history])
-                    #     print(f"{self.index} stdev:{std_devs[0]:.3e}", end=" ")
-                self.index += 1
-        # Compute averages ignoring NaN values
-        averages = np.array([np.nanmean(self.history[key]) for key in self.history])
+        # 1. Check Time Timeout
+        if dt > self.max_dt:
+            self.reset(new_values, now)
+            return new_values
 
-        # Compute standard deviation and check stability
-        std_devs = np.array([np.nanstd(self.history[key]) for key in self.history])
+        # 2. Check Motion Threshold (vs last raw input)
+        if self.size > 0:
+            delta = np.abs(new_values - self.last_raw)
+            dist_tr = np.linalg.norm(delta[:3])
+            dist_rot = np.linalg.norm(delta[3:])
+            
+            if dist_tr > self.max_translation or dist_rot > self.max_rotation:
+                self.reset(new_values, now)
+                return new_values
+
+        # 3. Add to History
+        self.history[self.head] = new_values
+        self.head = (self.head + 1) % self.max_averages
+        if self.size < self.max_averages:
+            self.size += 1
+        
+        self.last_raw = new_values
+        self.prev_time = now
+
+        # 4. Compute Average & Stability
+        valid_data = self.history[:self.size] if self.size < self.max_averages else self.history
+        
+        # Standard deviation check
+        std_devs = np.std(valid_data, axis=0)
         self.is_stable = np.all(std_devs < self.max_std)
 
-        self.previous_time = self.current_time
-        return tuple(map(float, averages))
-
+        return np.mean(valid_data, axis=0)
 
 class TagManager:
     def __init__(self, max_dt=1.0, max_averages=10, max_std=0.1):
-        self.filters = {tag_id: TagFilter(max_dt, max_averages, max_std) for tag_id in range(1, 23)}
+        self.params = (max_dt, max_averages, max_std)
+        self.filters = {}
 
     def update(self, tag_id, tx, ty, tz, rx, ry, rz):
-        if tag_id in self.filters:
-            return self.filters[tag_id].update(tx, ty, tz, rx, ry, rz)
-        else:
-            raise ValueError(f"Invalid tag ID: {tag_id}")
+        if tag_id not in self.filters:
+            self.filters[tag_id] = TagFilter(*self.params)
+        return self.filters[tag_id].update(tx, ty, tz, rx, ry, rz)
+
+    def process(self, tags: dict) -> dict:
+        """
+        Process a dictionary of tag results (from TagDetector), applying temporal
+        smoothing to any tags that are part of the field layout.
+        Returns a new dictionary with smoothed poses.
+        """
+        out = {}
+        for key, tag in tags.items():
+            # Only filter tags that have a valid field pose (in_layout=True)
+            if tag.get("in_layout"):
+                # Update filter
+                res = self.update(
+                    tag['id'], 
+                    tag['tx'], tag['ty'], tag['tz'], 
+                    tag['rx'], tag['ry'], tag['rz']
+                )
+                
+                # Copy tag data and overwrite pose with smoothed values
+                # res is a numpy array, convert to float for safety
+                new_tag = tag.copy()
+                new_tag['tx'] = float(res[0])
+                new_tag['ty'] = float(res[1])
+                new_tag['tz'] = float(res[2])
+                new_tag['rx'] = float(res[3])
+                new_tag['ry'] = float(res[4])
+                new_tag['rz'] = float(res[5])
+                out[key] = new_tag
+            else:
+                # Pass through practice tags or invalid tags untouched
+                out[key] = tag
+        return out

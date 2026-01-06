@@ -3,16 +3,11 @@ import sys, time, logging, argparse
 from ntcore import NetworkTableInstance
 
 from vision.wpi_config import load_vision_cfg, select_profile
-from vision.camera_context import CameraContext
-from vision.wpi_stream import build_stream, push_frame, build_raw_stream
-from vision.wpi_attach_sink import attach_sink
-from vision.network import init_global_flags, init_cam_entries
-from vision.camera_controls import set_camera_robust_defaults
-
+from vision.wpi_stream import push_frame
+from vision.network import init_global_flags
 from vision import wpi_rio
 from vision.threaded_pipeline import ThreadedVisionPipeline
-from vision.camera_model import CameraModel
-from vision.detectors import TagDetector, HSVDetector
+from vision.pipeline_setup import deploy_camera_pipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 log = logging.getLogger("vision")
@@ -25,9 +20,8 @@ if __name__ == "__main__":
     parser.add_argument("--autorestart", action="store_true", help="Ignored; for compatibility with launcher")
     args = parser.parse_args()
 
-    wpi_rio.configFile = args.frc
-    if not wpi_rio.readConfig():
-        log.error(f"could not read {wpi_rio.configFile}")
+    if not wpi_rio.readConfig(args.frc):
+        log.error(f"could not read {args.frc}")
         sys.exit(1)
 
     # Start NetworkTables
@@ -62,56 +56,10 @@ if __name__ == "__main__":
             log.warning(f"camera '{c['name']}' not found; skipping")
             continue
 
-        # Get actual camera resolution to ensure buffer sizes match
-        # We wait for connection to ensure we don't get a default 0x0
-        while not cam_obj.isConnected(): time.sleep(0.1)
-        vm = cam_obj.getVideoMode()
-        width = vm.width if vm.width > 0 else 640
-        height = vm.height if vm.height > 0 else 480
-
-        ctx = CameraContext(
-            name=c["name"],
-            camera=cam_obj,
-            x_resolution=width,
-            y_resolution=height,
-            camera_type= c.get("camera_type", 'c920'),
-            processed_port=c.get("processed_port", 1186 + idx),
-            table_name=c.get("table_name", f"Cameras/{c['name']}"),
-            stream_fps=c.get("stream_fps", 16),
-            stream_max_width=c.get("stream_max_width", 640),
-            greyscale=bool(c.get("greyscale", False)),
-            find_tags=c.get("find_tags", True),
-            find_colors=c.get("find_colors", False),
-            colors=c.get("colors", ["orange"]),
-            orientation=c.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0}),
-            intrinsics=c.get("intrinsics"),
-            distortions=c.get("distortions"),
-            use_distortions=c.get("use_distortions", False),
-            max_tag_distance=c.get("max_tag_distance", 3.5),
-        )
-
-        # Stream + sink + NT + pipeline
-        if c.get("raw_port"):
-            # camera object is `cam_obj`; profile entry is `c`; cfg is the matching rio camera config
-            cfg = next(cc for cc in wpi_rio.cameraConfigs if cc.name == c["name"])
-            build_raw_stream(c["name"], cam_obj, c["raw_port"], cfg.streamConfig)
-        build_stream(ctx)
-        attach_sink(ctx)
-        init_cam_entries(ntinst, ctx)
-        
-        cam_model = CameraModel(
-            ctx.x_resolution, ctx.y_resolution, ctx.camera_type,
-            ctx.intrinsics, ctx.distortions
-        )
-        ctx.tag_detector = TagDetector(cam_model)
-        ctx.hsv_detector = HSVDetector(cam_model)
-
-        # Apply robust defaults (brightness nudge + v4l2 exposure)
-        cfg = next((cc for cc in wpi_rio.cameraConfigs if cc.name == ctx.name), None)
-        set_camera_robust_defaults(ctx.camera, cfg, ctx.camera_type, delay=2.5)
-
+        # Use the factory to build the pipeline context
+        rio_cfg = next((cc for cc in wpi_rio.cameraConfigs if cc.name == c["name"]), None)
+        ctx = deploy_camera_pipeline(cam_obj, c, rio_cfg, ntinst)
         contexts.append(ctx)
-        print(f"Added {ctx.name} stream on {ctx.processed_port} and serving table {ctx.table_name}")
 
     # Run workers
     for ctx in contexts:

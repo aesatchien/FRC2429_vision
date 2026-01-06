@@ -7,8 +7,9 @@ from wpimath import objectToRobotPose
 from vision.hsv_config import get_hsv_config, get_target_dimensions
 
 class TagDetector:
-    def __init__(self, camera_model, field_layout=None):
+    def __init__(self, camera_model, field_layout=None, config=None):
         self.cam = camera_model
+        if config is None: config = {}
         
         # Setup Detector
         self.detector = ra.AprilTagDetector()
@@ -16,12 +17,12 @@ class TagDetector:
         
         # Config (2025 defaults are aggressive, tuning down)
         qt = self.detector.getQuadThresholdParameters()
-        qt.minClusterPixels = 25  # Filter out small noise (1 bit is ~177px at close range)
+        qt.minClusterPixels = config.get("min_cluster_pixels", 25)
         self.detector.setQuadThresholdParameters(qt)
         
         cfg = self.detector.getConfig()
-        cfg.numThreads = 1
-        cfg.quadDecimate = 1.5    # Downsample image 1.5x (huge speedup, slight range loss)
+        cfg.numThreads = config.get("threads", 1)
+        cfg.quadDecimate = config.get("decimate", 1.5)
         self.detector.setConfig(cfg)
 
         # Pose Estimator

@@ -20,9 +20,8 @@ def cpu_map_for_profile(profile, reserve_cores):
     return mapping
 
 def validate_cams_against_frc(frc_json):
-    wpi_rio.configFile = frc_json
-    if not wpi_rio.readConfig():
-        raise RuntimeError(f"could not read {wpi_rio.configFile}")
+    if not wpi_rio.readConfig(frc_json):
+        raise RuntimeError(f"could not read {frc_json}")
     return [c.name for c in wpi_rio.cameraConfigs]
 
 def spawn(proc_cmd, log_path):
@@ -38,7 +37,7 @@ def spawn(proc_cmd, log_path):
 def start_reader(name, child, stats):
     # parse: "<name>: 39.9fps  S:123  F:4"
     pat = re.compile(
-        rf"{re.escape(name)}\s*:\s*(?P<fps>\d+(?:\.\d+)?)\s*fps\s+S:(?P<S>\d+)\s+F:(?P<F>\d+)",
+        rf"{re.escape(name)}\s*:\s*(?P<fps>\d+(?:\.\d+)?)\s*fps.*?S:(?P<S>\d+)\s+F:(?P<F>\d+)",
         re.I,
     )
     def _run():

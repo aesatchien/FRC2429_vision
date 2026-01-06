@@ -28,16 +28,20 @@ Interactive Controls (in the OpenCV window):
     'n' - Next Frame (when paused)
     'q' - Quit
 """
+print('starting imports...')
 import cv2
 import time
 import argparse
 from ntcore import NetworkTableInstance
-
+print('finished initial imports after ms ...')
+start = time.time()
 from vision.camera_model import CameraModel
 from vision.detectors import TagDetector, HSVDetector
 from vision.visual_overlays import draw_overlays
 from vision.network import init_cam_entries, update_cam_entries
 from vision.wpi_config import load_vision_cfg
+print(f'finished custom imports after {(time.time()-start)*1000:.0f} ms... opening captures')
+
 
 # Mock context object for passing data to the overlay drawer and NT
 class MockContext:
@@ -58,7 +62,7 @@ class MockContext:
 
 def main():
     parser = argparse.ArgumentParser(description="Local vision pipeline tester.")
-    parser.add_argument("--camera", type=int, default=0, help="Camera index (e.g., 0 for /dev/video0)")
+    parser.add_argument("--camera", type=int, default=1, help="Camera index (e.g., 0 for /dev/video0)")
     parser.add_argument("--ip", default="127.0.0.1", help="NetworkTables server IP (default: localhost)")
     parser.add_argument("--config", default="config/vision.json", help="Path to vision.json")
     parser.add_argument("--profile", default="local", help="Host profile to load from vision.json")
@@ -87,14 +91,19 @@ def main():
         cam_cfg = profile.get("cameras", [{}])[0]
         print(f"Loaded config for camera: {cam_cfg.get('name', 'unknown')}")
 
+    labeling = cam_cfg.get("labeling", {})
+    activities = cam_cfg.get("activities", {})
+    cam_props = cam_cfg.get("camera_properties", {})
+
     camera_type = cam_cfg.get("camera_type", 'c920')
-    intrinsics = cam_cfg.get("intrinsics", {'fx': 484, 'fy': 484, 'cx': width / 2, 'cy': height / 2})
-    distortions = cam_cfg.get("distortions", [])
-    colors_to_cycle = cam_cfg.get("colors", ["orange", "yellow", "purple", "green"])
-    orientation = cam_cfg.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0})
+    intrinsics = cam_props.get("intrinsics", {'fx': 484, 'fy': 484, 'cx': width / 2, 'cy': height / 2})
+    distortions = cam_props.get("distortions", [])
+    colors_to_cycle = activities.get("colors", ["orange", "yellow", "purple", "green"])
+    orientation = cam_props.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0})
 
     cam_model = CameraModel(width, height, camera_type, intrinsics, distortions)
-    tag_detector = TagDetector(cam_model)
+    tag_config = cam_cfg.get("tag_config", {})
+    tag_detector = TagDetector(cam_model, config=tag_config)
     hsv_detector = HSVDetector(cam_model)
 
     # --- State for Interactive Loop ---

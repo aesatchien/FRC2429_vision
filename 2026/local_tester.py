@@ -38,6 +38,7 @@ start = time.time()
 from vision.camera_model import CameraModel
 from vision.detectors import TagDetector, HSVDetector
 from vision.visual_overlays import draw_overlays
+from vision.tagmanager import TagManager
 from vision.network import init_cam_entries, update_cam_entries
 from vision.wpi_config import load_vision_cfg
 print(f'finished custom imports after {(time.time()-start)*1000:.0f} ms... opening captures')
@@ -105,11 +106,13 @@ def main():
     tag_config = cam_cfg.get("tag_config", {})
     tag_detector = TagDetector(cam_model, config=tag_config)
     hsv_detector = HSVDetector(cam_model)
+    tag_manager = TagManager(max_dt=0.5, max_averages=10, max_std=0.05)
 
     # --- State for Interactive Loop ---
     color_idx = 0
     training_mode = False
     debug_mode = False
+    averaging_mode = False
     train_box = [0.5, 0.5] # Normalized [x, y] center
     paused = False
 
@@ -125,6 +128,7 @@ def main():
     print("\n--- Interactive Controls ---")
     print("  't' - Toggle Training Mode")
     print("  'd' - Toggle Debug Mode")
+    print("  'v' - Toggle Tag Averaging")
     print("  'w/a/s/e' - Move Training Box")
     print("  'c' - Cycle Target Color")
     print("  'space' - Pause/Resume")
@@ -148,6 +152,9 @@ def main():
         elif key == ord('d'):
             debug_mode = not debug_mode
             print(f"Debug Mode: {'ON' if debug_mode else 'OFF'}")
+        elif key == ord('v'):
+            averaging_mode = not averaging_mode
+            print(f"Tag Averaging: {'ON' if averaging_mode else 'OFF'}")
         elif key == ord('c'):
             color_idx = (color_idx + 1) % len(colors_to_cycle)
             print(f"Detecting Color: {colors_to_cycle[color_idx]}")
@@ -184,6 +191,7 @@ def main():
 
         # --- Detection ---
         tag_results = tag_detector.detect(frame, cam_orientation=orientation)
+        tag_results = tag_manager.process(tag_results, averaging_enabled=averaging_mode)
         
         current_color = colors_to_cycle[color_idx]
         hsv_results = {
@@ -202,6 +210,9 @@ def main():
         
         # --- NetworkTables Update ---
         update_cam_entries(mock_ctx, tag_results, hsv_results, ntinst)
+        if "averaging_enabled" in mock_ctx.nt:
+            mock_ctx.nt["averaging_enabled"].set(averaging_mode)
+
 
     cap.release()
     cv2.destroyAllWindows()

@@ -4,15 +4,16 @@ import time
 
 
 class TagFilter:
-    def __init__(self, max_dt=1.0, max_averages=20, max_std=0.1):
+    def __init__(self, max_dt=0.5, max_averages=10, max_std=0.05):
         self.max_dt = max_dt
         self.max_averages = max_averages
         self.max_std = max_std
         
-        # Thresholds: If motion exceeds this per frame, reset the filter (don't average)
-        self.max_translation = 0.05 # meters
-        self.max_rotation = 0.1     # radians
-        
+        # Rejection Thresholds: Points outside this deviation from the median are ignored
+        # unless they persist (indicating real motion).
+        self.reject_dist = 0.5  # meters (large jump = glitch)
+        self.reject_rot = 0.5   # radians
+
         self.is_stable = False
         self.prev_time = 0.0
 
@@ -20,15 +21,18 @@ class TagFilter:
         self.history = np.zeros((max_averages, 6), dtype=np.float64)
         self.head = 0  # Write pointer
         self.size = 0  # Number of valid samples
-        self.last_raw = np.zeros(6) # Keep track of last raw input for motion check
+        
+        # Consistency counter for fast motion / teleport detection
+        self.outlier_count = 0
+        self.max_outliers = 2 # Accept new position after 2 consistent "outliers"
 
     def reset(self, values, now):
-        self.head = 0
+        self.head = 1 % self.max_averages
         self.size = 1
         self.history[0] = values
-        self.last_raw = values
         self.prev_time = now
-        self.is_stable = True # Single point is technically stable
+        self.outlier_count = 0
+        self.is_stable = False
 
     def update(self, tx, ty, tz, rx, ry, rz):
         now = time.time()
@@ -40,15 +44,28 @@ class TagFilter:
             self.reset(new_values, now)
             return new_values
 
-        # 2. Check Motion Threshold (vs last raw input)
+        # 2. Outlier / Motion Logic
         if self.size > 0:
-            delta = np.abs(new_values - self.last_raw)
-            dist_tr = np.linalg.norm(delta[:3])
+            # Compare against the current median (robust center)
+            # We use the last calculated median or the last raw if size is small
+            valid_hist = self.history[:self.size] if self.size < self.max_averages else self.history
+            current_ref = np.median(valid_hist, axis=0)
+
+            delta = np.abs(new_values - current_ref)
+            dist_tr = np.linalg.norm(delta[:3]) # Euclidean dist for translation
             dist_rot = np.linalg.norm(delta[3:])
             
-            if dist_tr > self.max_translation or dist_rot > self.max_rotation:
-                self.reset(new_values, now)
-                return new_values
+            if dist_tr > self.reject_dist or dist_rot > self.reject_rot:
+                self.outlier_count += 1
+                if self.outlier_count > self.max_outliers:
+                    # It's not a glitch, we actually moved there. Reset filter to snap to new pos.
+                    self.reset(new_values, now)
+                    return new_values
+                else:
+                    # Ignore this frame, return previous valid result (suppress glitch)
+                    return current_ref
+            else:
+                self.outlier_count = 0
 
         # 3. Add to History
         self.history[self.head] = new_values
@@ -56,7 +73,6 @@ class TagFilter:
         if self.size < self.max_averages:
             self.size += 1
         
-        self.last_raw = new_values
         self.prev_time = now
 
         # 4. Compute Average & Stability
@@ -66,7 +82,18 @@ class TagFilter:
         std_devs = np.std(valid_data, axis=0)
         self.is_stable = np.all(std_devs < self.max_std)
 
-        return np.mean(valid_data, axis=0)
+        # If sitting still (stable), return SMOOTHED value
+        # Translation: Median is robust against noise
+        t_avg = np.median(valid_data[:, :3], axis=0)
+        
+        # Rotation: Circular Mean (handles wrapping 179 -> -179 correctly)
+        # Convert to complex numbers: exp(i * angle)
+        rots = valid_data[:, 3:]
+        complex_rots = np.exp(1j * rots)
+        mean_complex = np.mean(complex_rots, axis=0)
+        r_avg = np.angle(mean_complex)
+        
+        return np.concatenate((t_avg, r_avg))
 
 class TagManager:
     def __init__(self, max_dt=1.0, max_averages=10, max_std=0.1):
@@ -78,7 +105,7 @@ class TagManager:
             self.filters[tag_id] = TagFilter(*self.params)
         return self.filters[tag_id].update(tx, ty, tz, rx, ry, rz)
 
-    def process(self, tags: dict) -> dict:
+    def process(self, tags: dict, averaging_enabled: bool = False) -> dict:
         """
         Process a dictionary of tag results (from TagDetector), applying temporal
         smoothing to any tags that are part of the field layout.
@@ -88,7 +115,7 @@ class TagManager:
         for key, tag in tags.items():
             # Only filter tags that have a valid field pose (in_layout=True)
             if tag.get("in_layout"):
-                # Update filter
+                # Always update filter to keep history current
                 res = self.update(
                     tag['id'], 
                     tag['tx'], tag['ty'], tag['tz'], 
@@ -98,12 +125,16 @@ class TagManager:
                 # Copy tag data and overwrite pose with smoothed values
                 # res is a numpy array, convert to float for safety
                 new_tag = tag.copy()
-                new_tag['tx'] = float(res[0])
-                new_tag['ty'] = float(res[1])
-                new_tag['tz'] = float(res[2])
-                new_tag['rx'] = float(res[3])
-                new_tag['ry'] = float(res[4])
-                new_tag['rz'] = float(res[5])
+                
+                if averaging_enabled:
+                    # Overwrite with smoothed values
+                    new_tag['tx'] = float(res[0])
+                    new_tag['ty'] = float(res[1])
+                    new_tag['tz'] = float(res[2])
+                    new_tag['rx'] = float(res[3])
+                    new_tag['ry'] = float(res[4])
+                    new_tag['rz'] = float(res[5])
+                
                 out[key] = new_tag
             else:
                 # Pass through practice tags or invalid tags untouched

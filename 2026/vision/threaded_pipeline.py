@@ -8,6 +8,7 @@ import copy
 import ntcore
 
 from vision.visual_overlays import draw_overlays
+from vision.tagmanager import TagManager
 from vision.network import update_cam_entries
 log = logging.getLogger("pipeline")
 
@@ -33,6 +34,9 @@ class ThreadedVisionPipeline:
         self.latest_tag_results = {}
         self.latest_color_results = {}
         self.latest_result_ts = 0.0
+
+        # --- Tag Smoothing ---
+        self.tag_manager = TagManager(max_dt=0.5, max_averages=10, max_std=0.05)
 
         # Threads
         self.threads = [
@@ -139,9 +143,15 @@ class ThreadedVisionPipeline:
                     cam_orientation=self.ctx.orientation,
                     max_distance=self.ctx.max_tag_distance
                 )
+
+                # Apply Tag Manager (Smoothing)
+                do_avg = self.nt_global["tag_averaging"].get()
+                if "averaging_enabled" in self.ctx.nt:
+                    self.ctx.nt["averaging_enabled"].set(do_avg)
+                processed_tags = self.tag_manager.process(tags, averaging_enabled=do_avg)
                 
                 with self.result_lock:
-                    self.latest_tag_results = tags
+                    self.latest_tag_results = processed_tags
                     self.latest_result_ts = local_ts
                 self._update_stats("Tags")
             except Exception as e:

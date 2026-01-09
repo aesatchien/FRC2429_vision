@@ -2,12 +2,12 @@ from ntcore import PubSubOptions
 
 def init_global_flags(ntinst):
     cams = ntinst.getTable("Cameras")
-    
+
     # Publish global flags so they appear on the dashboard
     # We keep the publishers in the return dict to prevent garbage collection
     train_pub = cams.getBooleanTopic("_training").publish()
     train_pub.set(False)
-    
+
     debug_pub = cams.getBooleanTopic("_debug").publish()
     debug_pub.set(False)
 
@@ -15,12 +15,14 @@ def init_global_flags(ntinst):
     box_entry = cams.getEntry("_training_box")
     box_entry.setDefaultDoubleArray([0.5, 0.5])
 
+    tag_avg_sub = cams.getBooleanTopic("tag_averaging").subscribe(False)
     training_sub = cams.getBooleanTopic("_training").subscribe(False)
     debug_sub    = cams.getBooleanTopic("_debug").subscribe(False)
     # ts_sub       = ntinst.getDoubleTopic("/SmartDashboard/_timestamp").subscribe(0)
     return {
-        "training": training_sub, 
-        "debug": debug_sub, 
+        "tag_averaging": tag_avg_sub,
+        "training": training_sub,
+        "debug": debug_sub,
         "training_box": box_entry,
         # "timestamp": ts_sub,
         "_pubs": [train_pub, debug_pub]
@@ -31,6 +33,7 @@ def init_cam_entries(ntinst, ctx):
     ctx.nt["frames"]      = t.getIntegerTopic("_frames").publish()
     # ctx.nt["timestamp"]   = t.getIntegerTopic("_timestamp").publish()
     ctx.nt["fps"] = t.getDoubleTopic("_fps").publish()
+    ctx.nt["averaging_enabled"] = t.getBooleanTopic("averaging_enabled").publish()
     ctx.nt["connections_pub"] = t.getDoubleTopic("_connections").publish(PubSubOptions(keepDuplicates=True))
     ctx.nt["connections_sub"] = t.getDoubleTopic("_connections").subscribe(0)
     ctx.nt["colors"]      = t.getStringArrayTopic("colors").publish()
@@ -84,7 +87,7 @@ def update_cam_entries(ctx, tags, colors, ntinst):
     # Update Tags Summary
     tag_count = len(tags)
     ctx.nt["targets"]["tags"]["targets"].set(tag_count)
-    
+
     if tag_count > 0:
         best_tag = min(tags.values(), key=lambda x: x['dist'])
         ctx.nt["targets"]["tags"]["id"].set(best_tag['id'])

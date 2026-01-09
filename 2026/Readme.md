@@ -5,37 +5,46 @@ Now featuring a threaded pipeline (Acquisition, Tags, HSV, NT, Stream) for highe
 
 ---
 ## Folder Structure
-```
-python_2026_refactor_2429/
+
+2026/
 ├─ README.md                     # You are here
-├─ bin/                          # Entrypoints you run
-│  ├─ launcher.py                # Multi‑process supervisor (spawns camera_worker per cam)
-│  ├─ multiCameraServer.py       # Single‑process (all cams in one process)
-│  └─ camera_worker.py           # Per‑camera process (capture → overlay → NT → stream)
-├─ vision/                    # Library modules (rarely change at events)
-│  ├─ __init__.py
-│  ├─ camctx.py                  # CamCtx dataclass: per‑camera state & options
-│  ├─ config_io.py               # Load vision.json + select host profile by IP/hostname
-│  ├─ rio.py                  # WPILib frc.json loader + startCamera()
-│  ├─ ntio.py                    # NetworkTables topics (publish/subscribe wiring)
-│  ├─ streaming.py               # CvSource/MjpegServer helpers + push_frame()
-│  ├─ vision_worker.py           # Per‑frame loop: grab → process → NT updates → stream
-│  ├─ spartan_overlay_2025.py    # AprilTag + color overlay processing
-│  ├─ tagmanager.py              # Tag pose bookkeeping/utilities (used by overlay)
-│  ├─ grip.py                    # (Legacy/optional) GRIP pipeline hooks
-│  └─ util.py                    # Threads, SIGINT stop, small camera helpers
+├─ main_multi_processor.py       # Multi-process supervisor (formerly launcher.py)
+├─ main_single_processor.py      # Single-process runtime (formerly multiCameraServer.py)
+├─ local_tester.py               # Local development test harness with GUI
 ├─ config/
-│  └─ vision.json                # Host profiles + per‑camera runtime settings
-├─ files/                        # Static assets (calibration, samples, etc.)
-└─ logs/                         # Runtime logs (created by launcher)
-```
+│  ├─ vision.json                # Host profiles + per-camera runtime settings
+│  └─ readme_vision.txt          # Documentation for vision.json fields
+├─ vision/                       # Library modules
+│  ├─ camera_context.py          # Data class for camera state
+│  ├─ camera_controls.py         # Hardware controls (exposure/brightness workarounds)
+│  ├─ camera_model.py            # Pinhole camera model logic
+│  ├─ camera_node.py             # Worker process entry point (runs one camera)
+│  ├─ detectors.py               # AprilTag and HSV detection logic
+│  ├─ hsv_config.py              # Color threshold configurations
+│  ├─ network.py                 # NetworkTables publishers/subscribers
+│  ├─ pipeline_setup.py          # Factory for creating camera contexts (DRY)
+│  ├─ tagmanager.py              # Temporal smoothing for tags
+│  ├─ threaded_pipeline.py       # 5-stage threaded pipeline engine
+│  ├─ visual_overlays.py         # Drawing logic for streams
+│  ├─ wpi_config.py              # Config loading and profile selection
+│  ├─ wpi_rio.py                 # WPILib/cscore hardware interaction
+│  └─ wpi_stream.py              # MJPEG streaming logic
+├─ setup_files/                  # Scripts and configs for Pi setup
+│  ├─ runCamera                  # Startup script
+│  ├─ runCamera.service          # Systemd service file
+│  └─ ...
+├─ tests/                        # Diagnostic scripts
+│  ├─ debug_apriltag.py
+│  ├─ minimal_streamer.py
+│  └─ ...
+└─ logs/                         # Runtime logs
 
 ---
 ## What Each Piece Does (short)
-- **bin/launcher.py** — Reads `config/vision.json`, validates names vs `/boot/frc.json`, spawns one `camera_worker.py` per camera, prints one live line with `FPS S F` per cam, writes logs to `./logs/`.
-- **bin/multiCameraServer.py** — Classic single‑process runtime; starts all cameras and runs worker threads in one process.
-- **bin/camera_worker.py** — One camera end‑to‑end (capture → overlay → NT → MJPEG). Prints `name: XX.Xfps  S:#  F:#` once per second.
-- **vision/** — Implementation modules: context, IO, NT topics, streaming, frame tick, overlay, tag utilities, legacy GRIP, and helpers.
+- **main_multi_processor.py** — Reads `config/vision.json`, validates names vs `/boot/frc.json`, spawns one `vision.camera_node` process per camera, prints one live line with `FPS S F` per cam, writes logs to `./logs/`.
+- **main_single_processor.py** — Classic single‑process runtime; starts all cameras and runs threaded pipelines in one process.
+- **local_tester.py** — Runs a pipeline on your local webcam with a GUI window. Allows tuning HSV thresholds and testing tag detection without a robot.
+- **vision/threaded_pipeline.py** — The core engine. Runs 5 threads per camera: Acquisition, Tag Detect, HSV Detect, NT Update, and Stream/Overlay.
 - **config/vision.json** — Host‑specific runtime (which cameras to run, processed ports, stream FPS/size, orientations, etc.).
 - **/boot/frc.json** — WPILib camera bring‑up (device path, format, width/height, exposure, etc.). Names must match `vision.json`.
 
@@ -43,12 +52,12 @@ python_2026_refactor_2429/
 ## Run Modes
 ### Single‑process
 ```
-python3 bin/multiCameraServer.py [optional /path/to/frc.json]
+python3 main_single_processor.py [optional /path/to/frc.json]
 ```
 
 ### Multi‑process (recommended on Pi)
 ```
-python3 bin/launcher.py --autorestart --vision config/vision.json [--frc /boot/frc.json]
+python3 main_multi_processor.py --autorestart --vision config/vision.json [--frc /boot/frc.json]
 ```
 - Shows one in‑place console line: `camA:40.0fps S:1203 F:7  camB:39.9fps S:1188 F:6`.
 - Logs: `./logs/camera-<name>.log` (workers’ stdout/stderr).

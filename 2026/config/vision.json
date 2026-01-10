@@ -60,8 +60,8 @@
           "camera_properties": {
             "max_tag_distance": 3,
             "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 },
-            "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
-            "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
+            "intrinsics": {"fx": 484.178, "fy": 483.753, "cx": 320.95, "cy": 177.38},
+            "distortions": [0.04355313, -0.1763234, -0.00145519, 0.00024383, 0.14653665],
             "use_distortions": false
           }
         },
@@ -87,8 +87,8 @@
           "camera_properties": {
             "max_tag_distance": 3,
             "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 },
-            "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 327.21, "cy": 173.35 },
-            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "intrinsics": {"fx": 462.925, "fy": 463.621, "cx": 320.77, "cy": 175.12},
+            "distortions": [0.12230188, -0.23959588, -0.00127158, -0.00126347, 0.10090911],
             "use_distortions": false
           }
         }
@@ -125,7 +125,7 @@
             "max_tag_distance": 4.5,
             "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 },
             "intrinsics": { "fx": 968.36, "fy": 967.51, "cx": 641.91, "cy": 354.77 },
-            "distortions": [0.05556984, -0.17219326, -0.00125776, 0.00109908, 0.11627947],
+            "distortions": [0.04355313, -0.1763234, -0.00145519, 0.00024383, 0.14653665],
             "use_distortions": false
           }
         },
@@ -151,8 +151,8 @@
           "camera_properties": {
             "max_tag_distance": 4.5,
             "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 },
-            "intrinsics": { "fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24 },
-            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "intrinsics": {"fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24},
+            "distortions": [0.12230188, -0.23959588, -0.00127158, -0.00126347, 0.10090911],
             "use_distortions": false
           }
         }
@@ -162,7 +162,7 @@
       }
     },
 
-    "10.24.29.133": {
+    "10.24.29.14": {
       "role": "practicebot_pi5_arducams",
       "cameras": [
         {
@@ -184,15 +184,16 @@
             "colors": ["orange"]
           },
           "tag_config": {
-            "decimate": 2.0,
+            "decimate": 1.0,
             "min_cluster_pixels": 25,
-            "threads": 2
+            "threads": 2,
+            "sigma": 0.6
           },
           "camera_properties": {
             "max_tag_distance": 4.5,
             "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
-            "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 360},
-            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "intrinsics": {"fx": 912.34, "fy": 911.71, "cx": 640.24, "cy": 431.91},
+            "distortions": [0.0331324, -0.04438929, -0.00067446, -0.00110617, -0.0147985],
             "use_distortions": false
           }
         },
@@ -215,15 +216,16 @@
             "colors": ["orange"]
           },
           "tag_config": {
-            "decimate": 1.5,
+            "decimate": 1.0,
             "min_cluster_pixels": 25,
-            "threads": 2
+            "threads": 2,
+            "sigma": 0.6
           },
           "camera_properties": {
             "max_tag_distance": 4.5,
             "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 },
-            "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 360},
-            "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355],
+            "intrinsics": {"fx": 907.48, "fy": 907.24, "cx": 640.9, "cy": 353.93},
+            "distortions": [0.02537283, -0.02294888, -0.00122956, -9.774e-05, -0.03132185],
             "use_distortions": false
           }
         }
@@ -383,12 +385,8 @@
           }
         }
       ]
-    },
-
-    "reef-high": {
-      "role": "hostname-fallback",
-      "cameras": []
     }
+
   },
 
   "default": {

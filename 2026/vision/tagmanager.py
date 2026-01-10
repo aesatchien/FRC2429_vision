@@ -83,9 +83,11 @@ class TagFilter:
         self.is_stable = np.all(std_devs < self.max_std)
 
         # If sitting still (stable), return SMOOTHED value
-        # Translation: Median is robust against noise
+        # Translation: Median is robust against noise if moving and having outliers
         t_avg = np.median(valid_data[:, :3], axis=0)
-        
+        # Translation: Mean is statistically better for stationary Gaussian noise
+        t_avg = np.mean(valid_data[:, :3], axis=0)
+
         # Rotation: Circular Mean (handles wrapping 179 -> -179 correctly)
         # Convert to complex numbers: exp(i * angle)
         rots = valid_data[:, 3:]

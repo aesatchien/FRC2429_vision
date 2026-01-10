@@ -103,7 +103,9 @@ def main():
     orientation = cam_props.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0})
 
     cam_model = CameraModel(width, height, camera_type, intrinsics, distortions)
-    tag_config = cam_cfg.get("tag_config", {})
+    tag_config = cam_cfg.get("tag_config", {}).copy()
+    tag_config["use_distortions"] = cam_props.get("use_distortions", False)
+    
     tag_detector = TagDetector(cam_model, config=tag_config)
     hsv_detector = HSVDetector(cam_model)
     tag_manager = TagManager(max_dt=0.5, max_averages=10, max_std=0.05)

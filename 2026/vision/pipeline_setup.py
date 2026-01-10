@@ -78,7 +78,9 @@ def deploy_camera_pipeline(cam_obj, cam_profile, rio_config, ntinst):
         ctx.x_resolution, ctx.y_resolution, ctx.camera_type,
         ctx.intrinsics, ctx.distortions
     )
-    tag_config = cam_profile.get("tag_config", {})
+    tag_config = cam_profile.get("tag_config", {}).copy()
+    # Inject distortion flag from camera properties
+    tag_config["use_distortions"] = ctx.use_distortions
     ctx.tag_detector = TagDetector(cam_model, config=tag_config)
     ctx.hsv_detector = HSVDetector(cam_model)
 

@@ -51,32 +51,32 @@ def set_camera_robust_defaults(camera, frc_config, camera_type="c920", delay=0):
     props = config_dict.get("properties", [])
     exp_prop = next((p for p in props if p["name"] == "exposure_time_absolute"), None)
 
-    if exp_prop:
-        val = exp_prop["value"] + 1
-        # The magic multiplier from 2025 code (likely for C920 specific behavior)
-        exp_val_v4l2 = int(val * 20)  # want to get the crappy c920 to be close to what we wanted
+    # if exp_prop:
+    #     val = exp_prop["value"] + 1
+    #     # The magic multiplier from 2025 code (likely for C920 specific behavior)
+    #     exp_val_v4l2 = int(val * 20)  # want to get the crappy c920 to be close to what we wanted
         
-        log.info(f"Configuring exposure for {camera.getName()}: base={val}, v4l2={exp_val_v4l2}")
+    #     log.info(f"Configuring exposure for {camera.getName()}: base={val}, v4l2={exp_val_v4l2}")
 
-        # A. Set cscore state (so it doesn't fight back)
-        try:
-            camera.setExposureManual(int(val))
-        except Exception as e:
-            log.warning(f"cscore setExposureManual failed: {e}")
+    #     # A. Set cscore state (so it doesn't fight back)
+    #     try:
+    #         camera.setExposureManual(int(val))
+    #     except Exception as e:
+    #         log.warning(f"cscore setExposureManual failed: {e}")
 
-        # B. Force v4l2-ctl on Linux for C920s
-        if sys.platform.startswith("linux") and camera_type == "c920":
-            path = camera.getPath()
-            # Allow /dev/videoX AND /dev/v4l/by-id/... paths
-            if path.startswith("/dev/"):
-                try:
-                    # Force Manual Mode (1)
-                    # subprocess.run(["v4l2-ctl", "-d", path, "--set-ctrl=exposure_auto=1"], check=False, capture_output=True)
+    #     # B. Force v4l2-ctl on Linux for C920s
+    #     if sys.platform.startswith("linux") and camera_type == "c920":
+    #         path = camera.getPath()
+    #         # Allow /dev/videoX AND /dev/v4l/by-id/... paths
+    #         if path.startswith("/dev/"):
+    #             try:
+    #                 # Force Manual Mode (1)
+    #                 # subprocess.run(["v4l2-ctl", "-d", path, "--set-ctrl=exposure_auto=1"], check=False, capture_output=True)
                     
-                    time.sleep(2.5)
+    #                 time.sleep(2.5)
 
-                    # Set Absolute Exposure
-                    log.info(f"v4l2-ctl setting exposure to {exp_val_v4l2} on {path}")
-                    subprocess.run(["v4l2-ctl", "-d", path, f"--set-ctrl=exposure_time_absolute={exp_val_v4l2}"], check=False, capture_output=True)
-                except Exception as e:
-                    log.warning(f"v4l2-ctl failed: {e}")
+    #                 # Set Absolute Exposure
+    #                 log.info(f"v4l2-ctl setting exposure to {exp_val_v4l2} on {path}")
+    #                 subprocess.run(["v4l2-ctl", "-d", path, f"--set-ctrl=exposure_time_absolute={exp_val_v4l2}"], check=False, capture_output=True)
+    #             except Exception as e:
+    #                 log.warning(f"v4l2-ctl failed: {e}")

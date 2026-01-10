@@ -22,8 +22,23 @@ class TagDetector:
         
         cfg = self.detector.getConfig()
         cfg.numThreads = config.get("threads", 1)
-        cfg.quadDecimate = config.get("decimate", 1.5)
+        cfg.quadDecimate = config.get("decimate", 1.0) # 1.0 = Best Quality (Full Res)
+        cfg.quadSigma = config.get("sigma", 0.6)       # 0.6 = Smooths sensor noise
+        cfg.refineEdges = config.get("refine_edges", True) # Turn FALSE to speed up
+        cfg.decodeSharpening = config.get("decode_sharpening", 0.25)
         self.detector.setConfig(cfg)
+        
+        # Filter Params
+        self.min_margin = config.get("decision_margin", 35) # Reject weak tags
+        self.max_hamming = config.get("hamming", 1)         # Reject bit errors
+
+        # Distortion Correction
+        self.use_distortions = config.get("use_distortions", False)
+        self.map1, self.map2 = None, None
+        if self.use_distortions and hasattr(self.cam, 'distortions') and self.cam.distortions:
+            K = np.array([[self.cam.fx, 0, self.cam.cx], [0, self.cam.fy, self.cam.cy], [0, 0, 1]])
+            D = np.array(self.cam.distortions)
+            self.map1, self.map2 = cv2.initUndistortRectifyMap(K, D, None, K, (self.cam.width, self.cam.height), cv2.CV_16SC2)
 
         # Pose Estimator
         est_config = ra.AprilTagPoseEstimator.Config(
@@ -48,12 +63,16 @@ class TagDetector:
 
     def detect(self, image, cam_orientation=None, max_distance=3.0):
         grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        if self.use_distortions and self.map1 is not None:
+            grey = cv2.remap(grey, self.map1, self.map2, cv2.INTER_LINEAR)
+            
         detections = self.detector.detect(grey)
         
         results = {}
         
         # Filter
-        valid_tags = [t for t in detections if t.getDecisionMargin() > 30 and t.getHamming() < 2]
+        valid_tags = [t for t in detections if t.getDecisionMargin() > self.min_margin and t.getHamming() <= self.max_hamming]
         
         for tag in valid_tags:
             # Pose Estimation

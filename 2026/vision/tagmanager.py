@@ -84,7 +84,7 @@ class TagFilter:
 
         # If sitting still (stable), return SMOOTHED value
         # Translation: Median is robust against noise if moving and having outliers
-        t_avg = np.median(valid_data[:, :3], axis=0)
+        # t_avg = np.median(valid_data[:, :3], axis=0)
         # Translation: Mean is statistically better for stationary Gaussian noise
         t_avg = np.mean(valid_data[:, :3], axis=0)
 
@@ -116,7 +116,8 @@ class TagManager:
         out = {}
         for key, tag in tags.items():
             # Only filter tags that have a valid field pose (in_layout=True)
-            if tag.get("in_layout"):
+            # Skip smoothing for multi-tag result (ID -1) as it is already aggregated
+            if tag.get("in_layout") and tag['id'] != -1:
                 # Always update filter to keep history current
                 res = self.update(
                     tag['id'], 

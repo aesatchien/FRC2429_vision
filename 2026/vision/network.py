@@ -102,6 +102,11 @@ def update_cam_entries(ctx, tags, colors, ntinst):
 
     # Update Tag Poses (Odometry)
     odo_tags = [t for t in tags.values() if t.get("in_layout", False)]
+    
+    # Sort so Multi-Tag (ID -1) is first, then others by distance (closest first)
+    # Tuple sort: (is_not_multi_tag, distance) -> False (0) comes before True (1)
+    odo_tags.sort(key=lambda x: (x['id'] != -1, x['dist']))
+
     if len(odo_tags) > 0:
         for i in range(2):
             if i < len(odo_tags):

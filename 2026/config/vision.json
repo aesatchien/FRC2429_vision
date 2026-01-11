@@ -187,7 +187,8 @@
             "decimate": 1.0,
             "min_cluster_pixels": 25,
             "threads": 2,
-            "sigma": 0.6
+            "sigma": 0.6,
+            "allow_multi_tag": true
           },
           "camera_properties": {
             "max_tag_distance": 4.5,
@@ -219,7 +220,8 @@
             "decimate": 1.0,
             "min_cluster_pixels": 25,
             "threads": 2,
-            "sigma": 0.6
+            "sigma": 0.6,
+            "allow_multi_tag": true
           },
           "camera_properties": {
             "max_tag_distance": 4.5,

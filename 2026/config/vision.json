@@ -370,20 +370,20 @@
       "cameras": [
         {
           "name": "webcam",
-          "camera_type": "c920",
+          "camera_type": "arducam",
           "labeling": {
             "stream_max_width": 640
           },
           "activities": {
             "find_tags": true,
-            "find_colors": true,
+            "find_colors": false,
             "colors": ["orange", "yellow", "purple", "green"]
           },
           "camera_properties": {
             "max_tag_distance": 5,
             "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 },
-            "intrinsics": { "fx": 484.14, "fy": 484.09, "cx": 320, "cy": 240 },
-            "distortions": []
+            "intrinsics": {"fx": 912.34, "fy": 911.71, "cx": 640, "cy": 360},
+            "distortions": [0.0331324, -0.04438929, -0.00067446, -0.00110617, -0.0147985]
           }
         }
       ]

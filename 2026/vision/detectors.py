@@ -234,53 +234,37 @@ class TagDetector:
         
         if not success: return None
 
-        # 3. Convert to WPILib Geometry
-        # solvePnP returns the Transform from Field(Object) -> Camera(CV)
-        # T_camera_field (in CV frame)
-        
-        # Convert rvec to Rotation3d
+        # 3. Convert to WPILib Geometry (Matching Single Tag Logic)
         R_f_c, _ = cv2.Rodrigues(rvec)
-        # WPILib Rotation3d can take a 3x3 matrix (requires flattened tuple or numpy array depending on version)
-        # Safest is to convert to Quaternion or use RPY, but let's try the matrix constructor if available,
-        # or manual conversion. To be safe across versions, let's use a helper.
         rot_f_c = self._matrix_to_rotation3d(R_f_c)
         
-        # Construct Pose of Field Origin in Camera Frame (CV Coordinates)
-        # OpenCV: X Right, Y Down, Z Forward (matches WPILib EDN: East-Down-North)
-        pose_field_in_cam_cv = geo.Pose3d(
-            geo.Translation3d(tvec[0][0], tvec[1][0], tvec[2][0]), 
-            rot_f_c
+        # Construct Transform in Camera Frame (EDN)
+        # We apply the same manual rotation fix as _process_single_tag to align behaviors
+        pose_camera = geo.Transform3d(
+            geo.Translation3d(tvec[0][0], tvec[1][0], tvec[2][0]),
+            geo.Rotation3d(-rot_f_c.X() - np.pi, -rot_f_c.Y(), rot_f_c.Z() - np.pi)
         )
         
-        # Convert to NWU (North-West-Up) which is the standard WPILib Robot/Field Frame
-        # EDN -> NWU maps: X(East)->-Y(West), Y(Down)->-Z(Up), Z(North)->X(North)
-        pose_field_in_cam_nwu = geo.CoordinateSystem.convert(
-            pose_field_in_cam_cv, 
-            geo.CoordinateSystem.EDN(), 
-            geo.CoordinateSystem.NWU()
-        )
-        
-        # We now have the Pose of the Field Origin relative to the Camera (in NWU).
-        # We want the Pose of the Camera relative to the Field.
-        # This is simply the inverse.
-        # Pose3d does not have inverse(), so we use Transform3d
-        tf_field_in_cam = geo.Transform3d(pose_field_in_cam_nwu.translation(), pose_field_in_cam_nwu.rotation())
-        tf_cam_in_field = tf_field_in_cam.inverse()
-        camera_pose = geo.Pose3d(tf_cam_in_field.translation(), tf_cam_in_field.rotation())
+        # Convert to NWU
+        pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(), geo.CoordinateSystem.NWU())
 
-        # 4. Apply Camera Offset to get Robot Pose
         if cam_orientation:
             so = cam_orientation
             robot_to_cam = geo.Transform3d(
                 geo.Translation3d(so['tx'], so['ty'], so['tz']),
                 geo.Rotation3d(math.radians(so['rx']), math.radians(so['ry']), math.radians(so['rz']))
             )
-            robot_pose = camera_pose.transformBy(robot_to_cam.inverse())
+            
+            # objectToRobotPose(objectPose, objectInCamera, cameraInRobot)
+            # Object is Field Origin (Identity Pose). 
+            # objectInCamera is the transform from Camera to Field Origin (pose_nwu).
+            robot_pose = objectToRobotPose(geo.Pose3d(), pose_nwu, robot_to_cam)
             
             tx, ty, tz = robot_pose.X(), robot_pose.Y(), robot_pose.Z()
             rx, ry, rz = robot_pose.rotation().X(), robot_pose.rotation().Y(), robot_pose.rotation().Z()
         else:
-            # Fallback if no orientation provided (return camera pose)
+            # Fallback: Return Camera Pose in Field
+            camera_pose = geo.Pose3d(pose_nwu.translation(), pose_nwu.rotation())
             tx, ty, tz = camera_pose.X(), camera_pose.Y(), camera_pose.Z()
             rx, ry, rz = camera_pose.rotation().X(), camera_pose.rotation().Y(), camera_pose.rotation().Z()
 

@@ -1,0 +1,36 @@
+{
+    "camera": "Arducam OV9281 USB Camera (0c45:6366) D",
+    "platform": "Windows NT 10.0; Win64; x64",
+    "camera_matrix": [
+        [
+            914.4963876444655,
+            0,
+            638.1304818986589
+        ],
+        [
+            0,
+            913.7757278967113,
+            433.8232797443499
+        ],
+        [
+            0,
+            0,
+            1
+        ]
+    ],
+    "distortion_coefficients": [
+        0.01885196217747997,
+        0.01076629611426486,
+        -0.00011401323421275532,
+        -0.001030590331061856,
+        -0.06682982384946282
+    ],
+    "distortion_model": "rectilinear",
+    "avg_reprojection_error": 0.21252188164482647,
+    "img_size": [
+        1280,
+        720
+    ],
+    "keyframes": 8,
+    "calibration_time": "Sat, 10 Jan 2026 06:55:21 GMT"
+}

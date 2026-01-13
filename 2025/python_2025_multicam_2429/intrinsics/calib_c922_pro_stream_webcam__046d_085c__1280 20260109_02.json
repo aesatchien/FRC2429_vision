@@ -1,0 +1,36 @@
+{
+    "camera": "c922 Pro Stream Webcam (046d:085c) B 202601",
+    "platform": "Windows NT 10.0; Win64; x64",
+    "camera_matrix": [
+        [
+            946.8588209561915,
+            0,
+            643.1690681354473
+        ],
+        [
+            0,
+            948.4860352828014,
+            357.8570163992484
+        ],
+        [
+            0,
+            0,
+            1
+        ]
+    ],
+    "distortion_coefficients": [
+        0.03874425505631542,
+        -0.1659577450549411,
+        -0.000035280654714908455,
+        -0.000013959401835140049,
+        0.10532595484426974
+    ],
+    "distortion_model": "rectilinear",
+    "avg_reprojection_error": 0.2804970684723242,
+    "img_size": [
+        1280,
+        720
+    ],
+    "keyframes": 8,
+    "calibration_time": "Sat, 10 Jan 2026 04:16:48 GMT"
+}

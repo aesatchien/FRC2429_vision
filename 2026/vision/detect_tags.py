@@ -4,7 +4,6 @@ import math
 import robotpy_apriltag as ra
 import wpimath.geometry as geo
 from wpimath import objectToRobotPose
-from vision.hsv_config import get_hsv_config, get_target_dimensions
 
 
 class TagDetector:
@@ -65,6 +64,9 @@ class TagDetector:
         else:
             self.layout = field_layout
 
+        # history for continuity
+        self._pnp_hist = {}  # key: tagId -> dict(rvec,tvec,ts, robot_pose)
+
     def detect(self, image, cam_orientation=None, max_distance=None):
         if max_distance is None:
             max_distance = self.default_max_dist
@@ -107,7 +109,7 @@ class TagDetector:
             
         return results
 
-    def _process_single_tag(self, tag, cam_orientation, max_distance):
+    def _process_single_tag_cjh(self, tag, cam_orientation, max_distance):
         """
         Calculates pose for a single detected tag.
         Returns a dictionary of results or None if filtered out.
@@ -199,126 +201,281 @@ class TagDetector:
             'pnp_rms_px': rms
         }
 
-    def _process_single_tag_GPT(self, tag, cam_orientation, max_distance):
-        """
-        Single-tag pose via OpenCV solvePnP ITERATIVE on AprilTag corners.
+    def _process_single_tag(self, tag, cam_orientation, max_distance):
+        # PhotonVision-like single-tag PnP: try IPPE_SQUARE then ITERATIVE, test 8 windings,
+        # seed with history from self._pnp_hist, choose best by reprojection RMS.
+        # Returns same schema as older functions plus diagnostic fields to help debug axis/flip issues.
 
-        Conventions:
-          - Object points are tag-local corners on the tag plane (Z=0).
-          - solvePnP returns TAG -> CAMERA(CV): X_cam = R * X_tag + t
-          - We compute reprojection RMS in pixels and gate.
-          - For field pose:
-              tag_field_pose (WPILib Pose3d) is FIELD <- TAG
-              cam_pose_tag is TAG <- CAM (WPILib camera axes for rotation)
-              cam_pose_field = tag_field_pose ⊕ (cam_pose_tag)   [since tag_field_pose is FIELD<-TAG]
-              robot_pose_field = cam_pose_field ⊕ inverse(robot_to_cam)
-        """
-
-        # Intrinsics (no distortion)
+        # --- intrinsics + distortion ---
         K = np.array([[self.cam.fx, 0.0, self.cam.cx],
                       [0.0, self.cam.fy, self.cam.cy],
                       [0.0, 0.0, 1.0]], dtype=np.float64)
-        D = np.zeros((5, 1), dtype=np.float64)
 
-        tag_size = 0.1651
-        s = tag_size / 2.0
+        if getattr(self.cam, 'dist_coeffs', None) is not None:
+            D = np.asarray(self.cam.dist_coeffs, dtype=np.float64).reshape(-1, 1)
+        else:
+            D = np.zeros((5, 1), dtype=np.float64)
 
-        # Tag-local corner model (same as multi-tag)
-        obj_points = np.array([
-            [-s, -s, 0.0],
-            [s, -s, 0.0],
-            [s, s, 0.0],
-            [-s, s, 0.0],
-        ], dtype=np.float64)
+        tid = int(tag.getId())
 
-        # Detector corners (4x2)
+        # --- detector corners (4x2) ---
         c = tag.getCorners([0.0] * 8)
         if len(c) != 8:
             return None
 
-        pts = np.array([
+        pts_det = np.array([
             [c[0], c[1]],
             [c[2], c[3]],
             [c[4], c[5]],
             [c[6], c[7]],
         ], dtype=np.float64)
 
-        # Empirically verified permutation (same as multi-tag):
-        # perm=('rot',1,True) => roll by -1, then reverse winding.
-        pts = np.roll(pts, -1, axis=0)[::-1].copy()
-        img_points = pts
-
-        # Solve TAG -> CAMERA(CV)
-        ok, rvec, tvec = cv2.solvePnP(
-            obj_points,
-            img_points,
-            K,
-            D,
-            flags=cv2.SOLVEPNP_ITERATIVE
-        )
-        if not ok:
-            return None
-
-        # Reprojection RMS (px)
-        proj, _ = cv2.projectPoints(obj_points, rvec, tvec, K, D)
-        proj = proj.reshape(-1, 2)
-        e = proj - img_points
-        rms = float(np.sqrt(np.mean(np.sum(e * e, axis=1))))
-
-        # Gate (tune if needed; start loose and tighten)
-        RMS_GATE_PX = 15.0
-        if rms > RMS_GATE_PX:
-            return None
-
-        # Distance in OpenCV camera Z
-        dist = float(tvec[2])
-        if dist > max_distance:
-            return None
-
-        # Invert to get CAM pose in TAG (still CV camera axes)
-        R_t2c, _ = cv2.Rodrigues(rvec)  # tag->cam
-        R_c2t = R_t2c.T
-        t_c2t = -R_c2t @ tvec.reshape(3, 1)  # cam position in tag frame (CV axes)
-
-        # Convert camera axes CV -> WPILib camera axes for rotation
-        # v_wpi = P * v_cv
-        P = np.array([
-            [0.0, 0.0, 1.0],
-            [-1.0, 0.0, 0.0],
-            [0.0, -1.0, 0.0],
+        # --- tag-local model (XY plane, Z=0) ---
+        tag_size = 0.1651
+        s = tag_size / 2.0
+        obj = np.array([
+            [-s, -s, 0.0],
+            [s, -s, 0.0],
+            [s, s, 0.0],
+            [-s, s, 0.0],
         ], dtype=np.float64)
 
-        # We want rotation mapping camera(WPI) -> tag:
-        # v_tag = R_c2t * v_cam_cv = R_c2t * P^T * v_cam_wpi
-        R_camwpi_to_tag = R_c2t @ P.T
+        # --- reprojection RMS helper ---
+        def reproj_rms(rvec, tvec, img_pts):
+            try:
+                proj, _ = cv2.projectPoints(obj, rvec, tvec, K, D)
+                proj = proj.reshape(-1, 2)
+                e = proj - img_pts
+                return float(np.sqrt(np.mean(np.sum(e * e, axis=1))))
+            except Exception:
+                return float('inf')
 
-        cam_pose_tag = geo.Pose3d(
-            geo.Translation3d(float(t_c2t[0]), float(t_c2t[1]), float(t_c2t[2])),
-            self._matrix_to_rotation3d(R_camwpi_to_tag)
-        )
+        # --- history / continuity ---
+        hist = getattr(self, '_pnp_hist', None)
+        if hist is None:
+            self._pnp_hist = {}
+            hist = self._pnp_hist
 
-        # Field pose calculation
+        prev = hist.get(tid)
+        now = float(cv2.getTickCount() / cv2.getTickFrequency())
+
+        # --- test 8 windings (4 cyclic shifts x 2 directions) ---
+        tried_perms = []
+        rms_list = []
+        candidates = []  # tuples (rms, rvec, tvec, perm_idx, img_pts)
+        rejected_physical = []
+
+        # Precompute layout/tag pose and robot_to_cam if available for physical plausibility checks
+        have_layout_pose = False
+        robot_to_cam = None
+        tag_field_pose = None
+        if self.layout and cam_orientation:
+            try:
+                tag_field_pose = self.layout.getTagPose(tid)
+                if tag_field_pose is not None:
+                    have_layout_pose = True
+                    so = cam_orientation
+                    robot_to_cam = geo.Transform3d(
+                        geo.Translation3d(so["tx"], so["ty"], so["tz"]),
+                        geo.Rotation3d(math.radians(so["rx"]), math.radians(so["ry"]), math.radians(so["rz"]))
+                    )
+            except Exception:
+                have_layout_pose = False
+                robot_to_cam = None
+
+        # Reasonable field bounds (meters) to reject wildly-unphysical candidates.
+        # These are conservative defaults for FRC fields; change if you have custom field extents.
+        FIELD_X_MIN, FIELD_X_MAX = 0.0, 17.0
+        FIELD_Y_MIN, FIELD_Y_MAX = 0.0, 9.0
+        FIELD_Z_MIN, FIELD_Z_MAX = -1.0, 10.0
+        MAX_DIST_FROM_TAG = 50.0  # meters
+
+        for k in range(4):
+            p = np.roll(pts_det, -k, axis=0)
+            for rev in (False, True):
+                img = p[::-1].copy() if rev else p.copy()
+                perm_idx = (k, rev)
+                tried_perms.append(perm_idx)
+
+                # Try IPPE_SQUARE (if available) as a fast, planar-optimized solver
+                try:
+                    ok = False
+                    try:
+                        ok, rvec_ippe, tvec_ippe = cv2.solvePnP(obj, img, K, D, flags=cv2.SOLVEPNP_IPPE_SQUARE)
+                        if ok:
+                            rms_ippe = reproj_rms(rvec_ippe, tvec_ippe, img)
+                            # Physical plausibility check for this candidate
+                            plausible = True
+                            if have_layout_pose:
+                                try:
+                                    R_cv_cand, _ = cv2.Rodrigues(rvec_ippe)
+                                    C_tag_cand = -R_cv_cand.T @ tvec_ippe.reshape(3, 1)
+                                    P = np.array([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]], dtype=np.float64)
+                                    R_cam2tag_cv_cand = R_cv_cand.T
+                                    R_cam2tag_wpi_cand = R_cam2tag_cv_cand @ P.T
+                                    cam_pose_tag_cand = geo.Pose3d(
+                                        geo.Translation3d(float(C_tag_cand[0]), float(C_tag_cand[1]), float(C_tag_cand[2])),
+                                        self._matrix_to_rotation3d(R_cam2tag_wpi_cand)
+                                    )
+                                    cam_pose_field_cand = tag_field_pose.transformBy(geo.Transform3d(geo.Pose3d(), cam_pose_tag_cand))
+                                    cx, cy, cz = cam_pose_field_cand.X(), cam_pose_field_cand.Y(), cam_pose_field_cand.Z()
+                                    # distance from tag
+                                    tpos = tag_field_pose.translation()
+                                    dx = cx - tpos.X(); dy = cy - tpos.Y(); dz = cz - tpos.Z()
+                                    dtag = math.sqrt(dx*dx + dy*dy + dz*dz)
+                                    if not (FIELD_X_MIN <= cx <= FIELD_X_MAX and FIELD_Y_MIN <= cy <= FIELD_Y_MAX and FIELD_Z_MIN <= cz <= FIELD_Z_MAX):
+                                        plausible = False
+                                    if dtag > MAX_DIST_FROM_TAG:
+                                        plausible = False
+                                except Exception:
+                                    plausible = True
+
+                            if plausible:
+                                candidates.append((rms_ippe, rvec_ippe, tvec_ippe, perm_idx, img))
+                                rms_list.append(rms_ippe)
+                            else:
+                                rejected_physical.append((perm_idx, 'IPPE', float(rms_ippe)))
+                    except Exception:
+                        # IPPE may not be available on all OpenCV builds; ignore failures
+                        pass
+
+                    # Try seeded ITERATIVE if we have a recent previous solution
+                    seeded = False
+                    if prev is not None and (now - prev.get('ts', 0.0)) < 0.5:
+                        try:
+                            rvec_seed = np.asarray(prev['rvec']).copy()
+                            tvec_seed = np.asarray(prev['tvec']).copy()
+                            ok, rvec_g, tvec_g = cv2.solvePnP(obj, img, K, D,
+                                                              rvec=rvec_seed, tvec=tvec_seed,
+                                                              useExtrinsicGuess=True,
+                                                              flags=cv2.SOLVEPNP_ITERATIVE)
+                            if ok:
+                                rms_g = reproj_rms(rvec_g, tvec_g, img)
+                                # physical plausibility
+                                plausible = True
+                                if have_layout_pose:
+                                    try:
+                                        R_cv_cand, _ = cv2.Rodrigues(rvec_g)
+                                        C_tag_cand = -R_cv_cand.T @ tvec_g.reshape(3, 1)
+                                        P = np.array([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]], dtype=np.float64)
+                                        R_cam2tag_cv_cand = R_cv_cand.T
+                                        R_cam2tag_wpi_cand = R_cam2tag_cv_cand @ P.T
+                                        cam_pose_tag_cand = geo.Pose3d(
+                                            geo.Translation3d(float(C_tag_cand[0]), float(C_tag_cand[1]), float(C_tag_cand[2])),
+                                            self._matrix_to_rotation3d(R_cam2tag_wpi_cand)
+                                        )
+                                        cam_pose_field_cand = tag_field_pose.transformBy(geo.Transform3d(geo.Pose3d(), cam_pose_tag_cand))
+                                        cx, cy, cz = cam_pose_field_cand.X(), cam_pose_field_cand.Y(), cam_pose_field_cand.Z()
+                                        tpos = tag_field_pose.translation()
+                                        dx = cx - tpos.X(); dy = cy - tpos.Y(); dz = cz - tpos.Z()
+                                        dtag = math.sqrt(dx*dx + dy*dy + dz*dz)
+                                        if not (FIELD_X_MIN <= cx <= FIELD_X_MAX and FIELD_Y_MIN <= cy <= FIELD_Y_MAX and FIELD_Z_MIN <= cz <= FIELD_Z_MAX):
+                                            plausible = False
+                                        if dtag > MAX_DIST_FROM_TAG:
+                                            plausible = False
+                                    except Exception:
+                                        plausible = True
+
+                                if plausible:
+                                    candidates.append((rms_g, rvec_g, tvec_g, perm_idx, img))
+                                    rms_list.append(rms_g)
+                                    seeded = True
+                                else:
+                                    rejected_physical.append((perm_idx, 'SEED', float(rms_g)))
+                        except Exception:
+                            seeded = False
+
+                    # Always try a fresh ITERATIVE fallback
+                    try:
+                        ok, rvec_it, tvec_it = cv2.solvePnP(obj, img, K, D, flags=cv2.SOLVEPNP_ITERATIVE)
+                        if ok:
+                            rms_it = reproj_rms(rvec_it, tvec_it, img)
+                            plausible = True
+                            if have_layout_pose:
+                                try:
+                                    R_cv_cand, _ = cv2.Rodrigues(rvec_it)
+                                    C_tag_cand = -R_cv_cand.T @ tvec_it.reshape(3, 1)
+                                    P = np.array([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]], dtype=np.float64)
+                                    R_cam2tag_cv_cand = R_cv_cand.T
+                                    R_cam2tag_wpi_cand = R_cam2tag_cv_cand @ P.T
+                                    cam_pose_tag_cand = geo.Pose3d(
+                                        geo.Translation3d(float(C_tag_cand[0]), float(C_tag_cand[1]), float(C_tag_cand[2])),
+                                        self._matrix_to_rotation3d(R_cam2tag_wpi_cand)
+                                    )
+                                    cam_pose_field_cand = tag_field_pose.transformBy(geo.Transform3d(geo.Pose3d(), cam_pose_tag_cand))
+                                    cx, cy, cz = cam_pose_field_cand.X(), cam_pose_field_cand.Y(), cam_pose_field_cand.Z()
+                                    tpos = tag_field_pose.translation()
+                                    dx = cx - tpos.X(); dy = cy - tpos.Y(); dz = cz - tpos.Z()
+                                    dtag = math.sqrt(dx*dx + dy*dy + dz*dz)
+                                    if not (FIELD_X_MIN <= cx <= FIELD_X_MAX and FIELD_Y_MIN <= cy <= FIELD_Y_MAX and FIELD_Z_MIN <= cz <= FIELD_Z_MAX):
+                                        plausible = False
+                                    if dtag > MAX_DIST_FROM_TAG:
+                                        plausible = False
+                                except Exception:
+                                    plausible = True
+
+                            if plausible:
+                                candidates.append((rms_it, rvec_it, tvec_it, perm_idx, img))
+                                rms_list.append(rms_it)
+                            else:
+                                rejected_physical.append((perm_idx, 'ITER', float(rms_it)))
+                    except Exception:
+                        pass
+
+                except Exception:
+                    # Guard outermost in case of unexpected failures
+                    continue
+
+        if not candidates:
+            return None
+
+        # Choose best candidate by RMS
+        best = min(candidates, key=lambda x: x[0])
+        rms, rvec, tvec, best_perm, best_img = best
+
+        dist = float(tvec[2])
+
+        # Gates: distance + reprojection error
+        if dist <= 0 or dist > max_distance:
+            return None
+        if rms > 10.0:
+            return None
+
+        # --- invert TAG->CAM to get CAM pose in TAG frame ---
+        R_cv, _ = cv2.Rodrigues(rvec)
+        C_tag = -R_cv.T @ tvec.reshape(3, 1)
+
+        # --- compose field pose if layout available ---
         tx = ty = tz = rx = ry = rz = 0.0
         in_layout = False
+        robot_pose = None
 
         if self.layout and cam_orientation:
-            tag_field_pose = self.layout.getTagPose(tag.getId())
+            tag_field_pose = self.layout.getTagPose(tid)
             if tag_field_pose:
+                # Map CV camera->WPILib camera axes using same P as multi-tag
+                P = np.array([
+                    [0.0, 0.0, 1.0],
+                    [-1.0, 0.0, 0.0],
+                    [0.0, -1.0, 0.0],
+                ], dtype=np.float64)
+
+                # Camera pose relative to tag (WPILib axes)
+                R_cam2tag_cv = R_cv.T
+                R_cam2tag_wpi = R_cam2tag_cv @ P.T
+
+                cam_pose_tag = geo.Pose3d(
+                    geo.Translation3d(float(C_tag[0]), float(C_tag[1]), float(C_tag[2])),
+                    self._matrix_to_rotation3d(R_cam2tag_wpi)
+                )
+
                 so = cam_orientation
                 robot_to_cam = geo.Transform3d(
-                    geo.Translation3d(so['tx'], so['ty'], so['tz']),
-                    geo.Rotation3d(
-                        math.radians(so['rx']),
-                        math.radians(so['ry']),
-                        math.radians(so['rz'])
-                    )
+                    geo.Translation3d(so["tx"], so["ty"], so["tz"]),
+                    geo.Rotation3d(math.radians(so["rx"]), math.radians(so["ry"]), math.radians(so["rz"]))
                 )
 
-                # cam_pose_tag is TAG<-CAM; tag_field_pose is FIELD<-TAG
-                cam_pose_field = tag_field_pose.transformBy(
-                    geo.Transform3d(cam_pose_tag.translation(), cam_pose_tag.rotation())
-                )
-
+                cam_pose_field = tag_field_pose.transformBy(geo.Transform3d(geo.Pose3d(), cam_pose_tag))
                 robot_pose = cam_pose_field.transformBy(robot_to_cam.inverse())
 
                 t = robot_pose.translation()
@@ -327,15 +484,69 @@ class TagDetector:
                 rx, ry, rz = r.X(), r.Y(), r.Z()
                 in_layout = True
 
-        # Targeting (unchanged)
+                # Plausibility check vs previous robot pose to prevent jumps
+                if prev is not None and prev.get('robot_pose') is not None:
+                    rp0 = prev['robot_pose']
+                    dx = robot_pose.X() - rp0.X()
+                    dy = robot_pose.Y() - rp0.Y()
+                    dz = robot_pose.Z() - rp0.Z()
+                    dpos = math.sqrt(dx * dx + dy * dy + dz * dz)
+
+                    yaw = robot_pose.rotation().Z()
+                    yaw0 = rp0.rotation().Z()
+                    dyaw = (yaw - yaw0 + math.pi) % (2 * math.pi) - math.pi
+
+                    if dpos > 0.50 or abs(dyaw) > math.radians(25):
+                        # reject this robot_pose and keep previous
+                        robot_pose = rp0
+                        t = robot_pose.translation()
+                        r = robot_pose.rotation()
+                        tx, ty, tz = t.X(), t.Y(), t.Z()
+                        rx, ry, rz = r.X(), r.Y(), r.Z()
+
+        # --- update history (store copies) ---
+        try:
+            hist[tid] = {"rvec": np.asarray(rvec).copy(), "tvec": np.asarray(tvec).copy(), "ts": now, "robot_pose": robot_pose}
+        except Exception:
+            hist[tid] = {"rvec": rvec, "tvec": tvec, "ts": now, "robot_pose": robot_pose}
+
+        # --- targeting info ---
         center = tag.getCenter()
         fov_h = self.cam.get_fov()
         norm_x = (2.0 * center.x / self.cam.width) - 1.0
         rotation = -norm_x * (fov_h / 2.0)
         strafe = math.sin(math.radians(rotation)) * dist
 
-        return {
-            'id': tag.getId(),
+        # Diagnostics to help diagnose axis/flip issues
+        diag_R_cv = R_cv.tolist() if isinstance(R_cv, np.ndarray) else None
+        try:
+            # camera position in field (if available)
+            cam_pos_field = None
+            if in_layout and 'cam_pose_field' in locals():
+                cam_pos_field = [cam_pose_field.X(), cam_pose_field.Y(), cam_pose_field.Z()]
+        except Exception:
+            cam_pos_field = None
+
+        # Summarize candidates and rejected_physical for diagnostics
+        try:
+            diag_candidates = [{'perm': c[3], 'rms': float(c[0])} for c in candidates]
+        except Exception:
+            diag_candidates = None
+
+        diag = {
+            'diag_tried_perms': tried_perms,
+            'diag_rms_list': rms_list,
+            'diag_best_perm': best_perm,
+            'diag_candidates': diag_candidates,
+            'diag_rejected_physical': rejected_physical,
+            'diag_R_cv': diag_R_cv,
+            'diag_R_wpi': (R_cam2tag_wpi.tolist() if 'R_cam2tag_wpi' in locals() else None),
+            'diag_cam_pos_field': cam_pos_field,
+        }
+
+        # --- return result ---
+        res = {
+            'id': tid,
             'in_layout': in_layout,
             'tx': tx, 'ty': ty, 'tz': tz,
             'rx': rx, 'ry': ry, 'rz': rz,
@@ -348,6 +559,8 @@ class TagDetector:
             'tvec': tvec,
             'pnp_rms_px': rms,
         }
+        res.update(diag)
+        return res
 
     def _process_multi_tag(self, tag_results, cam_orientation):
         """
@@ -575,120 +788,3 @@ class TagDetector:
             cyc = np.array([cyc[0], cyc[3], cyc[2], cyc[1]], dtype=np.float64)
 
         return cyc
-
-
-class HSVDetector:
-    def __init__(self, camera_model):
-        self.cam = camera_model
-        self.fov_h = self.cam.get_fov()
-
-    def process(self, image, color, training=False, train_box=None):
-        # 1. Get Config
-        cfg = get_hsv_config(color, self.cam.width, self.cam.height)
-        if not cfg: return {}
-
-        # 2. Pre-process
-        if cfg.get('_blur_radius', 0) > 0:
-            image = cv2.blur(image, (cfg['_blur_radius'], cfg['_blur_radius']))
-            
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        
-        # 3. Threshold
-        lower = np.array([cfg['_hsv_threshold_hue'][0], cfg['_hsv_threshold_saturation'][0], cfg['_hsv_threshold_value'][0]])
-        upper = np.array([cfg['_hsv_threshold_hue'][1], cfg['_hsv_threshold_saturation'][1], cfg['_hsv_threshold_value'][1]])
-        
-        stats = {}
-        if training:
-            stats = self._calc_training_stats(hsv, self.cam.width, self.cam.height, train_box)
-            if stats:
-                lower = np.array([stats['hue'][0], stats['sat'][0], stats['val'][0]])
-                upper = np.array([stats['hue'][1], stats['sat'][1], stats['val'][1]])
-
-        mask = cv2.inRange(hsv, lower, upper)
-        
-        # 4. Contours
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        # 5. Filter
-        filtered = []
-        for c in contours:
-            x, y, w, h = cv2.boundingRect(c)
-            area = cv2.contourArea(c)
-            if area < cfg.get('_filter_contours_min_area', 0): continue
-            if w < cfg.get('_filter_contours_min_width', 0): continue
-            ratio = w / h
-            if ratio < cfg.get('_filter_contours_min_ratio', 0): continue
-            if ratio > cfg.get('_filter_contours_max_ratio', 100): continue
-            
-            # Y-limit check
-            ignore_y = cfg.get('ignore_y', [9999, 9999])
-            if y > ignore_y[0]: continue
-            
-            filtered.append(c)
-            
-        # 6. Sort (Size)
-        filtered.sort(key=cv2.contourArea, reverse=True)
-        
-        # 7. Calculate Attributes for Top Target
-        results = {
-            'targets': len(filtered),
-            'contours': filtered,
-            'ids': [], 'distances': [], 'strafes': [], 'rotations': [], 'heights': [],
-            'cx': [], 'cy': []
-        }
-        
-        target_width_m = get_target_dimensions(color)
-        
-        for i, c in enumerate(filtered):
-            x, y, w, h = cv2.boundingRect(c)
-            
-            # Distance Calc
-            # distance = object_width / (2 * tan(width_in_fov * fov / 2))
-            width_fraction = w / self.cam.width
-            distance = target_width_m / (2 * math.tan(width_fraction * math.radians(self.fov_h) / 2.0))
-            
-            # Rotation/Strafe
-            cx = x + w/2
-            cy = y + h/2
-            
-            # Map cx from [0, width] to [-1, 1]
-            norm_x = (2.0 * cx / self.cam.width) - 1.0
-            rotation = -norm_x * (self.fov_h / 2.0)
-            strafe = math.sin(math.radians(rotation)) * distance
-            
-            results['ids'].append(0) # Color targets don't have specific IDs
-            results['distances'].append(distance)
-            results['rotations'].append(rotation)
-            results['strafes'].append(strafe)
-            results['heights'].append(h)
-            results['cx'].append(cx)
-            results['cy'].append(cy)
-            
-        # 8. Training Stats (if requested)
-        if training and stats:
-            results['training_stats'] = stats
-            
-        return results
-
-    def _calc_training_stats(self, hsv_img, w, h, train_box=None):
-        # Sample center box
-        cw, ch = 10, 20
-        if train_box and len(train_box) >= 2:
-            cx = int(w * train_box[0])
-            cy = int(h * train_box[1])
-        else:
-            cx, cy = w // 2, h // 2
-        sample = hsv_img[cy-ch:cy+ch, cx-cw:cx+cw, :]
-        
-        if sample.size == 0: return {}
-        
-        hue = sample[:,:,0]
-        sat = sample[:,:,1]
-        val = sample[:,:,2]
-        
-        # Simple stats
-        return {
-            'hue': [float(np.min(hue)), float(np.max(hue))],
-            'sat': [float(np.min(sat)), float(np.max(sat))],
-            'val': [float(np.min(val)), float(np.max(val))]
-        }

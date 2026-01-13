@@ -43,7 +43,8 @@ from ntcore import NetworkTableInstance
 print('finished initial imports after ms ...')
 start = time.time()
 from vision.camera_model import CameraModel
-from vision.detectors import TagDetector, HSVDetector
+from vision.detect_tags import TagDetector
+from vision.detect_hsv import HSVDetector
 from vision.visual_overlays import draw_overlays
 from vision.tagmanager import TagManager
 from vision.network import init_cam_entries, update_cam_entries

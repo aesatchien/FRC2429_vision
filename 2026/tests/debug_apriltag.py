@@ -13,7 +13,7 @@ except ImportError:
 # 2. Check if we can load the 2025 Field Layout
 print("\n--- Checking Field Layout ---")
 try:
-    # This is the specific line from your detectors.py
+    # This is the specific line from your detect_tags.py
     field_enum = ra.AprilTagField.k2025ReefscapeWelded
     print(f"Found Enum: {field_enum}")
     

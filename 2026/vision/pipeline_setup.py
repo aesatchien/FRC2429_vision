@@ -5,7 +5,8 @@ from cscore import CameraServer
 
 from vision.camera_context import CameraContext
 from vision.camera_model import CameraModel
-from vision.detectors import TagDetector, HSVDetector
+from vision.detect_tags import TagDetector
+from vision.detect_hsv import HSVDetector
 from vision.camera_controls import set_camera_robust_defaults
 from vision.network import init_cam_entries
 from vision.wpi_stream import build_stream, build_raw_stream

@@ -3,6 +3,13 @@ import time
 import cv2
 import numpy as np
 import traceback
+
+# Suppress "drawFrameAxes" warnings when tags are partially off-screen
+try:
+    cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
+except AttributeError:
+    pass
+
 import logging
 import copy
 import ntcore
@@ -19,6 +26,7 @@ class ThreadedVisionPipeline:
         self.nt_global = nt_global
         self.push_frame_fn = push_frame_fn
         self.running = False
+
 
         # --- Shared Data & Synchronization ---
         
@@ -149,7 +157,7 @@ class ThreadedVisionPipeline:
                 if "averaging_enabled" in self.ctx.nt:
                     self.ctx.nt["averaging_enabled"].set(do_avg)
                 processed_tags = self.tag_manager.process(tags, averaging_enabled=do_avg)
-                
+
                 with self.result_lock:
                     self.latest_tag_results = processed_tags
                     self.latest_result_ts = local_ts

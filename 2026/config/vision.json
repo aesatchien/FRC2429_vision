@@ -380,7 +380,7 @@
             "colors": ["orange", "yellow", "purple", "green"]
           },
           "camera_properties": {
-            "max_tag_distance": 5,
+            "max_tag_distance": 10,
             "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 },
             "intrinsics": {"fx": 912.34, "fy": 911.71, "cx": 640, "cy": 360},
             "distortions": [0.0331324, -0.04438929, -0.00067446, -0.00110617, -0.0147985]

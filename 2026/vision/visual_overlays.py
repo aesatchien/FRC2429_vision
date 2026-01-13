@@ -16,7 +16,7 @@ def draw_outlined_text(image, text, org, font, font_scale, color, thickness):
     cv2.putText(image, text, org, font, font_scale, (0, 0, 0), thickness + 2)
     cv2.putText(image, text, org, font, font_scale, color, thickness)
 
-def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=False, train_box=None):
+def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=False, train_box=None, show_corner_order=False):
     """
     Draws visual overlays on the image based on detection results.
     This runs in the Stream thread, decoupled from detection.
@@ -112,6 +112,21 @@ def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=
                 corners = np.array(t_data['corners']).reshape((-1, 1, 2)).astype(dtype=np.int32)
                 color = (255, 75, 0) if tag_num > 12 else (0, 0, 255) # 2025 colors
                 cv2.polylines(image, [corners], isClosed=True, color=color, thickness=th_bold)
+
+            # Optional: label detected corner order (index 0..N-1) for debugging
+
+            if show_corner_order:
+                try:
+                    pts = np.array(t_data['corners'], dtype=np.float32).reshape((-1, 2))
+                    r = max(2, int(4 * scale))
+
+                    for ci, (px, py) in enumerate(pts):
+                        ipx, ipy = int(px), int(py)
+                        cv2.circle(image, (ipx, ipy), r, (0, 255, 255), -1)
+                        draw_outlined_text(image, str(ci), (ipx + r + 2, ipy - r - 2),
+                                           font, fs_base, (0, 255, 255), th)
+                except Exception:
+                    pass
 
             # Center point
             cx = int(t_data.get('cx', 0))

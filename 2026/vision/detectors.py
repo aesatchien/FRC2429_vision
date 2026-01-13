@@ -6,11 +6,12 @@ import wpimath.geometry as geo
 from wpimath import objectToRobotPose
 from vision.hsv_config import get_hsv_config, get_target_dimensions
 
+
 class TagDetector:
     def __init__(self, camera_model, field_layout=None, config=None):
         self.cam = camera_model
         if config is None: config = {}
-        
+
         # Setup Detector
         self.detector = ra.AprilTagDetector()
         self.detector.addFamily('tag36h11')
@@ -65,7 +66,13 @@ class TagDetector:
 
     def detect(self, image, cam_orientation=None, max_distance=3.0):
         grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
+
+        h, w = grey.shape[:2]
+        if not hasattr(self, "_kcheck_printed"):
+            self._kcheck_printed = True
+            print(f"[Kcheck] grey={w}x{h} cam={self.cam.width}x{self.cam.height} "
+                  f"fx={self.cam.fx:.2f} fy={self.cam.fy:.2f} cx={self.cam.cx:.2f} cy={self.cam.cy:.2f}")
+
         if self.use_distortions and self.map1 is not None:
             grey = cv2.remap(grey, self.map1, self.map2, cv2.INTER_LINEAR)
             
@@ -170,118 +177,331 @@ class TagDetector:
             'tvec': np.array([pose.x, pose.y, pose.z])
         }
 
+    def _process_single_tag_GPT(self, tag, cam_orientation, max_distance):
+        """
+        Single-tag pose via OpenCV solvePnP ITERATIVE on AprilTag corners.
+
+        Conventions:
+          - Object points are tag-local corners on the tag plane (Z=0).
+          - solvePnP returns TAG -> CAMERA(CV): X_cam = R * X_tag + t
+          - We compute reprojection RMS in pixels and gate.
+          - For field pose:
+              tag_field_pose (WPILib Pose3d) is FIELD <- TAG
+              cam_pose_tag is TAG <- CAM (WPILib camera axes for rotation)
+              cam_pose_field = tag_field_pose ⊕ (cam_pose_tag)   [since tag_field_pose is FIELD<-TAG]
+              robot_pose_field = cam_pose_field ⊕ inverse(robot_to_cam)
+        """
+
+        # Intrinsics (no distortion)
+        K = np.array([[self.cam.fx, 0.0, self.cam.cx],
+                      [0.0, self.cam.fy, self.cam.cy],
+                      [0.0, 0.0, 1.0]], dtype=np.float64)
+        D = np.zeros((5, 1), dtype=np.float64)
+
+        tag_size = 0.1651
+        s = tag_size / 2.0
+
+        # Tag-local corner model (same as multi-tag)
+        obj_points = np.array([
+            [-s, -s, 0.0],
+            [s, -s, 0.0],
+            [s, s, 0.0],
+            [-s, s, 0.0],
+        ], dtype=np.float64)
+
+        # Detector corners (4x2)
+        c = tag.getCorners([0.0] * 8)
+        if len(c) != 8:
+            return None
+
+        pts = np.array([
+            [c[0], c[1]],
+            [c[2], c[3]],
+            [c[4], c[5]],
+            [c[6], c[7]],
+        ], dtype=np.float64)
+
+        # Empirically verified permutation (same as multi-tag):
+        # perm=('rot',1,True) => roll by -1, then reverse winding.
+        pts = np.roll(pts, -1, axis=0)[::-1].copy()
+        img_points = pts
+
+        # Solve TAG -> CAMERA(CV)
+        ok, rvec, tvec = cv2.solvePnP(
+            obj_points,
+            img_points,
+            K,
+            D,
+            flags=cv2.SOLVEPNP_ITERATIVE
+        )
+        if not ok:
+            return None
+
+        # Reprojection RMS (px)
+        proj, _ = cv2.projectPoints(obj_points, rvec, tvec, K, D)
+        proj = proj.reshape(-1, 2)
+        e = proj - img_points
+        rms = float(np.sqrt(np.mean(np.sum(e * e, axis=1))))
+
+        # Gate (tune if needed; start loose and tighten)
+        RMS_GATE_PX = 15.0
+        if rms > RMS_GATE_PX:
+            return None
+
+        # Distance in OpenCV camera Z
+        dist = float(tvec[2])
+        if dist > max_distance:
+            return None
+
+        # Invert to get CAM pose in TAG (still CV camera axes)
+        R_t2c, _ = cv2.Rodrigues(rvec)  # tag->cam
+        R_c2t = R_t2c.T
+        t_c2t = -R_c2t @ tvec.reshape(3, 1)  # cam position in tag frame (CV axes)
+
+        # Convert camera axes CV -> WPILib camera axes for rotation
+        # v_wpi = P * v_cv
+        P = np.array([
+            [0.0, 0.0, 1.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+        ], dtype=np.float64)
+
+        # We want rotation mapping camera(WPI) -> tag:
+        # v_tag = R_c2t * v_cam_cv = R_c2t * P^T * v_cam_wpi
+        R_camwpi_to_tag = R_c2t @ P.T
+
+        cam_pose_tag = geo.Pose3d(
+            geo.Translation3d(float(t_c2t[0]), float(t_c2t[1]), float(t_c2t[2])),
+            self._matrix_to_rotation3d(R_camwpi_to_tag)
+        )
+
+        # Field pose calculation
+        tx = ty = tz = rx = ry = rz = 0.0
+        in_layout = False
+
+        if self.layout and cam_orientation:
+            tag_field_pose = self.layout.getTagPose(tag.getId())
+            if tag_field_pose:
+                so = cam_orientation
+                robot_to_cam = geo.Transform3d(
+                    geo.Translation3d(so['tx'], so['ty'], so['tz']),
+                    geo.Rotation3d(
+                        math.radians(so['rx']),
+                        math.radians(so['ry']),
+                        math.radians(so['rz'])
+                    )
+                )
+
+                # cam_pose_tag is TAG<-CAM; tag_field_pose is FIELD<-TAG
+                cam_pose_field = tag_field_pose.transformBy(
+                    geo.Transform3d(cam_pose_tag.translation(), cam_pose_tag.rotation())
+                )
+
+                robot_pose = cam_pose_field.transformBy(robot_to_cam.inverse())
+
+                t = robot_pose.translation()
+                r = robot_pose.rotation()
+                tx, ty, tz = t.X(), t.Y(), t.Z()
+                rx, ry, rz = r.X(), r.Y(), r.Z()
+                in_layout = True
+
+        # Targeting (unchanged)
+        center = tag.getCenter()
+        fov_h = self.cam.get_fov()
+        norm_x = (2.0 * center.x / self.cam.width) - 1.0
+        rotation = -norm_x * (fov_h / 2.0)
+        strafe = math.sin(math.radians(rotation)) * dist
+
+        return {
+            'id': tag.getId(),
+            'in_layout': in_layout,
+            'tx': tx, 'ty': ty, 'tz': tz,
+            'rx': rx, 'ry': ry, 'rz': rz,
+            'dist': dist,
+            'cx': center.x, 'cy': center.y,
+            'rotation': rotation,
+            'strafe': strafe,
+            'corners': c,
+            'rvec': rvec,
+            'tvec': tvec,
+            'pnp_rms_px': rms,
+        }
+
     def _process_multi_tag(self, tag_results, cam_orientation):
         """
-        Calculates a combined pose from multiple detected tags.
-        Uses cv2.solvePnP with SQPNP for high-accuracy global pose estimation.
+        Multi-tag PnP using field-layout corner coordinates.
+
+        - Builds 3D object points in FIELD coordinates (WPILib field layout coords).
+        - Uses OpenCV solvePnP ITERATIVE (works with robotpy_apriltag corner points).
+        - Applies a fixed, empirically-verified corner permutation per tag:
+            perm = ('rot', 1, True)  => roll by -1 then reverse winding.
+
+        Conventions:
+          OpenCV solvePnP returns FIELD -> CAMERA(CV):
+            X_cam = R * X_field + t
+
+          Camera position in field:
+            C_field = -R^T * t
+
+          Camera orientation in field:
+            R_c2f_cv = R^T (maps camera(CV) vectors -> field vectors)
+
+          Convert camera axes CV -> WPILib camera axes via:
+            v_wpi = P * v_cv
+            P = [[ 0, 0, 1],
+                 [-1, 0, 0],
+                 [ 0,-1, 0]]
+
+          So:
+            v_field = R_c2f_cv * v_cv = R_c2f_cv * P^T * v_wpi
+            => R_c2f_wpi = R_c2f_cv @ P.T
         """
-        # Only use tags that have a valid field pose
-        valid_tags = [t for t in tag_results if t.get('in_layout')]
-        
-        if len(valid_tags) < 2:
+        valid_tags = [t for t in tag_results if t.get("in_layout")]
+        if len(valid_tags) < 2 or self.layout is None:
             return None
-        
-        # 1. Collect Correspondences
-        obj_points = [] # 3D Field Coordinates
-        img_points = [] # 2D Pixel Coordinates
-        
-        tag_size = 0.1651 # Meters
+
+        # Intrinsics (no distortion)
+        K = np.array([[self.cam.fx, 0.0, self.cam.cx],
+                      [0.0, self.cam.fy, self.cam.cy],
+                      [0.0, 0.0, 1.0]], dtype=np.float64)
+        D = np.zeros((5, 1), dtype=np.float64)
+
+        tag_size = 0.1651
         s = tag_size / 2.0
-        
-        # Local corners in Standard AprilTag Frame (X right, Y down, Z forward/out)
-        # Order: Bottom-Left, Bottom-Right, Top-Right, Top-Left (Counter-Clockwise)
-        # Note: This order must match detector output.
-        local_corners = [
-            geo.Translation3d(0, s, -s),  # BL (Y is left, so +s is left/bottom?)
-            geo.Translation3d(0, -s, -s), # BR
-            geo.Translation3d(0, -s, s),  # TR
-            geo.Translation3d(0, s, s)    # TL
-        ]
+
+        # Tag-local corners (same model used in your single-tag ITERATIVE test)
+        local_corners = np.array([
+            [-s, -s, 0.0],
+            [s, -s, 0.0],
+            [s, s, 0.0],
+            [-s, s, 0.0],
+        ], dtype=np.float64)
+
+        # Empirically verified permutation for robotpy_apriltag corners:
+        # perm=('rot',1,True) means: roll by -1, then reverse.
+        def apply_perm(pts4: np.ndarray) -> np.ndarray:
+            p = np.roll(pts4, -1, axis=0)
+            p = p[::-1].copy()
+            return p
+
+        # Rotation3d -> 3x3 matrix (no assumptions about API surface)
+        def rot3d_to_matrix(r: geo.Rotation3d) -> np.ndarray:
+            q = r.getQuaternion()
+            w, x, y, z = q.W(), q.X(), q.Y(), q.Z()
+            return np.array([
+                [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+            ], dtype=np.float64)
+
+        obj_points = []
+        img_points = []
 
         for tag_res in valid_tags:
-            tid = tag_res['id']
-            field_pose = self.layout.getTagPose(tid) # Pose3d
-            if not field_pose: continue
-            
-            # Transform local corners to Field Coordinates
-            for i, corner_offset in enumerate(local_corners):
-                field_corner = field_pose.transformBy(geo.Transform3d(corner_offset, geo.Rotation3d()))
-                obj_points.append([field_corner.X(), field_corner.Y(), field_corner.Z()])
-                
-                # Append corresponding pixel corner
-                # tag_res['corners'] is [p0, p1, p2, p3]
-                # We assume detector returns BL, BR, TR, TL order (Standard AprilTag)
-                c = tag_res['corners']
-                if len(c) == 8:
-                    p = c[i*2 : i*2+2]
-                else:
-                    # Handle list of points (len 4)
-                    pt = c[i]
-                    p = [pt.x, pt.y] if hasattr(pt, 'x') else pt
-                img_points.append(p)
+            tid = int(tag_res["id"])
+            tag_field_pose = self.layout.getTagPose(tid)
+            if not tag_field_pose:
+                continue
 
-        if not obj_points: return None
+            c = tag_res.get("corners", [])
+            if len(c) != 8:
+                continue
 
-        # 2. Solve PnP
-        # K = Camera Matrix, D = Distortions
-        K = np.array([[self.cam.fx, 0, self.cam.cx], [0, self.cam.fy, self.cam.cy], [0, 0, 1]])
-        D = self.cam.dist_coeffs if self.cam.dist_coeffs is not None else np.zeros(5)
-        
-        # SQPNP is robust for planar targets (like tags)
-        success, rvec, tvec = cv2.solvePnP(np.array(obj_points, dtype=np.float32), 
-                                           np.array(img_points, dtype=np.float32), 
-                                           K, D, flags=cv2.SOLVEPNP_SQPNP)
-        
-        if not success: return None
+            pts = np.array([
+                [c[0], c[1]],
+                [c[2], c[3]],
+                [c[4], c[5]],
+                [c[6], c[7]],
+            ], dtype=np.float64)
 
-        # 3. Convert to WPILib Geometry (Matching Single Tag Logic)
-        R_f_c, _ = cv2.Rodrigues(rvec)
-        rot_f_c = self._matrix_to_rotation3d(R_f_c)
-        
-        # Construct Transform in Camera Frame (EDN)
-        # We apply the same manual rotation fix as _process_single_tag to align behaviors
-        pose_camera = geo.Transform3d(
-            geo.Translation3d(tvec[0][0], tvec[1][0], tvec[2][0]),
-            geo.Rotation3d(-rot_f_c.X() - np.pi, -rot_f_c.Y(), rot_f_c.Z() - np.pi)
+            # Apply the proven permutation so 2D corners line up with our local_corners
+            pts = apply_perm(pts)
+
+            # Field <- Tag pose from layout
+            t_f = tag_field_pose.translation()
+            R_f = rot3d_to_matrix(tag_field_pose.rotation())
+            t_f = np.array([t_f.X(), t_f.Y(), t_f.Z()], dtype=np.float64)
+
+            # Add 4 correspondences
+            # X_field = R_f * X_tag + t_f
+            X_field = (R_f @ local_corners.T).T + t_f.reshape(1, 3)
+
+            obj_points.extend(X_field.tolist())
+            img_points.extend(pts.tolist())
+
+        if len(obj_points) < 8:
+            return None
+
+        obj_points = np.asarray(obj_points, dtype=np.float64)
+        img_points = np.asarray(img_points, dtype=np.float64)
+
+        # Solve FIELD -> CAMERA(CV)
+        ok, rvec, tvec = cv2.solvePnP(
+            obj_points,
+            img_points,
+            K,
+            D,
+            flags=cv2.SOLVEPNP_ITERATIVE
         )
-        
-        # Convert to NWU
-        pose_nwu = geo.CoordinateSystem.convert(pose_camera, geo.CoordinateSystem.EDN(), geo.CoordinateSystem.NWU())
+        if not ok:
+            return None
 
+        # Compute RMS (optional gate; set None/large if you don't want gating yet)
+        proj, _ = cv2.projectPoints(obj_points, rvec, tvec, K, D)
+        proj = proj.reshape(-1, 2)
+        e = proj - img_points
+        rms = float(np.sqrt(np.mean(np.sum(e * e, axis=1))))
+
+        # Invert to get camera pose in field
+        R_f2c, _ = cv2.Rodrigues(rvec)
+        R_c2f_cv = R_f2c.T
+        t_f2c = tvec.reshape(3, 1)
+        C_field = -R_c2f_cv @ t_f2c  # 3x1
+
+        # Convert camera rotation CV axes -> WPILib camera axes
+        P = np.array([
+            [0.0, 0.0, 1.0],
+            [-1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+        ], dtype=np.float64)
+        R_c2f_wpi = R_c2f_cv @ P.T
+
+        cam_pose_field = geo.Pose3d(
+            geo.Translation3d(float(C_field[0]), float(C_field[1]), float(C_field[2])),
+            self._matrix_to_rotation3d(R_c2f_wpi)
+        )
+
+        # Apply camera extrinsics to get ROBOT pose in field
         if cam_orientation:
             so = cam_orientation
             robot_to_cam = geo.Transform3d(
-                geo.Translation3d(so['tx'], so['ty'], so['tz']),
-                geo.Rotation3d(math.radians(so['rx']), math.radians(so['ry']), math.radians(so['rz']))
+                geo.Translation3d(so["tx"], so["ty"], so["tz"]),
+                geo.Rotation3d(math.radians(so["rx"]),
+                               math.radians(so["ry"]),
+                               math.radians(so["rz"]))
             )
-            
-            # objectToRobotPose(objectPose, objectInCamera, cameraInRobot)
-            # Object is Field Origin (Identity Pose). 
-            # objectInCamera is the transform from Camera to Field Origin (pose_nwu).
-            robot_pose = objectToRobotPose(geo.Pose3d(), pose_nwu, robot_to_cam)
-            
-            tx, ty, tz = robot_pose.X(), robot_pose.Y(), robot_pose.Z()
-            rx, ry, rz = robot_pose.rotation().X(), robot_pose.rotation().Y(), robot_pose.rotation().Z()
+            robot_pose = cam_pose_field.transformBy(robot_to_cam.inverse())
         else:
-            # Fallback: Return Camera Pose in Field
-            camera_pose = geo.Pose3d(pose_nwu.translation(), pose_nwu.rotation())
-            tx, ty, tz = camera_pose.X(), camera_pose.Y(), camera_pose.Z()
-            rx, ry, rz = camera_pose.rotation().X(), camera_pose.rotation().Y(), camera_pose.rotation().Z()
+            robot_pose = cam_pose_field
 
-        best_tag = min(valid_tags, key=lambda x: x['dist'])
-        
+        # Preserve your prior behavior: choose closest tag's targeting info
+        best_tag = min(valid_tags, key=lambda x: float(x.get("dist", 1e9)))
+
         return {
-            'id': -1, # Virtual ID for multi-tag solution
-            'in_layout': True, # Set True so TagManager smooths it and NetworkTables sends it
-            'tx': tx, 'ty': ty, 'tz': tz,
-            'rx': rx, 'ry': ry, 'rz': rz, # Use PnP rotation
-            'dist': best_tag['dist'], # Use closest distance
-            'rotation': best_tag['rotation'],
-            'strafe': best_tag['strafe'],
-            'cx': 0, 'cy': 0, # Virtual center
-            'corners': [],
-            'rvec': best_tag['rvec'],
-            'tvec': best_tag['tvec']
+            "id": -1,
+            "in_layout": True,
+            "tx": robot_pose.X(), "ty": robot_pose.Y(), "tz": robot_pose.Z(),
+            "rx": robot_pose.rotation().X(),
+            "ry": robot_pose.rotation().Y(),
+            "rz": robot_pose.rotation().Z(),
+            "dist": float(best_tag.get("dist", 0.0)),
+            "rotation": best_tag.get("rotation", 0.0),
+            "strafe": best_tag.get("strafe", 0.0),
+            "cx": 0, "cy": 0,
+            "corners": [],
+            "rvec": rvec,
+            "tvec": tvec,
+            "pnp_rms_px": rms,
         }
 
     def _quat_to_rvec(self, q):
@@ -309,6 +529,31 @@ class TagDetector:
             y = math.atan2(-R[2,0], sy)
             z = 0
         return geo.Rotation3d(x, y, z)
+
+    def _order_corners_tl_tr_br_bl(self, pts4):
+        """
+        pts4: (4,2) array of pixel corners in arbitrary order.
+        Returns corners in TL, TR, BR, BL order (image coords: +x right, +y down).
+        """
+        pts = np.asarray(pts4, dtype=np.float64).reshape(4, 2)
+
+        # centroid + angle sort gives a consistent cyclic order
+        c = np.mean(pts, axis=0)
+        ang = np.arctan2(pts[:, 1] - c[1], pts[:, 0] - c[0])
+        cyc = pts[np.argsort(ang)]  # CCW around centroid in image coords
+
+        # rotate so index 0 is top-left (min x+y)
+        i0 = np.argmin(cyc[:, 0] + cyc[:, 1])
+        cyc = np.roll(cyc, -i0, axis=0)
+
+        # Now cyc[0] is TL. Decide if cyc is TL,TR,BR,BL or TL,BL,BR,TR
+        # Compare x of the next two points: TR should have larger x than BL.
+        if cyc[1, 0] < cyc[3, 0]:
+            # swap to enforce TL,TR,BR,BL
+            cyc = np.array([cyc[0], cyc[3], cyc[2], cyc[1]], dtype=np.float64)
+
+        return cyc
+
 
 class HSVDetector:
     def __init__(self, camera_model):

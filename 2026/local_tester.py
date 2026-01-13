@@ -30,6 +30,13 @@ Interactive Controls (in the OpenCV window):
 """
 print('starting imports...')
 import cv2
+
+# Suppress "drawFrameAxes" warnings
+try:
+    cv2.setLogLevel(2)
+except AttributeError:
+    pass
+
 import time
 import argparse
 from ntcore import NetworkTableInstance
@@ -41,6 +48,8 @@ from vision.visual_overlays import draw_overlays
 from vision.tagmanager import TagManager
 from vision.network import init_cam_entries, update_cam_entries
 from vision.wpi_config import load_vision_cfg
+from tests.debug_pose import MultiTagResidualLogger
+
 print(f'finished custom imports after {(time.time()-start)*1000:.0f} ms... opening captures')
 
 
@@ -63,7 +72,7 @@ class MockContext:
 
 def main():
     parser = argparse.ArgumentParser(description="Local vision pipeline tester.")
-    parser.add_argument("--camera", type=int, default=1, help="Camera index (e.g., 0 for /dev/video0)")
+    parser.add_argument("--camera", type=int, default=0, help="Camera index (e.g., 0 for /dev/video0)")
     parser.add_argument("--ip", default="127.0.0.1", help="NetworkTables server IP (default: localhost)")
     parser.add_argument("--config", default="config/vision.json", help="Path to vision.json")
     parser.add_argument("--profile", default="local", help="Host profile to load from vision.json")
@@ -114,6 +123,7 @@ def main():
     tag_detector = TagDetector(cam_model, config=tag_config)
     hsv_detector = HSVDetector(cam_model)
     tag_manager = TagManager(max_dt=0.5, max_averages=10, max_std=0.05)
+    mt_log = MultiTagResidualLogger(min_period_s=2.0)
 
     # --- State for Interactive Loop ---
     color_idx = 0
@@ -199,6 +209,7 @@ def main():
         # --- Detection ---
         tag_results = tag_detector.detect(frame, cam_orientation=orientation)
         tag_results = tag_manager.process(tag_results, averaging_enabled=averaging_mode)
+        mt_log.dump(tag_results, label="Local")
         
         current_color = colors_to_cycle[color_idx]
         hsv_results = {

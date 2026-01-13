@@ -86,7 +86,7 @@ class MultiTagResidualLogger:
 
         rows.sort(key=lambda r: r["dpos"])
 
-        hdr = f"[multi_resid]{' ' + label if label else ''} pair={pair_ids} " \
+        hdr = f"\n[multi_resid]{' ' + label if label else ''} pair={pair_ids} " \
               f"multi(xyz)=({mx:+.3f},{my:+.3f},{mz:+.3f}) yaw={myaw_deg:+.1f}deg \n" \
               f"   tvec: {tvec[0,0]:.3f},{tvec[1,0]:.3f},{tvec[2,0]:.3f}  rvec: {rvec[0,0]:.3f},{rvec[1,0]:.3f},{rvec[2,0]:.3f} RMS {rms:.1f}"
         print(hdr)

@@ -33,6 +33,7 @@ class TagDetector:
         self.min_margin = config.get("decision_margin", 35) # Reject weak tags
         self.max_hamming = config.get("hamming", 1)         # Reject bit errors
         self.allow_multi_tag = config.get("allow_multi_tag", True)
+        self.default_max_dist = config.get("max_tag_distance", 3.0)
 
         # Distortion Correction
         self.use_distortions = config.get("use_distortions", False)
@@ -64,7 +65,10 @@ class TagDetector:
         else:
             self.layout = field_layout
 
-    def detect(self, image, cam_orientation=None, max_distance=3.0):
+    def detect(self, image, cam_orientation=None, max_distance=None):
+        if max_distance is None:
+            max_distance = self.default_max_dist
+
         grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         h, w = grey.shape[:2]
@@ -162,6 +166,23 @@ class TagDetector:
         # Flatten corners to [x1, y1, x2, y2, ...]
         corners = tag.getCorners([0.0]*8)
 
+        # Calculate RMS for filtering
+        tag_size = 0.1651
+        s = tag_size / 2.0
+        obj_points = np.array([
+            [-s, -s, 0.0], [s, -s, 0.0], [s, s, 0.0], [-s, s, 0.0]
+        ], dtype=np.float64)
+        
+        K = np.array([[self.cam.fx, 0, self.cam.cx], [0, self.cam.fy, self.cam.cy], [0, 0, 1]])
+        D = self.cam.dist_coeffs if self.cam.dist_coeffs is not None else np.zeros(5)
+        
+        rvec_calc = self._quat_to_rvec(pose.rotation().getQuaternion())
+        tvec_calc = np.array([pose.x, pose.y, pose.z])
+        
+        proj, _ = cv2.projectPoints(obj_points, rvec_calc, tvec_calc, K, D)
+        e = proj.reshape(-1, 2) - np.array(corners).reshape(-1, 2)
+        rms = float(np.sqrt(np.mean(np.sum(e * e, axis=1))))
+
         return {
             'id': tag.getId(),
             'in_layout': in_layout,
@@ -173,8 +194,9 @@ class TagDetector:
             'strafe': strafe,
             'corners': corners,
             # Raw pose for drawing axes
-            'rvec': self._quat_to_rvec(pose.rotation().getQuaternion()),
-            'tvec': np.array([pose.x, pose.y, pose.z])
+            'rvec': rvec_calc,
+            'tvec': tvec_calc,
+            'pnp_rms_px': rms
         }
 
     def _process_single_tag_GPT(self, tag, cam_orientation, max_distance):

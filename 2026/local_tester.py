@@ -115,6 +115,7 @@ def main():
     distortions = cam_props.get("distortions", [])
     colors_to_cycle = activities.get("colors", ["orange", "yellow", "purple", "green"])
     orientation = cam_props.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0})
+    max_dist = cam_props.get("max_tag_distance", 3.0)
 
     cam_model = CameraModel(width, height, camera_type, intrinsics, distortions)
     tag_config = cam_cfg.get("tag_config", {}).copy()
@@ -123,7 +124,7 @@ def main():
     tag_detector = TagDetector(cam_model, config=tag_config)
     hsv_detector = HSVDetector(cam_model)
     tag_manager = TagManager(max_dt=0.5, max_averages=10, max_std=0.05)
-    mt_log = MultiTagResidualLogger(min_period_s=2.0)
+    mt_log = MultiTagResidualLogger(min_period_s=5.0)
 
     # --- State for Interactive Loop ---
     color_idx = 0
@@ -207,7 +208,7 @@ def main():
         if frame is None: continue
 
         # --- Detection ---
-        tag_results = tag_detector.detect(frame, cam_orientation=orientation)
+        tag_results = tag_detector.detect(frame, cam_orientation=orientation, max_distance=max_dist)
         tag_results = tag_manager.process(tag_results, averaging_enabled=averaging_mode)
         mt_log.dump(tag_results, label="Local")
         

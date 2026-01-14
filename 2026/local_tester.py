@@ -73,7 +73,7 @@ class MockContext:
 
 def main():
     parser = argparse.ArgumentParser(description="Local vision pipeline tester.")
-    parser.add_argument("--camera", type=int, default=1, help="Camera index (e.g., 0 for /dev/video0)")
+    parser.add_argument("--camera", type=int, default=0, help="Camera index (e.g., 0 for /dev/video0)")
     parser.add_argument("--ip", default="127.0.0.1", help="NetworkTables server IP (default: localhost)")
     parser.add_argument("--config", default="config/vision.json", help="Path to vision.json")
     parser.add_argument("--profile", default="local", help="Host profile to load from vision.json")

@@ -16,7 +16,7 @@ def draw_outlined_text(image, text, org, font, font_scale, color, thickness):
     cv2.putText(image, text, org, font, font_scale, (0, 0, 0), thickness + 2)
     cv2.putText(image, text, org, font, font_scale, color, thickness)
 
-def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=False, train_box=None, show_corner_order=False):
+def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=False, train_box=None, show_corner_order=True):
     """
     Draws visual overlays on the image based on detection results.
     This runs in the Stream thread, decoupled from detection.

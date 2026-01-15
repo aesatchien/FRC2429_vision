@@ -145,11 +145,21 @@ class ThreadedVisionPipeline:
                     time.sleep(0.01)
                     continue
 
+                # Get robot pose from NT if available (Pose2d struct or None)
+                robot_pose = None
+                if "robot_pose" in self.nt_global:
+                    # getAtomic returns TimestampedObject with .value and .time (us)
+                    p = self.nt_global["robot_pose"].getAtomic()
+                    # Check age (e.g. 0.5s = 500,000 us)
+                    if p.value is not None and (ntcore._now() - p.time < 500000):
+                        robot_pose = p.value
+
                 # Run Tag Detector
                 tags = self.ctx.tag_detector.detect(
                     local_img, 
                     cam_orientation=self.ctx.orientation,
-                    max_distance=self.ctx.max_tag_distance
+                    max_distance=self.ctx.max_tag_distance,
+                    robot_pose=robot_pose
                 )
 
                 # Apply Tag Manager (Smoothing)

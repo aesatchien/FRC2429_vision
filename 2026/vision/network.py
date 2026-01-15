@@ -18,12 +18,17 @@ def init_global_flags(ntinst):
     tag_avg_sub = cams.getBooleanTopic("tag_averaging").subscribe(False)
     training_sub = cams.getBooleanTopic("_training").subscribe(False)
     debug_sub    = cams.getBooleanTopic("_debug").subscribe(False)
+    
+    # Robot Pose Subscriber (from Swerve)
+    robot_pose_sub = ntinst.getStructTopic("/SmartDashboard/Swerve/drive_pose", "Pose2d").subscribe(None)
+
     # ts_sub       = ntinst.getDoubleTopic("/SmartDashboard/_timestamp").subscribe(0)
     return {
         "tag_averaging": tag_avg_sub,
         "training": training_sub,
         "debug": debug_sub,
         "training_box": box_entry,
+        "robot_pose": robot_pose_sub,
         # "timestamp": ts_sub,
         "_pubs": [train_pub, debug_pub]
     }

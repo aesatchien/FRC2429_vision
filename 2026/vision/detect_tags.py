@@ -65,7 +65,7 @@ class TagDetector:
             [0.0, s, -s], [0.0, -s, -s], [0.0, -s, s], [0.0, s, s]
         ], dtype=np.float64)
 
-    def detect(self, image, cam_orientation=None, max_distance=None):
+    def detect(self, image, cam_orientation=None, max_distance=None, robot_pose=None):
         if max_distance is None: max_distance = self.default_max_dist
         grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         if self.use_distortions and self.map1 is not None:

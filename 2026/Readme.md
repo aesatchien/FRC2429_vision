@@ -19,7 +19,8 @@ Now featuring a threaded pipeline (Acquisition, Tags, HSV, NT, Stream) for highe
 │  ├─ camera_controls.py         # Hardware controls (exposure/brightness workarounds)
 │  ├─ camera_model.py            # Pinhole camera model logic
 │  ├─ camera_node.py             # Worker process entry point (runs one camera)
-│  ├─ detectors.py               # AprilTag and HSV detection logic
+│  ├─ detect_hsv.py              # HSV detection logic
+│  ├─ detect_tags.py             # AprilTag detection logic
 │  ├─ hsv_config.py              # Color threshold configurations
 │  ├─ network.py                 # NetworkTables publishers/subscribers
 │  ├─ pipeline_setup.py          # Factory for creating camera contexts (DRY)

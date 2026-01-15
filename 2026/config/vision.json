@@ -394,5 +394,8 @@
   "default": {
     "role": "default",
     "cameras": []
-  }
+  },
+  "camera_dict": {
+    "level": "info"
+    }
 }

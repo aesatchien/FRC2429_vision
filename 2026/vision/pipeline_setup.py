@@ -71,6 +71,9 @@ def deploy_camera_pipeline(cam_obj, cam_profile, rio_config, ntinst, camera_defi
         use_distortions=tag_config_in.get("use_distortions", False),
         max_tag_distance=tag_config_in.get("max_tag_distance", 3.5),
     )
+    
+    # Ensure we resize frames before sending to cscore to prevent stalls
+    ctx.reduce_bandwidth = True
 
     # 3. Setup Streams
     if ctx.raw_port:

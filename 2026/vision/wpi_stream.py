@@ -6,10 +6,16 @@ def build_stream(ctx, compression_if_wide: int = 30):
     vm = ctx.camera.getVideoMode()
     ctx.x_resolution, ctx.y_resolution = vm.width, vm.height
 
+    # Determine actual output resolution to match push_frame logic
+    w, h = ctx.x_resolution, ctx.y_resolution
+    if getattr(ctx, "reduce_bandwidth", False) and w > ctx.stream_max_width:
+        w = int(ctx.stream_max_width)
+        h = int(h * ctx.stream_max_width / ctx.x_resolution)
+
     ctx.image_source = CvSource(
         f"{ctx.name} CV Image Source",
-        VideoMode.PixelFormat.kMJPEG,
-        ctx.x_resolution, ctx.y_resolution, ctx.stream_fps
+        VideoMode.PixelFormat.kBGR,  # was kMJPEG
+        w, h, ctx.stream_fps
     )
     ctx.cvstream = MjpegServer(f"{ctx.name} CV Image Stream", ctx.processed_port)
     if ctx.x_resolution > 300:

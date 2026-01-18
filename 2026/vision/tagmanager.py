@@ -113,32 +113,51 @@ class TagManager:
         smoothing to any tags that are part of the field layout.
         Returns a new dictionary with smoothed poses.
         """
+        # 1. Identify the best source for each tag ID to update the filter
+        # If a multi-tag result exists for ID X, it should drive the filter, not the single-tag result.
+        filter_drivers = {} # tag_id -> key_in_tags
+        
+        for key, tag in tags.items():
+            if not tag.get("in_layout"): continue
+            tid = tag['id']
+            
+            # If we haven't seen this ID yet, claim it
+            if tid not in filter_drivers:
+                filter_drivers[tid] = key
+            else:
+                # If we have seen it, check if current tag is "better" (is_multi_tag)
+                current_is_multi = tag.get("is_multi_tag", False)
+                existing_key = filter_drivers[tid]
+                existing_is_multi = tags[existing_key].get("is_multi_tag", False)
+                
+                if current_is_multi and not existing_is_multi:
+                    filter_drivers[tid] = key
+
         out = {}
         for key, tag in tags.items():
             # Only filter tags that have a valid field pose (in_layout=True)
-            # Skip smoothing for multi-tag result (ID -1) as it is already aggregated
-            if tag.get("in_layout") and tag['id'] != -1:
-                # Always update filter to keep history current
-                res = self.update(
-                    tag['id'], 
-                    tag['tx'], tag['ty'], tag['tz'], 
-                    tag['rx'], tag['ry'], tag['rz']
-                )
+            if tag.get("in_layout"):
+                tid = tag['id']
                 
-                # Copy tag data and overwrite pose with smoothed values
-                # res is a numpy array, convert to float for safety
-                new_tag = tag.copy()
-                
-                if averaging_enabled:
-                    # Overwrite with smoothed values
-                    new_tag['tx'] = float(res[0])
-                    new_tag['ty'] = float(res[1])
-                    new_tag['tz'] = float(res[2])
-                    new_tag['rx'] = float(res[3])
-                    new_tag['ry'] = float(res[4])
-                    new_tag['rz'] = float(res[5])
-                
-                out[key] = new_tag
+                # Check if this tag is the designated driver for this ID
+                if filter_drivers.get(tid) == key:
+                    # Always update filter to keep history current
+                    res = self.update(tid, tag['tx'], tag['ty'], tag['tz'], tag['rx'], tag['ry'], tag['rz'])
+                    
+                    new_tag = tag.copy()
+                    if averaging_enabled:
+                        # Overwrite with smoothed values
+                        new_tag['tx'] = float(res[0])
+                        new_tag['ty'] = float(res[1])
+                        new_tag['tz'] = float(res[2])
+                        new_tag['rx'] = float(res[3])
+                        new_tag['ry'] = float(res[4])
+                        new_tag['rz'] = float(res[5])
+                    out[key] = new_tag
+                else:
+                    # Duplicate/inferior source (e.g. single tag when multi exists).
+                    # Do NOT update filter to avoid corrupting history. Return raw.
+                    out[key] = tag
             else:
                 # Pass through practice tags or invalid tags untouched
                 out[key] = tag

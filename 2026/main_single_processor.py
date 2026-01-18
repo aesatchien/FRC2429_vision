@@ -71,11 +71,12 @@ if __name__ == "__main__":
 
     # Tiny stats loop
     while True:
-        time.sleep(1.0)
+        time.sleep(2.0)
         parts = []
         for ctx in contexts:
             tf = getattr(ctx, "thread_fps", {})
-            stats = " ".join([f"{k}:{v:0.0f}" for k,v in tf.items()])
+            tt = getattr(ctx, "thread_time_ms", {})
+            stats = " ".join([f"{k}:{v:0.0f}/{tt.get(k,0):0.1f}ms" for k,v in tf.items()])
             parts.append(f"{ctx.name}:{ctx.fps:0.1f}fps [{stats}]")
         print("  ".join(parts), end="\r", flush=True)
         # print(msg, end="\r", flush=True)

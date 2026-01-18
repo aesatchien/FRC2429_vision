@@ -1,4 +1,5 @@
 from ntcore import PubSubOptions
+from wpimath.geometry import Pose2d
 
 def init_global_flags(ntinst):
     cams = ntinst.getTable("Cameras")
@@ -20,7 +21,7 @@ def init_global_flags(ntinst):
     debug_sub    = cams.getBooleanTopic("_debug").subscribe(False)
     
     # Robot Pose Subscriber (from Swerve)
-    robot_pose_sub = ntinst.getStructTopic("/SmartDashboard/Swerve/drive_pose", "Pose2d").subscribe(None)
+    robot_pose_sub = ntinst.getStructTopic("/SmartDashboard/Swerve/drive_pose", Pose2d).subscribe(None)
 
     # ts_sub       = ntinst.getDoubleTopic("/SmartDashboard/_timestamp").subscribe(0)
     return {
@@ -39,6 +40,7 @@ def init_cam_entries(ntinst, ctx):
     # ctx.nt["timestamp"]   = t.getIntegerTopic("_timestamp").publish()
     ctx.nt["fps"] = t.getDoubleTopic("_fps").publish()
     ctx.nt["averaging_enabled"] = t.getBooleanTopic("averaging_enabled").publish()
+    ctx.nt["multi_tag"] = t.getBooleanTopic("multi_tag").publish()
     ctx.nt["connections_pub"] = t.getDoubleTopic("_connections").publish(PubSubOptions(keepDuplicates=True))
     ctx.nt["connections_sub"] = t.getDoubleTopic("_connections").subscribe(0)
     ctx.nt["colors"]      = t.getStringArrayTopic("colors").publish()
@@ -106,12 +108,25 @@ def update_cam_entries(ctx, tags, colors, ntinst):
         ctx.nt["targets"]["tags"]["strafe"].set(0)
 
     # Update Tag Poses (Odometry)
-    odo_tags = [t for t in tags.values() if t.get("in_layout", False)]
+    all_tags = [t for t in tags.values() if t.get("in_layout", False)]
     
-    # Sort so Multi-Tag (ID -1) is first, then others by distance (closest first)
-    # Tuple sort: (is_not_multi_tag, distance) -> False (0) comes before True (1)
-    odo_tags.sort(key=lambda x: (x['id'] != -1, x['dist']))
+    # Check for multi-tag solution
+    has_multi = any(t.get("is_multi_tag", False) for t in all_tags)
+    ctx.nt["multi_tag"].set(has_multi)
 
+    # Deduplicate by ID, preferring the multi-tag result if available
+    unique_tags = {}
+    for t in all_tags:
+        tid = t['id']
+        if tid in unique_tags:
+            if t.get("is_multi_tag", False):
+                unique_tags[tid] = t
+        else:
+            unique_tags[tid] = t
+            
+    odo_tags = list(unique_tags.values())
+    odo_tags.sort(key=lambda x: x['dist'])
+    
     if len(odo_tags) > 0:
         for i in range(2):
             if i < len(odo_tags):

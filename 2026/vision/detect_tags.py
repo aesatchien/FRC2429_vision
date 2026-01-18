@@ -75,8 +75,8 @@ class TagDetector:
         if self.use_distortions and self.cam.dist_coeffs is not None:
             K = np.array([[self.cam.fx, 0, self.cam.cx], [0, self.cam.fy, self.cam.cy], [0, 0, 1]])
             D = self.cam.dist_coeffs
-            self.map1, self.map2 = cv2.initUndistortRectifyMap(K, D, None, K, (self.cam.width, self.cam.height),
-                                                               cv2.CV_16SC2)
+            self.map1, self.map2 = cv2.initUndistortRectifyMap(
+                K, D, None, K, (self.cam.width, self.cam.height), cv2.CV_16SC2)
 
         est_config = ra.AprilTagPoseEstimator.Config(
             tagSize=self.tag_size, fx=self.cam.fx, fy=self.cam.fy, cx=self.cam.cx, cy=self.cam.cy
@@ -115,16 +115,26 @@ class TagDetector:
         log.info(f"  Distortions: {self.cam.dist_coeffs if any(self.cam.dist_coeffs) else 'None'} (Used in PnP: {not self.use_distortions})")
 
     def detect(self, image, cam_orientation=None, max_distance=None, robot_pose=None):
-        if max_distance is None: max_distance = self.default_max_dist
+        """
+        Wrapper that runs both detection and pose estimation sequentially.
+        Used by local_tester.py.
+        """
+        tags = self.detect_tags(image)
+        return self.solve_poses(tags, cam_orientation, max_distance, robot_pose)
+
+    def detect_tags(self, image):
+        """Phase 1: Image processing to find tag corners."""
         grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         if self.use_distortions and self.map1 is not None:
             grey = cv2.remap(grey, self.map1, self.map2, cv2.INTER_LINEAR)
 
         detections = self.detector.detect(grey)
-        results = {}
-        valid_tags = [t for t in detections if
-                      t.getDecisionMargin() > self.min_margin and t.getHamming() <= self.max_hamming]
+        return [t for t in detections if t.getDecisionMargin() > self.min_margin and t.getHamming() <= self.max_hamming]
 
+    def solve_poses(self, valid_tags, cam_orientation=None, max_distance=None, robot_pose=None):
+        """Phase 2: Math to convert tag corners to 3D poses."""
+        if max_distance is None: max_distance = self.default_max_dist
+        results = {}
         processed_tags = []
         for tag in valid_tags:
             # 1. Single Tag (New Solver)
@@ -295,7 +305,7 @@ class TagDetector:
         if best_cand and best_diff < 1.5:
             best_tag = min(valid_single_results, key=lambda x: x['dist'])
             return {
-                "id": -1, "in_layout": True,
+                "id": best_tag['id'], "in_layout": True, "is_multi_tag": True,
                 "tx": best_pose.X(), "ty": best_pose.Y(), "tz": best_pose.Z(),
                 "rx": best_pose.rotation().X(), "ry": best_pose.rotation().Y(), "rz": best_pose.rotation().Z(),
                 "dist": best_tag["dist"], "rotation": best_tag["rotation"], "strafe": best_tag["strafe"],

@@ -178,7 +178,7 @@ def main():
                 del children[key]
 
         now = time.time()
-        if now - last_print >= 1.0:
+        if now - last_print >= 2.0:
             parts = []
             for name in cam_names:
                 # FPS: prefer NT if present, else stdout

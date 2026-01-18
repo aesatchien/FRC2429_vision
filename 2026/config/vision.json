@@ -145,16 +145,17 @@
             "colors": ["orange"]
           },
           "tag_config": {
-            "decimate": 1.0,
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
             "min_cluster_pixels": 25,
             "threads": 2,
-            "sigma": 0.6,
+            "sigma": 0.0,
             "allow_multi_tag": true,
             "max_tag_distance": 4.5,
             "use_distortions": false
           },
           "camera_properties": {
-            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 }
+            "orientation": { "tx": 0, "ty": -0.05, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
           }
         },
         {
@@ -176,7 +177,7 @@
             "colors": ["orange"]
           },
           "tag_config": {
-            "decimate": 1.0,
+            "decimate": 1.5,
             "min_cluster_pixels": 25,
             "threads": 2,
             "sigma": 0.6,
@@ -185,7 +186,7 @@
             "use_distortions": false
           },
           "camera_properties": {
-            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 }
+            "orientation": { "tx": 0, "ty": 0.05, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
           }
         }
       ],

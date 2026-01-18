@@ -37,6 +37,12 @@ class ThreadedVisionPipeline:
         self.latest_ts = 0.0         # Timestamp of the frame
         self.frame_id = 0            # Counter to detect new frames
 
+        # Detections Storage (Between Tags and Pose threads)
+        self.detections_lock = threading.Lock()
+        self.detections_cv = threading.Condition(self.detections_lock)
+        self.latest_detections = []  # List of AprilTagDetection objects
+        self.latest_detections_ts = 0.0
+
         # Results Storage
         self.result_lock = threading.Lock()
         self.latest_tag_results = {}
@@ -50,6 +56,7 @@ class ThreadedVisionPipeline:
         self.threads = [
             threading.Thread(target=self._thread_acquisition, name="Acq", daemon=True),
             threading.Thread(target=self._thread_detect_tags, name="Tags", daemon=True),
+            threading.Thread(target=self._thread_pose_estimation, name="Pose", daemon=True),
             threading.Thread(target=self._thread_detect_hsv, name="HSV", daemon=True),
             threading.Thread(target=self._thread_nt_update, name="NT", daemon=True),
             threading.Thread(target=self._thread_stream, name="Stream", daemon=True),
@@ -57,12 +64,14 @@ class ThreadedVisionPipeline:
 
         # --- Performance Stats ---
         # We attach this to ctx so external printers (camera_node.py) can see it
-        self.ctx.thread_fps = {k: 0.0 for k in ["Acq", "Tags", "HSV", "NT", "Stream"]}
-        self._stats_meta = {k: {"count": 0, "last": time.time()} for k in self.ctx.thread_fps}
+        self.ctx.thread_fps = {k: 0.0 for k in ["Acq", "Tags", "Pose", "HSV", "NT", "Stream"]}
+        self.ctx.thread_time_ms = {k: 0.0 for k in ["Acq", "Tags", "Pose", "HSV", "NT", "Stream"]}
+        self._stats_meta = {k: {"count": 0, "last": time.time(), "work_accum": 0.0} for k in self.ctx.thread_fps}
         
         # NT Publishers for stats
         t_stats = self.ntinst.getTable(self.ctx.table_name).getSubTable("_threads")
         self.nt_thread_fps = {k: t_stats.getDoubleTopic(k).publish() for k in self.ctx.thread_fps}
+        self.nt_thread_time = {k: t_stats.getDoubleTopic(f"{k}_ms").publish() for k in self.ctx.thread_fps}
 
     def start(self):
         self.running = True
@@ -75,9 +84,10 @@ class ThreadedVisionPipeline:
         for t in self.threads:
             t.join(timeout=1.0)
 
-    def _update_stats(self, name):
+    def _update_stats(self, name, work_duration=0.0):
         s = self._stats_meta[name]
         s["count"] += 1
+        s["work_accum"] += work_duration
         if s["count"] >= 10: # Update every 10 loops
             now = time.time()
             dt = now - s["last"]
@@ -85,8 +95,15 @@ class ThreadedVisionPipeline:
                 fps = s["count"] / dt
                 self.ctx.thread_fps[name] = fps
                 self.nt_thread_fps[name].set(fps)
+                
+                # Average work time in ms
+                avg_ms = (s["work_accum"] / s["count"]) * 1000.0
+                self.ctx.thread_time_ms[name] = avg_ms
+                self.nt_thread_time[name].set(avg_ms)
+
             s["last"] = now
             s["count"] = 0
+            s["work_accum"] = 0.0
 
     # ---------------------------------------------------------
     # 1. Image Acquisition Thread
@@ -100,6 +117,7 @@ class ThreadedVisionPipeline:
             try:
                 ts, img = self.ctx.sink.grabFrame(img_buf)
                 if ts > 0:
+                    t0 = time.time()
                     with self.frame_lock:
                         # We copy here so processing threads don't read while we write next frame
                         # On Pi 4, 640x480 copy is fast (~1ms)
@@ -107,7 +125,7 @@ class ThreadedVisionPipeline:
                         self.latest_ts = ts
                         self.frame_id += 1
                         self.frame_cv.notify_all() # Wake up detectors
-                    self._update_stats("Acq")
+                    self._update_stats("Acq", time.time() - t0)
                 else:
                     self.ctx.failure_counter += 1
                     # If we fail too many times, maybe we should try to restart the camera?
@@ -126,6 +144,7 @@ class ThreadedVisionPipeline:
     def _thread_detect_tags(self):
         last_processed_id = -1
         local_img = None
+        local_ts = 0.0
         
         while self.running:
             try:
@@ -138,12 +157,48 @@ class ThreadedVisionPipeline:
                         local_img = self.latest_frame # Read-only reference is fine if Acq copies
                         local_ts = self.latest_ts
 
+                t0 = time.time()
+
                 if local_img is None or not self.ctx.find_tags:
-                    with self.result_lock:
-                        self.latest_tag_results = {}
-                    self._update_stats("Tags")
+                    with self.detections_lock:
+                        self.latest_detections = []
+                        self.latest_detections_ts = local_ts
+                        self.detections_cv.notify_all()
+                    self._update_stats("Tags", time.time() - t0)
                     time.sleep(0.01)
                     continue
+
+                # Run Tag Detector (Image -> Corners)
+                tags = self.ctx.tag_detector.detect_tags(local_img)
+
+                # Hand off to Pose thread
+                with self.detections_lock:
+                    self.latest_detections = tags
+                    self.latest_detections_ts = local_ts
+                    self.detections_cv.notify_all()
+
+                self._update_stats("Tags", time.time() - t0)
+            except Exception as e:
+                log.error(f"Tag thread error: {traceback.format_exc()}")
+
+    # ---------------------------------------------------------
+    # 2b. Pose Estimation Thread
+    # ---------------------------------------------------------
+    def _thread_pose_estimation(self):
+        last_ts = 0.0
+        
+        while self.running:
+            local_tags = []
+            local_ts = 0.0
+            try:
+                with self.detections_cv:
+                    self.detections_cv.wait_for(lambda: self.latest_detections_ts > last_ts or not self.running)
+                    if not self.running: break
+                    local_tags = self.latest_detections
+                    local_ts = self.latest_detections_ts
+                    last_ts = local_ts
+                
+                t0 = time.time()
 
                 # Get robot pose from NT if available (Pose2d struct or None)
                 robot_pose = None
@@ -154,9 +209,9 @@ class ThreadedVisionPipeline:
                     if p.value is not None and (ntcore._now() - p.time < 500000):
                         robot_pose = p.value
 
-                # Run Tag Detector
-                tags = self.ctx.tag_detector.detect(
-                    local_img, 
+                # Run Pose Solver (Corners -> 3D Pose)
+                tags = self.ctx.tag_detector.solve_poses(
+                    local_tags, 
                     cam_orientation=self.ctx.orientation,
                     max_distance=self.ctx.max_tag_distance,
                     robot_pose=robot_pose
@@ -171,9 +226,9 @@ class ThreadedVisionPipeline:
                 with self.result_lock:
                     self.latest_tag_results = processed_tags
                     self.latest_result_ts = local_ts
-                self._update_stats("Tags")
+                self._update_stats("Pose", time.time() - t0)
             except Exception as e:
-                log.error(f"Tag thread error: {traceback.format_exc()}")
+                log.error(f"Pose thread error: {traceback.format_exc()}")
 
     # ---------------------------------------------------------
     # 3. HSV Detection Thread
@@ -191,10 +246,12 @@ class ThreadedVisionPipeline:
                     if self.latest_frame is not None:
                         local_img = self.latest_frame
 
+                t0 = time.time()
+
                 if local_img is None or not self.ctx.find_colors:
                     with self.result_lock:
                         self.latest_color_results = {}
-                    self._update_stats("HSV")
+                    self._update_stats("HSV", time.time() - t0)
                     time.sleep(0.01)
                     continue
 
@@ -216,7 +273,7 @@ class ThreadedVisionPipeline:
 
                 with self.result_lock:
                     self.latest_color_results = res
-                self._update_stats("HSV")
+                self._update_stats("HSV", time.time() - t0)
             except Exception as e:
                 log.error(f"HSV thread error: {traceback.format_exc()}")
 
@@ -226,6 +283,7 @@ class ThreadedVisionPipeline:
     def _thread_nt_update(self):
         while self.running:
             time.sleep(0.02) # 50Hz update rate
+            t0 = time.time()
             try:
                 # Heartbeat
                 # self.ctx.nt["timestamp"].set(ntcore._now())
@@ -235,7 +293,7 @@ class ThreadedVisionPipeline:
                     colors = self.latest_color_results
 
                 update_cam_entries(self.ctx, tags, colors, self.ntinst)
-                self._update_stats("NT")
+                self._update_stats("NT", time.time() - t0)
             except Exception as e:
                 log.error(f"NT update error: {traceback.format_exc()}")
 
@@ -255,6 +313,8 @@ class ThreadedVisionPipeline:
                     if self.latest_frame is not None:
                         # Copy for drawing so we don't block detectors reading the raw frame
                         draw_img = self.latest_frame.copy()
+                
+                t0 = time.time()
                 
                 if draw_img is None: continue
 
@@ -291,6 +351,6 @@ class ThreadedVisionPipeline:
                     self.ctx.nt["frames"].set(self.ctx.success_counter)
                     if "fps" in self.ctx.nt:
                         self.ctx.nt["fps"].set(self.ctx.fps)
-                self._update_stats("Stream")
+                self._update_stats("Stream", time.time() - t0)
             except Exception as e:
                 log.error(f"Stream thread error: {traceback.format_exc()}")

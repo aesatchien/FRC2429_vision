@@ -69,10 +69,11 @@ def main():
     # Main thread just monitors or sleeps
     last_print = 0.0
     while True:
-        time.sleep(1.0)
+        time.sleep(2.0)
         # Format thread stats
         tf = getattr(ctx, "thread_fps", {})
-        stats = " ".join([f"{k}:{v:0.0f}" for k,v in tf.items()])
+        tt = getattr(ctx, "thread_time_ms", {})
+        stats = " ".join([f"{k}:{v:0.0f}/{tt.get(k,0):0.1f}ms" for k,v in tf.items()])
         print(f"{ctx.name}: {ctx.fps:0.1f}fps ({stats}) S:{ctx.success_counter} F:{ctx.failure_counter}", flush=True)
 
 if __name__ == "__main__":

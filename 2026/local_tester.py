@@ -38,10 +38,14 @@ except AttributeError:
     pass
 
 import time
+import logging
 import argparse
 from ntcore import NetworkTableInstance
 print('finished initial imports after ms ...')
 start = time.time()
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+
 from vision.camera_model import CameraModel
 from vision.detect_tags import TagDetector
 from vision.detect_hsv import HSVDetector
@@ -212,12 +216,15 @@ def main():
                 
                 if "frames" in mock_ctx.nt: mock_ctx.nt["frames"].set(mock_ctx.success_counter)
                 if "fps" in mock_ctx.nt: mock_ctx.nt["fps"].set(mock_ctx.fps)
+                # print(f"FPS: {mock_ctx.fps:.1f}", end="\r", flush=True)
 
         if frame is None: continue
 
         # --- Detection ---
         tag_results = tag_detector.detect(frame, cam_orientation=orientation, max_distance=max_dist)
         tag_results = tag_manager.process(tag_results, averaging_enabled=averaging_mode)
+        if not tag_results and mock_ctx.success_counter % 150 == 0:
+            print("No tags detected...", end="\r", flush=True)
         mt_log.dump(tag_results, label="Local")
         
         current_color = colors_to_cycle[color_idx]

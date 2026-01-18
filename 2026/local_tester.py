@@ -107,20 +107,27 @@ def main():
         cam_cfg = profile.get("cameras", [{}])[0]
         print(f"Loaded config for camera: {cam_cfg.get('name', 'unknown')}")
 
+    # Resolve Hardware Definition
+    cam_defs = vcfg.get("camera_definitions", {})
+    cam_def = {}
+    cid = cam_cfg.get("camera_id")
+    if cid:
+        cam_def = cam_defs.get(cid, {})
+
     labeling = cam_cfg.get("labeling", {})
     activities = cam_cfg.get("activities", {})
     cam_props = cam_cfg.get("camera_properties", {})
+    tag_config_in = cam_cfg.get("tag_config", {})
 
-    camera_type = cam_cfg.get("camera_type", 'c920')
-    intrinsics = cam_props.get("intrinsics", {'fx': 484, 'fy': 484, 'cx': width / 2, 'cy': height / 2})
-    distortions = cam_props.get("distortions", [])
+    camera_type = cam_cfg.get("camera_type") or cam_def.get("camera_type", 'c920')
+    intrinsics = cam_props.get("intrinsics") or cam_def.get("intrinsics", {'fx': 484, 'fy': 484, 'cx': width / 2, 'cy': height / 2})
+    distortions = cam_props.get("distortions") or cam_def.get("distortions", [])
     colors_to_cycle = activities.get("colors", ["orange", "yellow", "purple", "green"])
     orientation = cam_props.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0})
-    max_dist = cam_props.get("max_tag_distance", 3.0)
+    max_dist = tag_config_in.get("max_tag_distance", 3.0)
 
     cam_model = CameraModel(width, height, camera_type, intrinsics, distortions)
     tag_config = cam_cfg.get("tag_config", {}).copy()
-    tag_config["use_distortions"] = cam_props.get("use_distortions", False)
     
     tag_detector = TagDetector(cam_model, config=tag_config)
     hsv_detector = HSVDetector(cam_model)

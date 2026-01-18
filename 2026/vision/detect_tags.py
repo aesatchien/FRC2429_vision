@@ -1,3 +1,40 @@
+"""
+CRITICAL SYSTEM CONTEXT - READ BEFORE MODIFYING
+===============================================
+This vision pipeline solves for FRC AprilTag poses using a Dual Hypothesis strategy.
+
+1. HARDWARE REALITY:
+   - Cameras are mounted in LANDSCAPE orientation.
+   - Do NOT assume or suggest the cameras are physically rotated/portrait.
+
+2. COORDINATE MAPPING (THE "SHIFT 2"):
+   - Problem: The raw detector corner order (0,1,2,3) does not align with the
+     standard object points for solvePnP in this specific software stack.
+   - Solution: We apply a LOGICAL index shift (Corner 0 maps to Top-Right).
+     
+     Detector Output (Standard AprilTag Library):
+       Index 0: Bottom-Left
+       Index 1: Bottom-Right
+       Index 2: Top-Right
+       Index 3: Top-Left
+     
+     Solver Expectation (Standard Object Points):
+       We map these to align with a Z-up (WPILib) or Z-forward (OpenCV) model.
+   - Cause: Mismatch between Apriltag library winding order and WPILib/OpenCV
+     axis definitions. This is a SOFTWARE patch, not a physical description.
+
+3. THE "GHOST" SOLUTION:
+   - Problem: Planar tags produce two valid mathematical poses (Ambiguity).
+   - Strategy: "Dual Hypothesis." We explicitly calculate BOTH solutions
+     (Standard vs Flipped) and use the Single-Tag Consensus to vote for the winner.
+   - Do NOT use iterative solvers without this consensus check.
+   - TODO - figure out if the single tags are flipped too
+
+4. CONSTANTS:
+   - Tag Size is dynamic (from config). Never hardcode 0.1651m.
+"""
+
+import logging
 import cv2
 import numpy as np
 import math
@@ -5,6 +42,7 @@ import robotpy_apriltag as ra
 import wpimath.geometry as geo
 from wpimath import objectToRobotPose
 
+log = logging.getLogger("tags")
 
 class TagDetector:
     def __init__(self, camera_model, field_layout=None, config=None):
@@ -57,13 +95,24 @@ class TagDetector:
         self._pnp_hist = {}
 
         self.K = np.array([[self.cam.fx, 0, self.cam.cx], [0, self.cam.fy, self.cam.cy], [0, 0, 1]], dtype=np.float64)
-        self.D = np.array(self.cam.dist_coeffs) if self.cam.dist_coeffs is not None else np.zeros((5, 1))
+        
+        # If we pre-undistort the image, PnP should assume a perfect pinhole (D=0).
+        # Otherwise, PnP needs the distortion coefficients to match points correctly.
+        if self.use_distortions:
+            self.D = np.zeros((5, 1), dtype=np.float64)
+        else:
+            self.D = np.array(self.cam.dist_coeffs) if self.cam.dist_coeffs is not None else np.zeros((5, 1))
 
         # Standard Object Points (BL, BR, TR, TL)
         s = self.tag_size / 2.0
         self.std_obj_points = np.array([
             [0.0, s, -s], [0.0, -s, -s], [0.0, -s, s], [0.0, s, s]
         ], dtype=np.float64)
+
+        log.info(f"Initialized TagDetector for {self.cam.width}x{self.cam.height}")
+        log.info(f"  Config: {config}")
+        log.info(f"  Intrinsics: fx={self.cam.fx:.1f} fy={self.cam.fy:.1f} cx={self.cam.cx:.1f} cy={self.cam.cy:.1f}")
+        log.info(f"  Distortions: {self.cam.dist_coeffs if any(self.cam.dist_coeffs) else 'None'} (Used in PnP: {not self.use_distortions})")
 
     def detect(self, image, cam_orientation=None, max_distance=None, robot_pose=None):
         if max_distance is None: max_distance = self.default_max_dist

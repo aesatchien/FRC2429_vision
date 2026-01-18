@@ -71,17 +71,16 @@ Critical for accurate 3D pose estimation.
 
 | Field | Default | Description |
 | :--- | :--- | :--- |
-| `max_tag_distance` | `3.5` | Ignore tags detected further than this distance (meters). |
 | `orientation` | `{0,0,0...}` | Camera position on robot. `{tx, ty, tz}` (meters), `{rx, ry, rz}` (degrees). |
 | `intrinsics` | `None` | Lens properties `{fx, fy, cx, cy}`. If missing, estimated from resolution. |
 | `distortions` | `None` | Lens distortion coefficients `[k1, k2, p1, p2, k3]`. |
-| `use_distortions` | `False` | If `True`, undistorts image before tag detection (CPU intensive). |
 
 ### 5. Tag Config (Detector Tuning)
 Fine-tune the AprilTag algorithm performance vs. accuracy.
 
 | Field | Default | Description |
 | :--- | :--- | :--- |
+| `max_tag_distance` | `3.5` | Ignore tags detected further than this distance (meters). |
 | `decimate` | `1.0` | Downsample factor. `1.0` = Full Res (Best Range), `2.0` = Half Res (Faster). |
 | `sigma` | `0.6` | Gaussian blur sigma. `0.0` = Sharp/Noisy, `0.6-0.8` = Smooths sensor noise. |
 | `threads` | `1` | Number of threads for the detector core. |
@@ -91,6 +90,7 @@ Fine-tune the AprilTag algorithm performance vs. accuracy.
 | `refine_edges` | `True` | Enable sub-pixel edge refinement (slower, more accurate). |
 | `decode_sharpening` | `0.25` | Sharpening applied to decoded quads to help with soft focus. |
 | `allow_multi_tag` | `True` | If `True`, computes a global Multi-Tag PnP pose when 2+ tags are visible. |
+| `use_distortions` | `False` | If `True`, undistorts image before tag detection (CPU intensive). |
 
 ---
 

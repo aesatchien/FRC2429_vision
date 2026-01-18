@@ -44,6 +44,8 @@ if __name__ == "__main__":
     log.info(f"Selected profile: '{prof.get('role', 'unknown')}' with {cam_count} cameras")
     if cam_count == 0:
         log.warning("No cameras found in profile! (Check IP address or vision.json)")
+    
+    cam_defs = vcfg.get("camera_definitions", {})
 
     # Global NT flags
     nt_global = init_global_flags(ntinst)
@@ -58,7 +60,7 @@ if __name__ == "__main__":
 
         # Use the factory to build the pipeline context
         rio_cfg = next((cc for cc in wpi_rio.cameraConfigs if cc.name == c["name"]), None)
-        ctx = deploy_camera_pipeline(cam_obj, c, rio_cfg, ntinst)
+        ctx = deploy_camera_pipeline(cam_obj, c, rio_cfg, ntinst, camera_definitions=cam_defs)
         contexts.append(ctx)
 
     # Run workers

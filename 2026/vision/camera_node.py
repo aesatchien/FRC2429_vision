@@ -58,8 +58,9 @@ def main():
 
     nt_global = init_global_flags(ntinst)
 
+    cam_defs = vcfg.get("camera_definitions", {})
     # Use factory to build context
-    ctx = deploy_camera_pipeline(cam, cam_prof, cc, ntinst)
+    ctx = deploy_camera_pipeline(cam, cam_prof, cc, ntinst, camera_definitions=cam_defs)
 
     # Start Threaded Pipeline
     pipeline = ThreadedVisionPipeline(ctx, ntinst, nt_global, push_frame)

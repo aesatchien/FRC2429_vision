@@ -84,7 +84,12 @@
             "colors": ["yellow"]
           },
           "tag_config": {
-            "max_tag_distance": 4.5,
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
+            "threads": 4,
+            "sigma": 0.6,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.95,
             "use_distortions": false
           },
           "camera_properties": {
@@ -110,7 +115,12 @@
             "colors": ["yellow"]
           },
           "tag_config": {
-            "max_tag_distance": 4.5,
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
+            "threads": 4,
+            "sigma": 0.6,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.95,
             "use_distortions": false
           },
           "camera_properties": {
@@ -146,7 +156,6 @@
           },
           "tag_config": {
             "decimate": 1.5,
-            "min_cluster_pixels": 25,
             "min_cluster_pixels": 25,
             "threads": 2,
             "sigma": 0.0,

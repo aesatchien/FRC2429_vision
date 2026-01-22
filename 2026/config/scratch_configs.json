@@ -1,0 +1,96 @@
+    "10.24.29.16": {
+      "role": "elevator-top",
+      "cameras": [
+        {
+          "name": "c920",
+          "camera_id": "logitech_c920_046d:08e5_640_360",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "LogitechReef",
+            "table_name": "Cameras/LogitechReef",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "max_tag_distance": 3,
+            "use_distortions": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": -0.33, "ty": -0.20, "tz": 0, "rx": 0, "ry": 30, "rz": -90 }
+          }
+        },
+        {
+          "name": "arducam",
+          "camera_id": "arducam_b_1280_800",
+          "labeling": {
+            "raw_port": 1182,
+            "processed_port": 1187,
+            "stream_label": "ArducamHigh",
+            "table_name": "Cameras/ArducamHigh",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "max_tag_distance": 3,
+            "use_distortions": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
+
+        "10.24.29.99": {
+      "role": "back-tagcam",
+      "cameras": [
+        {
+          "name": "genius",
+          "camera_id": "genius_640_480",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "GeniusLow",
+            "table_name": "Cameras/GeniusLow",
+            "stream_max_width": 320,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "max_tag_distance": 2,
+            "use_distortions": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": 0.27, "ty": -0.20, "tz": 0, "rx": 0, "ry": 0, "rz": -115 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "genius": 50
+      }
+    },

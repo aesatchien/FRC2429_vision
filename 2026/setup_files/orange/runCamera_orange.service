@@ -1,0 +1,16 @@
+[Unit]
+Description=FRC Vision Camera Service
+After=network.target
+
+[Service]
+ExecStart=/home/orangepi/git/FRC2429_vision/2026/runCamera
+WorkingDirectory=/home/orangepi/git/FRC2429_vision/2026
+User=orangepi
+Group=orangepi
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/orangepi/logs/runCamera.log
+StandardError=append:/home/orangepi/logs/runCamera.err.log
+
+[Install]
+WantedBy=multi-user.target

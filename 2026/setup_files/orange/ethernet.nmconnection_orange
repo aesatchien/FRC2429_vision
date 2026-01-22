@@ -1,0 +1,11 @@
+[connection]
+id=ethernet
+type=ethernet
+interface-name=enP3p49s0
+autoconnect=true
+
+[ipv4]
+method=manual
+addresses=10.24.29.13/24
+gateway=10.24.29.1
+dns=8.8.8.8;8.8.4.4;

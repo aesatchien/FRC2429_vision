@@ -41,6 +41,7 @@ import math
 import robotpy_apriltag as ra
 import wpimath.geometry as geo
 from wpimath import objectToRobotPose
+from vision.tag_config import load_field_layout, TAG_FAMILY, DEFAULT_TAG_SIZE
 
 log = logging.getLogger("tags")
 
@@ -50,7 +51,7 @@ class TagDetector:
         if config is None: config = {}
 
         self.detector = ra.AprilTagDetector()
-        self.detector.addFamily('tag36h11')
+        self.detector.addFamily(TAG_FAMILY)
 
         qt = self.detector.getQuadThresholdParameters()
         qt.minClusterPixels = config.get("min_cluster_pixels", 25)
@@ -68,7 +69,7 @@ class TagDetector:
         self.max_hamming = config.get("hamming", 1)
         self.allow_multi_tag = config.get("allow_multi_tag", True)
         self.default_max_dist = config.get("max_tag_distance", 4.0)
-        self.tag_size = config.get("tag_size", 0.1651)
+        self.tag_size = config.get("tag_size", DEFAULT_TAG_SIZE)
 
         self.use_distortions = config.get("use_distortions", False)
         self.map1, self.map2 = None, None
@@ -84,11 +85,7 @@ class TagDetector:
         self.estimator = ra.AprilTagPoseEstimator(est_config)
 
         if field_layout is None:
-            try:
-                field = ra.AprilTagField.k2024Crescendo
-                self.layout = ra.AprilTagFieldLayout.loadField(field)
-            except:
-                self.layout = None
+            self.layout = load_field_layout()
         else:
             self.layout = field_layout
 

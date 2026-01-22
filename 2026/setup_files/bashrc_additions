@@ -15,6 +15,12 @@ alias stopcams='sudo systemctl stop runCamera.service'
 alias restartcams='sudo systemctl restart runCamera.service'
 alias logcams='tail -f ~/logs/runCamera.log'
 
+# raspberry
 # WiFi Control (useful for competition to ensure only Ethernet is active)
 alias stopwlan='sudo bash -c "echo \"blacklist brcmfmac\" > /etc/modprobe.d/disable-wifi.conf && reboot"'
+alias startwlan='sudo rm /etc/modprobe.d/disable-wifi.conf && sudo reboot'
+
+
+# orange
+alias stopwlan='sudo bash -c "echo \"blacklist bcmdhd\" > /etc/modprobe.d/disable-wifi.conf && reboot"'
 alias startwlan='sudo rm /etc/modprobe.d/disable-wifi.conf && sudo reboot'

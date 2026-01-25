@@ -46,6 +46,13 @@ class MultiTagResidualLogger:
         singles_sorted = sorted(singles, key=lambda t: float(t.get("dist", 1e9)))
         pair_ids = tuple(sorted((int(singles_sorted[0]["id"]), int(singles_sorted[1]["id"]))))
 
+        # Calculate delta between the two closest tags
+        t1, t2 = singles_sorted[0], singles_sorted[1]
+        t1x, t1y, t1z = float(t1.get("tx", 0)), float(t1.get("ty", 0)), float(t1.get("tz", 0))
+        t2x, t2y, t2z = float(t2.get("tx", 0)), float(t2.get("ty", 0)), float(t2.get("tz", 0))
+        dt_x, dt_y, dt_z = t1x - t2x, t1y - t2y, t1z - t2z
+        dt_dist = math.sqrt(dt_x*dt_x + dt_y*dt_y + dt_z*dt_z)
+
         now = time.monotonic()
         last = self._last_print.get(pair_ids, -1e9)
         if (now - last) < self.min_period_s:
@@ -88,7 +95,8 @@ class MultiTagResidualLogger:
 
         hdr = f"\n[multi_resid]{' ' + label if label else ''} pair={pair_ids} " \
               f"multi(xyz)=({mx:+.3f},{my:+.3f},{mz:+.3f}) yaw={myaw_deg:+.1f}deg \n" \
-              f"   tvec: {tvec[0,0]:.3f},{tvec[1,0]:.3f},{tvec[2,0]:.3f}  rvec: {rvec[0,0]:.3f},{rvec[1,0]:.3f},{rvec[2,0]:.3f} RMS {rms:.1f}"
+              f"   tvec: {tvec[0,0]:.3f},{tvec[1,0]:.3f},{tvec[2,0]:.3f}  rvec: {rvec[0,0]:.3f},{rvec[1,0]:.3f},{rvec[2,0]:.3f} RMS {rms:.1f}\n" \
+              f"   Tag Delta (tag{t1['id']} - tag{t2['id']}): dist={dt_dist:.3f}m xyz=({dt_x:+.3f}, {dt_y:+.3f}, {dt_z:+.3f})"
         print(hdr)
         for r in rows[:8]:
             print(

@@ -12,7 +12,7 @@ cp "$SCRIPT_DIR/.bashrc_orangepi" ~/.bashrc
 
 # Copy ethernet.nmconnection to NetworkManager configuration - set eth0 t0 10.24.29.13
 echo "Setting up Ethernet static IP configuration..."
-sudo cp "$SCRIPT_DIR/ethernet.nmconnection" /etc/NetworkManager/system-connections/
+sudo cp "$SCRIPT_DIR/ethernet.nmconnection_orange" /etc/NetworkManager/system-connections/ethernet.nmconnection
 sudo chmod 600 /etc/NetworkManager/system-connections/ethernet.nmconnection
 sudo nmcli connection reload
 

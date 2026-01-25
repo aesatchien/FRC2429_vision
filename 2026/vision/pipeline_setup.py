@@ -68,7 +68,7 @@ def deploy_camera_pipeline(cam_obj, cam_profile, rio_config, ntinst, camera_defi
         orientation=cam_props.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0}),
         intrinsics=cam_props.get("intrinsics") or cam_def.get("intrinsics"),
         distortions=cam_props.get("distortions") or cam_def.get("distortions"),
-        use_distortions=tag_config_in.get("use_distortions", False),
+        use_distortions=tag_config_in.get("undistort_image", False),
         max_tag_distance=tag_config_in.get("max_tag_distance", 3.5),
     )
     

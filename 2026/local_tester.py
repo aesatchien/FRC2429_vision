@@ -38,6 +38,7 @@ except AttributeError:
     pass
 
 import time
+import os
 import logging
 import argparse
 from ntcore import NetworkTableInstance
@@ -84,15 +85,36 @@ def main():
     args = parser.parse_args()
 
     # --- Initialization ---
-    cap = cv2.VideoCapture(args.camera)
+    t0 = time.time()
+    # Optimization: On Windows, force DirectShow to avoid scanning delays
+    backend = cv2.CAP_DSHOW if os.name == 'nt' else cv2.CAP_ANY
+    cap = cv2.VideoCapture(args.camera, backend)
+    print(f"cv2.VideoCapture took {(time.time()-t0)*1000:.0f} ms")
     
+    # FORCE MJPEG FIRST (Critical for 720p on USB 2.0)
+    # Setting this before resolution prevents the driver from trying to negotiate 
+    # a high-bandwidth YUYV format for 720p, which causes delays.
+    t0 = time.time()
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    #print(f"cap.set FOURCC took {(time.time()-t0)*1000:.0f} ms")
+
     # Set default resolution to 1280x720
+    t0 = time.time()
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    print(f"cap.set resolution took {(time.time()-t0)*1000:.0f} ms")
 
+    # Manual Exposure & Gain (Tune these values!)
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1) # 1=Manual, 3=Auto (Linux V4L2)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -8)     # Linux: 20 (~2ms). Windows: Try -6 or -7.
+    cap.set(cv2.CAP_PROP_GAIN, 0)        # Increase to brighten image (0-255)
+    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)     # Disable autofocus
+
+    t0 = time.time()
     if not cap.isOpened():
         print(f"Error: Could not open camera {args.camera}")
         return
+    # print(f"cap.isOpened check took {(time.time()-t0)*1000:.0f} ms")
 
     # Get camera resolution
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -109,7 +131,7 @@ def main():
     else:
         # Use the first camera in the profile
         cam_cfg = profile.get("cameras", [{}])[0]
-        print(f"Loaded config for camera: {cam_cfg.get('name', 'unknown')}")
+        print(f"Loaded config for camera profile: {cam_cfg.get('name', 'unknown')} -- id: {cam_cfg.get('camera_id', 'unknown')}")
 
     # Resolve Hardware Definition
     cam_defs = vcfg.get("camera_definitions", {})

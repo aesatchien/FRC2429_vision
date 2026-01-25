@@ -5,7 +5,7 @@
             "fps": 30,
             "height": 720,
             "name": "logitech_c920_bottom_front",
-            "path": "/dev/v4l/by-id/usb-046d_C922_Pro_Stream_Webcam_112F5FDF-video-index0",
+            "path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_357F611F-video-index0",
             "pixel format": "mjpeg",
             "properties": [
                 {

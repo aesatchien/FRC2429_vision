@@ -24,10 +24,10 @@
           },
           "tag_config": {
             "max_tag_distance": 3,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 }
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
           }
         },
         {
@@ -50,10 +50,10 @@
           },
           "tag_config": {
             "max_tag_distance": 3,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 }
+            "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": 0, "rz": 90 }
           }
         }
       ],
@@ -62,7 +62,7 @@
       }
     },
 
-    "10.24.29.13": {
+    "10.24.29.14": {
       "role": "practicebot_orangepi_logi",
       "cameras": [
         {
@@ -84,16 +84,16 @@
             "colors": ["yellow"]
           },
           "tag_config": {
-            "decimate": 1.5,
+            "decimate": 0,
             "min_cluster_pixels": 25,
             "threads": 4,
-            "sigma": 0.6,
+            "sigma": 0,
             "allow_multi_tag": true,
             "max_tag_distance": 4.95,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": -15, "rz": 0 }
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
           }
         },
         {
@@ -121,10 +121,10 @@
             "sigma": 0.6,
             "allow_multi_tag": true,
             "max_tag_distance": 4.95,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": -15, "rz": 90 }
+            "orientation": { "tx": 0, "ty": 0.0, "tz": 0, "rx": 0, "ry": 0, "rz": 90 }
           }
         }
       ],
@@ -133,7 +133,7 @@
       }
     },
 
-    "10.24.29.14": {
+    "10.24.29.15": {
       "role": "practicebot_pi5_arducams",
       "cameras": [
         {
@@ -142,8 +142,8 @@
           "labeling": {
             "raw_port": 1181,
             "processed_port": 1186,
-            "stream_label": "ArducamLeft",
-            "table_name": "Cameras/ArducamLeft",
+            "stream_label": "ArducamRight",
+            "table_name": "Cameras/ArducamRight",
             "stream_max_width": 640,
             "stream_fps": 16
           },
@@ -161,7 +161,7 @@
             "sigma": 0.0,
             "allow_multi_tag": true,
             "max_tag_distance": 4.5,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
             "orientation": { "tx": 0, "ty": -0.05, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
@@ -173,8 +173,8 @@
           "labeling": {
             "raw_port": 1182,
             "processed_port": 1187,
-            "stream_label": "ArducamRight",
-            "table_name": "Cameras/ArducamRight",
+            "stream_label": "ArducamLeft",
+            "table_name": "Cameras/ArducamLeft",
             "stream_max_width": 640,
             "stream_fps": 16
           },
@@ -186,13 +186,13 @@
             "colors": ["orange"]
           },
           "tag_config": {
-            "decimate": 1.5,
+            "decimate": 1,
             "min_cluster_pixels": 25,
             "threads": 2,
-            "sigma": 0.6,
+            "sigma": 2,
             "allow_multi_tag": true,
             "max_tag_distance": 4.5,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
             "orientation": { "tx": 0, "ty": 0.05, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
@@ -205,7 +205,7 @@
       }
     },
 
-    "10.24.29.15": {
+    "10.24.29.13": {
       "role": "practicebot_orangepi_arducams",
       "cameras": [
         {
@@ -228,10 +228,10 @@
           },
           "tag_config": {
             "max_tag_distance": 4.5,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 }
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
           }
         },
         {
@@ -255,10 +255,10 @@
           "enable_overlay": true,
           "tag_config": {
             "max_tag_distance": 4.5,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": -0.33, "ty": 0.20, "tz": 0, "rx": 0, "ry": -25, "rz": 90 }
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
           }
         }
       ],
@@ -273,7 +273,7 @@
       "cameras": [
         {
           "name": "webcam",
-          "camera_id": "arducam_b_1280_720",
+          "camera_id": "arducam_red_1280_720",
           "labeling": {
             "stream_max_width": 640
           },
@@ -284,7 +284,7 @@
           },
           "tag_config": {
             "max_tag_distance": 10,
-            "use_distortions": false
+            "undistort_image": false
           },
           "camera_properties": {
             "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
@@ -299,6 +299,13 @@
     "cameras": []
   },
   "camera_definitions": {
+    "arducam_red_1280_720": {
+      "camera_type": "arducam",
+      "serial": "arducam_RED",
+      "resolution": [1280, 720],
+      "intrinsics": {"fx": 902.46, "fy": 902.63, "cx": 629.1, "cy": 369.25},
+      "distortions": [0.04397004, -0.06429124, 0.00029384, -6.56e-05, -0.00015588]
+    },
     "arducam_a_1280_720": {
       "camera_type": "arducam",
       "serial": "arducam_A right",
@@ -346,14 +353,31 @@
       "serial": "046d:08e5",
       "resolution": [1280, 720],
       "intrinsics": { "fx": 968.36, "fy": 967.51, "cx": 641.91, "cy": 354.77 },
-      "distortions": [0.04355313, -0.1763234, -0.00145519, 0.00024383, 0.14653665]
+      "distortions": [0.018481,	-0.113076,	-0.001208,	-0.000224,	0.059386],
+      "arducam_path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_357F611F-video-index0"
     },
     "logitech_c920_046d:082d_1280_720": {
       "camera_type": "c920",
       "serial": "046d:082d",
       "resolution": [1280, 720],
       "intrinsics": {"fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24},
-      "distortions": [0.12230188, -0.23959588, -0.00127158, -0.00126347, 0.10090911]
+      "distortions": [0.12230188, -0.23959588, -0.00127158, -0.00126347, 0.10090911],
+      "arducam_path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_EA3BCE4F-video-index0"
+    },
+    "logitech_c920_046d:????_1280_720": {
+      "camera_type": "c920",
+      "serial": "046d:????",
+      "resolution": [1280, 720],
+      "intrinsics": {"fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24},
+      "distortions": [0.12230188, -0.23959588, -0.00127158, -0.00126347, 0.10090911],
+      "arducam_path": "/dev/v4l/by-id/usb-046d_C922_Pro_Stream_Webcam_112F5FDF-video-index0"
+    },
+    "dummy": {
+      "camera_type": "arducam",
+      "serial": "none",
+      "resolution": [1280, 720],
+      "intrinsics": {"fx": 912.34, "fy": 911.71, "cx": 640.24, "cy": 431.91},
+      "distortions": [0.0331324, -0.04438929, -0.00067446, -0.00110617, -0.0147985]
     },
     "genius_640_480": {
       "camera_type": "genius",

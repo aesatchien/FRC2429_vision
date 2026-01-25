@@ -58,11 +58,11 @@ class TagDetector:
         self.detector.setQuadThresholdParameters(qt)
 
         cfg = self.detector.getConfig()
-        cfg.numThreads = config.get("threads", 1)
+        cfg.numThreads = config.get("threads", 2)
         cfg.quadDecimate = config.get("decimate", 1.0)
         cfg.quadSigma = config.get("sigma", 0.6)
         cfg.refineEdges = config.get("refine_edges", True)
-        cfg.decodeSharpening = config.get("decode_sharpening", 0.25)
+        cfg.decodeSharpening = config.get("decode_sharpening", 0)
         self.detector.setConfig(cfg)
 
         self.min_margin = config.get("decision_margin", 35)
@@ -71,9 +71,10 @@ class TagDetector:
         self.default_max_dist = config.get("max_tag_distance", 4.0)
         self.tag_size = config.get("tag_size", DEFAULT_TAG_SIZE)
 
-        self.use_distortions = config.get("use_distortions", False)
+        self.undistort_image = config.get("undistort_image", False)
         self.map1, self.map2 = None, None
-        if self.use_distortions and self.cam.dist_coeffs is not None:
+        # Precompute undistortion maps if needed
+        if self.undistort_image and self.cam.dist_coeffs is not None:
             K = np.array([[self.cam.fx, 0, self.cam.cx], [0, self.cam.fy, self.cam.cy], [0, 0, 1]])
             D = self.cam.dist_coeffs
             self.map1, self.map2 = cv2.initUndistortRectifyMap(
@@ -95,7 +96,7 @@ class TagDetector:
         
         # If we pre-undistort the image, PnP should assume a perfect pinhole (D=0).
         # Otherwise, PnP needs the distortion coefficients to match points correctly.
-        if self.use_distortions:
+        if self.undistort_image:
             self.D = np.zeros((5, 1), dtype=np.float64)
         else:
             self.D = np.array(self.cam.dist_coeffs) if self.cam.dist_coeffs is not None else np.zeros((5, 1))
@@ -109,7 +110,7 @@ class TagDetector:
         log.info(f"Initialized TagDetector for {self.cam.width}x{self.cam.height}")
         log.info(f"  Config: {config}")
         log.info(f"  Intrinsics: fx={self.cam.fx:.1f} fy={self.cam.fy:.1f} cx={self.cam.cx:.1f} cy={self.cam.cy:.1f}")
-        log.info(f"  Distortions: {self.cam.dist_coeffs if any(self.cam.dist_coeffs) else 'None'} (Used in PnP: {not self.use_distortions})")
+        log.info(f"  Distortions: {self.cam.dist_coeffs if any(self.cam.dist_coeffs) else 'None'} (Used in PnP: {not self.undistort_image})")
 
     def detect(self, image, cam_orientation=None, max_distance=None, robot_pose=None):
         """
@@ -122,7 +123,7 @@ class TagDetector:
     def detect_tags(self, image):
         """Phase 1: Image processing to find tag corners."""
         grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        if self.use_distortions and self.map1 is not None:
+        if self.undistort_image and self.map1 is not None:
             grey = cv2.remap(grey, self.map1, self.map2, cv2.INTER_LINEAR)
 
         detections = self.detector.detect(grey)
@@ -301,12 +302,18 @@ class TagDetector:
 
         if best_cand and best_diff < 1.5:
             best_tag = min(valid_single_results, key=lambda x: x['dist'])
+            
+            # Collect corners from all tags used in the solution for visualization
+            all_corners = []
+            for res in valid_single_results:
+                all_corners.extend(res['corners'])
+
             return {
                 "id": best_tag['id'], "in_layout": True, "is_multi_tag": True,
                 "tx": best_pose.X(), "ty": best_pose.Y(), "tz": best_pose.Z(),
                 "rx": best_pose.rotation().X(), "ry": best_pose.rotation().Y(), "rz": best_pose.rotation().Z(),
                 "dist": best_tag["dist"], "rotation": best_tag["rotation"], "strafe": best_tag["strafe"],
-                "cx": 0, "cy": 0, "corners": [],
+                "cx": 0, "cy": 0, "corners": all_corners,
                 "rvec": best_cand['rvec'], "tvec": best_cand['tvec'],
                 "pnp_rms_px": best_cand['rms']
             }
@@ -382,7 +389,7 @@ class TagDetector:
         s = self.tag_size / 2.0
         obj_points = np.array([[-s, -s, 0.0], [s, -s, 0.0], [s, s, 0.0], [-s, s, 0.0]], dtype=np.float64)
         K = np.array([[self.cam.fx, 0, self.cam.cx], [0, self.cam.fy, self.cam.cy], [0, 0, 1]])
-        D = self.cam.dist_coeffs if self.cam.dist_coeffs is not None else np.zeros(5)
+        D = self.D # Use the logic-gated distortion matrix (0 if pre-undistorted, coeffs if not)
         rvec_calc = self._quat_to_rvec(pose.rotation().getQuaternion())
         tvec_calc = np.array([[pose.x], [pose.y], [pose.z]])
         proj, _ = cv2.projectPoints(obj_points, rvec_calc, tvec_calc, K, D)

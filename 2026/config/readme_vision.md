@@ -90,7 +90,7 @@ Fine-tune the AprilTag algorithm performance vs. accuracy.
 | `refine_edges` | `True` | Enable sub-pixel edge refinement (slower, more accurate). |
 | `decode_sharpening` | `0.25` | Sharpening applied to decoded quads to help with soft focus. |
 | `allow_multi_tag` | `True` | If `True`, computes a global Multi-Tag PnP pose when 2+ tags are visible. |
-| `use_distortions` | `False` | If `True`, undistorts image before tag detection (CPU intensive). |
+| `undistort_image` | `False` | If `True`, undistorts image before tag detection (CPU intensive). |
 
 ---
 

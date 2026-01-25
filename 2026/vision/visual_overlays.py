@@ -100,12 +100,28 @@ def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=
 
     # 2. Draw AprilTags
     if len(tag_results) > 0:
+        # Pass 1: Draw Multi-Tag Box (Background) so text renders on top
+        for t_data in tag_results.values():
+            if t_data.get('is_multi_tag', False):
+                if 'corners' in t_data and t_data['corners']:
+                    # Reshape flat list of corners into points
+                    pad = 10
+                    pts = np.array(t_data['corners'], dtype=np.int32).reshape((-1, 2))
+                    x, y, w, h = cv2.boundingRect(pts)
+                    cv2.rectangle(image, (x-pad, y-pad), (x + w+pad, y + h+pad), (0, 0, 0), 2)
+                    # cv2.putText(image, "MULTI", (x, y - 5), font, fs_base, (0, 0, 0), th)
+
+        # Pass 2: Draw Individual Tags (Foreground)
         for t_id, t_data in tag_results.items():
             # Parse tag ID safely
             try:
                 tag_num = int(str(t_id).replace('tag', ''))
             except ValueError:
                 tag_num = 0
+
+            # Special handling for Multi-Tag result: Skip (already drawn)
+            if t_data.get('is_multi_tag', False):
+                continue
 
             # Draw Polygon
             if 'corners' in t_data:

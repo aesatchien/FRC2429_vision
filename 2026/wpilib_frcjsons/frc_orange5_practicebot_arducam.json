@@ -3,7 +3,7 @@
         {
             "brightness": 48,
             "fps": 50,
-            "height": 800,
+            "height": 720,
             "name": "arducam",
             "path": "/dev/v4l/by-path/platform-xhci-hcd.14.auto-usb-0:1:1.0-video-index0",
             "pixel format": "mjpeg",
@@ -28,6 +28,12 @@
                     "name": "power_line_frequency",
                     "value": 0
                 },
+                {   "name": "gamma",
+                    "value": 0
+                },
+                {   "name": "gain",
+                    "value": 0
+                },
                 {
                     "name": "sharpness",
                     "value": 0
@@ -46,7 +52,7 @@
 				},
 				{
 					"name": "exposure_time_absolute", 
-					"value": 40
+					"value": 20
 				}
             ],
             "stream": {
@@ -57,7 +63,7 @@
         {
             "brightness": 58,
             "fps": 50,
-            "height": 800,
+            "height": 720,
             "name": "arducam2",
             "path": "/dev/v4l/by-path/platform-xhci-hcd.11.auto-usb-0:1:1.0-video-index0",
             "pixel format": "mjpeg",
@@ -82,6 +88,12 @@
                     "name": "power_line_frequency",
                     "value": 0
                 },
+                {   "name": "gamma",
+                    "value": 0
+                },
+                {   "name": "gain",
+                    "value": 0
+                },
                 {
                     "name": "sharpness",
                     "value": 0
@@ -100,7 +112,7 @@
 				},
 				{
 					"name": "exposure_time_absolute",
-					"value": 40
+					"value": 30
 				}
             ],
             "stream": {

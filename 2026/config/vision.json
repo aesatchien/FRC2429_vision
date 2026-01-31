@@ -138,7 +138,7 @@
       "cameras": [
         {
           "name": "arducam",
-          "camera_id": "arducam_b_1280_720",
+          "camera_id": "arducam_blue_1280_720",
           "labeling": {
             "raw_port": 1181,
             "processed_port": 1186,
@@ -169,7 +169,7 @@
         },
         {
           "name": "arducam2",
-          "camera_id": "arducam_a_1280_720",
+          "camera_id": "arducam_yellow_1280_720",
           "labeling": {
             "raw_port": 1182,
             "processed_port": 1187,
@@ -210,7 +210,7 @@
       "cameras": [
         {
           "name": "arducam",
-          "camera_id": "arducam_b_1280_800",
+          "camera_id": "arducam_yellow_1280_720",
           "labeling": {
             "raw_port": 1181,
             "processed_port": 1186,
@@ -236,7 +236,7 @@
         },
         {
           "name": "arducam2",
-          "camera_id": "arducam_a_1280_800",
+          "camera_id": "arducam_blue_1280_720",
           "labeling": {
             "raw_port": 1182,
             "processed_port": 1187,
@@ -306,33 +306,26 @@
       "intrinsics": {"fx": 902.46, "fy": 902.63, "cx": 629.1, "cy": 369.25},
       "distortions": [0.04397004, -0.06429124, 0.00029384, -6.56e-05, -0.00015588]
     },
-    "arducam_a_1280_720": {
+    "arducam_green_1280_720": {
       "camera_type": "arducam",
-      "serial": "arducam_A right",
+      "serial": "arducam_GREEN",
       "resolution": [1280, 720],
-      "intrinsics": {"fx": 907.48, "fy": 907.24, "cx": 640.9, "cy": 353.93},
-      "distortions": [0.02537283, -0.02294888, -0.00122956, -9.774e-05, -0.03132185]
+      "intrinsics": {"fx": 904.22, "fy": 904.01, "cx": 631.63, "cy": 325.58},
+      "distortions": [0.03574071, -0.03751287, 0.00140087, -0.00035136, -0.02924075]
     },
-    "arducam_b_1280_720": {
+    "arducam_blue_1280_720": {
       "camera_type": "arducam",
-      "serial": "arducam_B left",
+      "serial": "arducam_BLUE",
       "resolution": [1280, 720],
-      "intrinsics": {"fx": 912.34, "fy": 911.71, "cx": 640.24, "cy": 431.91},
-      "distortions": [0.0331324, -0.04438929, -0.00067446, -0.00110617, -0.0147985]
+      "intrinsics": {"fx": 908.7, "fy": 908.48, "cx": 642.48, "cy": 352.38},
+      "distortions": [0.0332274, -0.05052129, -0.00079437, -0.00023466, -0.00931715]
     },
-    "arducam_a_1280_800": {
+    "arducam_yellow_1280_720": {
       "camera_type": "arducam",
-      "serial": "arducam_A right",
-      "resolution": [1280, 800],
-      "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 400},
-      "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355]
-    },
-    "arducam_b_1280_800": {
-      "camera_type": "arducam",
-      "serial": "arducam_B left",
-      "resolution": [1280, 800],
-      "intrinsics": {"fx": 919.36, "fy": 919.67, "cx": 640, "cy": 400},
-      "distortions": [0.05586, -0.07083, 0.00001842, -0.0002274, 0.0032057355]
+      "serial": "arducam_YELLOW",
+      "resolution": [1280, 720],
+      "intrinsics": {"fx": 912.01, "fy": 911.56, "cx": 641.41, "cy": 431.38},
+      "distortions": [0.03726703, -0.06167168, -0.00081609, -0.00110447, 0.00242587]
     },
     "logitech_c920_046d:08e5_640_360": {
       "camera_type": "c920",
@@ -376,7 +369,7 @@
       "camera_type": "arducam",
       "serial": "none",
       "resolution": [1280, 720],
-      "intrinsics": {"fx": 912.34, "fy": 911.71, "cx": 640.24, "cy": 431.91},
+      "intrinsics": {"fx": 906, "fy": 906, "cx": 640, "cy": 360},
       "distortions": [0.0331324, -0.04438929, -0.00067446, -0.00110617, -0.0147985]
     },
     "genius_640_480": {

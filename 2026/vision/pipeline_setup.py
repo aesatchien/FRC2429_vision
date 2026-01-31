@@ -19,6 +19,39 @@ def attach_sink(ctx):
     ctx.sink = CameraServer.getVideo(camera=ctx.camera)
     ctx.img_buf = np.zeros((ctx.y_resolution or 480, ctx.x_resolution or 640, 3), dtype=np.uint8)
 
+def get_scaled_intrinsics(cam_def, target_w, target_h):
+    """
+    Scales the canonical intrinsics from camera_definitions to match the
+    actual runtime resolution of the camera.
+    """
+    intrinsics = cam_def.get("intrinsics")
+    if not intrinsics: return None
+
+    def_res = cam_def.get("resolution", [1280, 720]) # Default to 720p master
+    dw, dh = def_res[0], def_res[1]
+
+    # Case 1: Exact Match
+    if dw == target_w and dh == target_h:
+        return intrinsics
+
+    # Case 2: Arducam 720p (Center Crop) -> 800p (Full Height)
+    # We assume the 720p calibration is the center of the 800p frame.
+    if dw == 1280 and dh == 720 and target_w == 1280 and target_h == 800:
+        new_k = intrinsics.copy()
+        new_k['cy'] += 40.0
+        return new_k
+
+    # Case 3: Scaling / Binning (e.g. 1280x720 -> 640x360)
+    sx = target_w / dw
+    sy = target_h / dh
+    
+    new_k = intrinsics.copy()
+    new_k['fx'] *= sx
+    new_k['fy'] *= sy
+    new_k['cx'] *= sx
+    new_k['cy'] *= sy
+    return new_k
+
 def deploy_camera_pipeline(cam_obj, cam_profile, rio_config, ntinst, camera_definitions=None):
     """
     Factory function to initialize a complete camera pipeline context.
@@ -49,6 +82,10 @@ def deploy_camera_pipeline(cam_obj, cam_profile, rio_config, ntinst, camera_defi
         if not cam_def:
             log.warning(f"Camera ID '{cid}' not found in definitions!")
 
+    # Calculate intrinsics based on actual resolution vs definition resolution
+    base_intrinsics = get_scaled_intrinsics(cam_def, width, height)
+    final_intrinsics = cam_props.get("intrinsics") or base_intrinsics
+
     # 2. Build Context
     ctx = CameraContext(
         name=name,
@@ -66,7 +103,7 @@ def deploy_camera_pipeline(cam_obj, cam_profile, rio_config, ntinst, camera_defi
         find_colors=activities.get("find_colors", False),
         colors=activities.get("colors", ["orange"]),
         orientation=cam_props.get("orientation", {"tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0}),
-        intrinsics=cam_props.get("intrinsics") or cam_def.get("intrinsics"),
+        intrinsics=final_intrinsics,
         distortions=cam_props.get("distortions") or cam_def.get("distortions"),
         use_distortions=tag_config_in.get("undistort_image", False),
         max_tag_distance=tag_config_in.get("max_tag_distance", 3.5),

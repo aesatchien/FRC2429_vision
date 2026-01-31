@@ -4,7 +4,7 @@ import fcntl
 import re
 import sys
 
-# --- V4L2 Constants & Macros ---
+# --- V4L2 Constants ---
 _IOC_NRBITS = 8
 _IOC_TYPEBITS = 8
 _IOC_SIZEBITS = 14
@@ -72,39 +72,54 @@ VIDIOC_G_CTRL = _IOWR(ord('V'), 27, v4l2_control)
 
 # --- Helper Functions ---
 
+def get_serial(dev_path):
+    """
+    Reads the USB Serial Number from sysfs.
+    Traverses from /videoN/device (interface) up to parent (usb device).
+    """
+    try:
+        dev_name = os.path.basename(dev_path)  # e.g. video0
+        # The 'device' link points to the USB Interface (e.g. 1-1:1.0)
+        # The Serial is in the parent USB Device (e.g. 1-1)
+        # So we check .../device/../serial
+        serial_path = f"/sys/class/video4linux/{dev_name}/device/../serial"
+
+        if os.path.exists(serial_path):
+            with open(serial_path, 'r') as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return "N/A"
+
+
 def get_path_id(target_dev):
     """
-    Scans /dev/v4l/by-path to find the symlink pointing to target_dev.
-    Returns the filename of the symlink (e.g. platform-xhci-hcd.11...)
+    Returns unique suffix of the physical connection path.
     """
     by_path_dir = "/dev/v4l/by-path"
     if not os.path.exists(by_path_dir):
-        return "No Path Info"
+        return "No Path"
 
     target_real = os.path.realpath(target_dev)
-
     for fname in os.listdir(by_path_dir):
         full_path = os.path.join(by_path_dir, fname)
         if os.path.realpath(full_path) == target_real:
             return fname
-    return "Unknown Path"
+    return "Unknown"
 
 
 def get_device_info(dev_path):
-    info = {'card': 'Unknown', 'driver': 'Unknown'}
+    info = {'card': 'Unknown'}
     if not os.path.exists(dev_path):
         return info
-
     try:
         fd = os.open(dev_path, os.O_RDWR, 0)
         cap = v4l2_capability()
         fcntl.ioctl(fd, VIDIOC_QUERYCAP, cap)
         info['card'] = cap.card.decode('utf-8', errors='ignore')
-        info['driver'] = cap.driver.decode('utf-8', errors='ignore')
         os.close(fd)
     except OSError:
         pass
-
     return info
 
 
@@ -135,7 +150,6 @@ def get_cam_data(device_path):
             except OSError:
                 break
 
-            # Skip disabled controls and Class Headers
             if not (query.flags & V4L2_CTRL_FLAG_DISABLED) and query.type != V4L2_CTRL_TYPE_CTRL_CLASS:
                 ctrl = v4l2_control()
                 ctrl.id = query.id
@@ -156,26 +170,22 @@ def main():
     dev0 = "/dev/video0"
     dev2 = "/dev/video2"
 
-    # 1. Gather Basic Info
+    # 1. Gather Info
     info0 = get_device_info(dev0)
-    info2 = get_device_info(dev2)
-
-    # 2. Resolve Paths and Diff them
+    serial0 = get_serial(dev0)
     path0 = get_path_id(dev0)
+
+    info2 = get_device_info(dev2)
+    serial2 = get_serial(dev2)
     path2 = get_path_id(dev2)
 
-    # Simple logic to strip common prefix to make the ID shorter/readable
-    # If paths are identical (impossible for diff ports) or empty, show full
+    # 2. Smart Diff for Path (Visual Cleanliness)
     common_prefix_len = 0
-    if path0 and path2 and path0 != "Unknown Path" and path2 != "Unknown Path":
-        # Find common prefix length
+    if path0 and path2 and path0 != "Unknown" and path2 != "Unknown":
         for i, (c1, c2) in enumerate(zip(path0, path2)):
-            if c1 != c2:
-                break
+            if c1 != c2: break
             common_prefix_len = i
 
-    # We strip the prefix, but if it strips everything (identical strings), we keep full.
-    # We also keep the last few chars of the prefix (like "usb-") for context if we can.
     disp_path0 = path0[common_prefix_len:] if common_prefix_len < len(path0) else path0
     disp_path2 = path2[common_prefix_len:] if common_prefix_len < len(path2) else path2
 
@@ -186,13 +196,13 @@ def main():
     all_ids = set(data0.keys()) | set(data2.keys())
     sorted_ids = sorted(list(all_ids))
 
-    # 4. Print Table (Widened Columns to 20 chars)
-    # 32 (Name) + 3 ( | ) + 20 (Video0) + 3 ( | ) + 20 (Video2) = 78 chars
+    # 4. Print Table
+    # Layout: Name(32) | Video0(20) | Video2(20)
     print("\n" + "=" * 78)
     print(f"{'DEVICE INFO':<32} | {'VIDEO0':^20} | {'VIDEO2':^20}")
     print("=" * 78)
     print(f"{'Model':<32} | {info0['card'][:20]:^20} | {info2['card'][:20]:^20}")
-    # Display the Unique ID (Path Suffix)
+    print(f"{'Serial Number':<32} | {serial0[:20]:^20} | {serial2[:20]:^20}")
     print(f"{'Unique Path ID':<32} | {disp_path0[:20]:^20} | {disp_path2[:20]:^20}")
     print("-" * 78)
     print(f"{'CONTROL NAME':<32} | {'VAL':^20} | {'VAL':^20}")

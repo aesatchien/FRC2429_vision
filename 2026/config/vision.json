@@ -1,7 +1,7 @@
 {
   "hosts": {
 
-    "10.24.29.12": {
+    "10.24.29.11": {
       "role": "practicebot_pi4",
       "cameras": [
         {
@@ -205,7 +205,7 @@
       }
     },
 
-    "10.24.29.13": {
+    "10.24.29.12": {
       "role": "practicebot_orangepi_arducams",
       "cameras": [
         {
@@ -227,7 +227,12 @@
             "colors": ["orange"]
           },
           "tag_config": {
-            "max_tag_distance": 4.5,
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
+            "threads": 4,
+            "sigma": 0,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.95,
             "undistort_image": false
           },
           "camera_properties": {
@@ -254,7 +259,12 @@
           },
           "enable_overlay": true,
           "tag_config": {
-            "max_tag_distance": 4.5,
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
+            "threads": 4,
+            "sigma": 0,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.95,
             "undistort_image": false
           },
           "camera_properties": {

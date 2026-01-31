@@ -18,6 +18,10 @@ sudo apt-get install -y \
   libffi-dev liblzma-dev xz-utils \
   tk-dev uuid-dev libncursesw5-dev
 
+# Install system dependencies for OpenCV
+echo "Installing system dependencies..."
+sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0
+
 # 2) install pyenv (user-local)
 curl -fsSL https://pyenv.run | bash
 

@@ -22,7 +22,7 @@ chmod +x "$SCRIPT_DIR/runCamera"
 
 # Copy and enable runCamera.service
 echo "Installing runCamera.service..."
-sudo cp "$SCRIPT_DIR/runCamera_orange.service" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/runCamera.service" /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable runCamera.service
 sudo systemctl start runCamera.service

@@ -116,7 +116,12 @@ if ! shopt -oq posix; then
   fi
 fi
 
+# pyenv to make robotpy work
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
 
+# CJH shortcuts
 alias caminfo='ls -lR /dev/v4l/*'
 alias camsettings='v4l2-ctl -d /dev/video0 --list-ctrls-menus'
 alias gopy='cd ~/git/FRC2429_vision/2026/'

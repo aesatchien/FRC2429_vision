@@ -6,6 +6,6 @@ autoconnect=true
 
 [ipv4]
 method=manual
-addresses=10.24.29.13/24
+addresses=10.24.29.12/24
 gateway=10.24.29.1
 dns=8.8.8.8;8.8.4.4;

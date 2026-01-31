@@ -46,7 +46,7 @@ python --version
 
 # 7) install RobotPy 2025 from WPILib’s index
 python3 -m pip install --extra-index-url=https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-2025/simple   "pyntcore==2025.2.1.1" "robotpy-apriltag==2025.2.1.1" "robotpy-cscore==2025.2.1.1"
-
+python3 -m pip install opencv-python
 
 # 8) quick verification
 python -m pip show pyntcore robotpy-wpimath

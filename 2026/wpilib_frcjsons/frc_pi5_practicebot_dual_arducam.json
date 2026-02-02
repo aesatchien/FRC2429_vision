@@ -5,7 +5,7 @@
             "fps": 50,
             "height": 720,
             "name": "arducam",
-            "path": "/dev/v4l/by-id/platform-xhci-hcd.0-usb-0:1:1.0-video-index0",
+            "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_BLUE-video-index0",
             "pixel format": "mjpeg",
             "properties": [
                 {
@@ -59,7 +59,7 @@
             "fps": 50,
             "height": 720,
             "name": "arducam2",
-            "path": "/dev/v4l/by-id/platform-xhci-hcd.1-usb-0:1:1.0-video-index0",
+            "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_YELLOW-video-index0",
             "pixel format": "mjpeg",
             "properties": [
                 {

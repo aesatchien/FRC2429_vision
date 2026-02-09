@@ -1,8 +1,8 @@
 {
   "hosts": {
 
-    "10.24.29.11": {
-      "role": "practicebot_pi4",
+    "10.24.29.111": {
+      "role": "practicebot pi4 dual logitech",
       "cameras": [
         {
           "name": "logitech_c920_bottom_front",
@@ -61,9 +61,43 @@
         "c920": 40
       }
     },
+    "10.24.29.11": {
+      "role": "practicebot pi4 single logitech",
+      "cameras": [
+        {
+          "name": "logitech_c920_bottom_front",
+          "camera_id": "logitech_c920_046d:08e5_640_360",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "LogitechFront",
+            "table_name": "Cameras/LogitechFront",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": true,
+            "colors": ["yellow"]
+          },
+          "tag_config": {
+            "max_tag_distance": 3,
+            "undistort_image": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40
+      }
+    },
 
-    "10.24.29.10": {
-      "role": "practicebot_orangepi_logi",
+    "10.24.29.101": {
+      "role": "practicebot orangepi dual logitech",
       "cameras": [
         {
           "name": "logitech_c920_bottom_front",
@@ -132,9 +166,48 @@
         "c920": 40
       }
     },
+    "10.24.29.10": {
+      "role": "practicebot orangepi single logitech",
+      "cameras": [
+        {
+          "name": "logitech_c920_bottom_front",
+          "camera_id": "logitech_c920_046d:08e5_1280_720",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "LogitechFront",
+            "table_name": "Cameras/LogitechFront",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": false,
+            "find_tags": true,
+            "find_colors": true,
+            "colors": ["yellow"]
+          },
+          "tag_config": {
+            "decimate": 0,
+            "min_cluster_pixels": 25,
+            "threads": 4,
+            "sigma": 0,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.95,
+            "undistort_image": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40
+      }
+    },
 
-    "10.24.29.14": {
-      "role": "practicebot_pi5_arducams",
+    "10.24.29.141": {
+      "role": "practicebot pi5 dual arducams",
       "cameras": [
         {
           "name": "arducam",
@@ -204,9 +277,49 @@
         "arducam": 30
       }
     },
+    "10.24.29.14": {
+      "role": "practicebot pi5 single arducam",
+      "cameras": [
+        {
+          "name": "arducam",
+          "camera_id": "arducam_red_1280_720",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "ArducamRight",
+            "table_name": "Cameras/ArducamRight",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
+            "threads": 2,
+            "sigma": 0.0,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.5,
+            "undistort_image": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": 0, "ty": -0.05, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
 
-    "10.24.29.12": {
-      "role": "practicebot_orangepi_arducams",
+    "10.24.29.121": {
+      "role": "practicebot orangepi dual arducams",
       "cameras": [
         {
           "name": "arducam",
@@ -258,6 +371,46 @@
             "colors": ["orange"]
           },
           "enable_overlay": true,
+          "tag_config": {
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
+            "threads": 4,
+            "sigma": 0,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.95,
+            "undistort_image": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
+    "10.24.29.12": {
+      "role": "practicebot orangepi single arducam",
+      "cameras": [
+        {
+          "name": "arducam",
+          "camera_id": "arducam_red_1280_720",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "ArducamLeft",
+            "table_name": "Cameras/ArducamLeft",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
           "tag_config": {
             "decimate": 1.5,
             "min_cluster_pixels": 25,

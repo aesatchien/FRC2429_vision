@@ -1,0 +1,81 @@
+{
+    "cameras": [
+        {
+            "brightness": 45,
+            "fps": 30,
+            "height": 720,
+            "name": "logitech_c920_bottom_front",
+            "path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_357F611F-video-index0",
+            "pixel format": "mjpeg",
+            "properties": [
+                {
+                    "name": "connect_verbose",
+                    "value": 1
+                },
+                {
+                    "name": "contrast",
+                    "value": 50
+                },
+                {
+                    "name": "saturation",
+                    "value": 55
+                },
+                {
+                    "name": "white_balance_automatic",
+                    "value": false
+                },
+				{
+                    "name": "white_balance_temperature",
+                    "value": 3900
+                },
+                {
+                    "name": "gain",
+                    "value": 50
+                },
+                {
+                    "name": "power_line_frequency",
+                    "value": 1
+                },
+                {
+                    "name": "sharpness",
+                    "value": 50
+                },
+                {
+                    "name": "backlight_compensation",
+                    "value": 0
+                },
+                {
+                    "name": "auto_exposure",
+                    "value": 1
+                },
+                {
+                    "name": "exposure_time_absolute",
+                    "value": 7
+                },
+                {
+                    "name": "exposure_dynamic_framerate",
+                    "value": false
+                },
+                {
+                    "name": "focus_absolute",
+                    "value": 0
+                },
+                {
+                    "name": "focus_automatic_continuous",
+                    "value": false
+                },
+                {
+                    "name": "zoom_absolute",
+                    "value": 100
+                }
+            ],
+            "stream": {
+                "properties": []
+            },
+            "width": 1280
+        }
+    ],
+    "ntmode": "client",
+    "switched cameras": [],
+    "team": 2429
+}

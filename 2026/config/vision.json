@@ -1,7 +1,7 @@
 {
   "hosts": {
 
-    "frc_pi4_dual_logitech": {
+    "frc-pi4-dual-logitech": {
       "role": "practicebot pi4 dual logitech",
       "cameras": [
         {
@@ -61,7 +61,7 @@
         "c920": 40
       }
     },
-    "frc_pi4_single_logitech": {
+    "frc-pi4-single-logitech": {
       "role": "practicebot pi4 single logitech",
       "cameras": [
         {
@@ -96,7 +96,7 @@
       }
     },
 
-    "frc_orangepi_dual_logitech": {
+    "frc-orangepi-dual-logitech": {
       "role": "practicebot orangepi dual logitech",
       "cameras": [
         {
@@ -166,7 +166,7 @@
         "c920": 40
       }
     },
-    "frc_orangepi_single_logitech": {
+    "frc-orangepi-single-logitech": {
       "role": "practicebot orangepi single logitech",
       "cameras": [
         {
@@ -206,7 +206,7 @@
       }
     },
 
-    "frc_pi5_arducam": {
+    "frc-pi5-dual-arducam": {
       "role": "practicebot pi5 dual arducams",
       "cameras": [
         {
@@ -277,7 +277,7 @@
         "arducam": 30
       }
     },
-    "frc_pi5_single_arducam": {
+    "frc-pi5-single-arducam": {
       "role": "practicebot pi5 single arducam",
       "cameras": [
         {
@@ -318,7 +318,7 @@
       }
     },
 
-    "frc_orangepi_dual_arducam": {
+    "frc-orangepi-dual-arducam": {
       "role": "practicebot orangepi dual arducams",
       "cameras": [
         {
@@ -390,7 +390,7 @@
         "arducam": 30
       }
     },
-    "frc_orangepi_single_arducam": {
+    "frc-orangepi-single-arducam": {
       "role": "practicebot orangepi single arducam",
       "cameras": [
         {

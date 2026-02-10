@@ -1,7 +1,7 @@
 {
   "hosts": {
 
-    "10.24.29.111": {
+    "frc_pi4_dual_logitech": {
       "role": "practicebot pi4 dual logitech",
       "cameras": [
         {
@@ -61,7 +61,7 @@
         "c920": 40
       }
     },
-    "10.24.29.11": {
+    "frc_pi4_single_logitech": {
       "role": "practicebot pi4 single logitech",
       "cameras": [
         {
@@ -96,7 +96,7 @@
       }
     },
 
-    "10.24.29.101": {
+    "frc_orangepi_dual_logitech": {
       "role": "practicebot orangepi dual logitech",
       "cameras": [
         {
@@ -166,7 +166,7 @@
         "c920": 40
       }
     },
-    "10.24.29.10": {
+    "frc_orangepi_single_logitech": {
       "role": "practicebot orangepi single logitech",
       "cameras": [
         {
@@ -206,7 +206,7 @@
       }
     },
 
-    "10.24.29.141": {
+    "frc_pi5_arducam": {
       "role": "practicebot pi5 dual arducams",
       "cameras": [
         {
@@ -277,7 +277,7 @@
         "arducam": 30
       }
     },
-    "10.24.29.14": {
+    "frc_pi5_single_arducam": {
       "role": "practicebot pi5 single arducam",
       "cameras": [
         {
@@ -318,7 +318,7 @@
       }
     },
 
-    "10.24.29.121": {
+    "frc_orangepi_dual_arducam": {
       "role": "practicebot orangepi dual arducams",
       "cameras": [
         {
@@ -390,7 +390,7 @@
         "arducam": 30
       }
     },
-    "10.24.29.12": {
+    "frc_orangepi_single_arducam": {
       "role": "practicebot orangepi single arducam",
       "cameras": [
         {
@@ -468,7 +468,7 @@
       "resolution": [1280, 720],
       "intrinsics": {"fx": 902.46, "fy": 902.63, "cx": 629.1, "cy": 369.25},
       "distortions": [0.04397004, -0.06429124, 0.00029384, -6.56e-05, -0.00015588],
-      "pi_paths": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_RED-video-index0"
+      "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_RED-video-index0"
     },
     "arducam_green_1280_720": {
       "camera_type": "arducam",
@@ -476,7 +476,7 @@
       "resolution": [1280, 720],
       "intrinsics": {"fx": 904.22, "fy": 904.01, "cx": 631.63, "cy": 325.58},
       "distortions": [0.03574071, -0.03751287, 0.00140087, -0.00035136, -0.02924075],
-      "pi_paths": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_YELLOW-video-index0"
+      "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_GREEN-video-index0"
     },
     "arducam_blue_1280_720": {
       "camera_type": "arducam",
@@ -484,7 +484,7 @@
       "resolution": [1280, 720],
       "intrinsics": {"fx": 908.7, "fy": 908.48, "cx": 642.48, "cy": 352.38},
       "distortions": [0.0332274, -0.05052129, -0.00079437, -0.00023466, -0.00931715],
-      "pi_paths": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_BLUE-video-index0"
+      "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_BLUE-video-index0"
     },
     "arducam_yellow_1280_720": {
       "camera_type": "arducam",
@@ -492,7 +492,7 @@
       "resolution": [1280, 720],
       "intrinsics": {"fx": 912.01, "fy": 911.56, "cx": 641.41, "cy": 431.38},
       "distortions": [0.03726703, -0.06167168, -0.00081609, -0.00110447, 0.00242587],
-      "pi_paths": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_YELLOW-video-index0"
+      "path": "/dev/v4l/by-id/usb-Arducam_Technology_Co.__Ltd._Arducam_OV9281_USB_YELLOW-video-index0"
     },
     "logitech_c920_046d:08e5_640_360": {
       "camera_type": "c920",
@@ -514,7 +514,7 @@
       "resolution": [1280, 720],
       "intrinsics": { "fx": 968.36, "fy": 967.51, "cx": 641.91, "cy": 354.77 },
       "distortions": [0.018481,	-0.113076,	-0.001208,	-0.000224,	0.059386],
-      "arducam_path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_357F611F-video-index0"
+      "path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_357F611F-video-index0"
     },
     "logitech_c920_046d:082d_1280_720": {
       "camera_type": "c920",
@@ -522,7 +522,7 @@
       "resolution": [1280, 720],
       "intrinsics": {"fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24},
       "distortions": [0.12230188, -0.23959588, -0.00127158, -0.00126347, 0.10090911],
-      "arducam_path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_EA3BCE4F-video-index0"
+      "path": "/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_EA3BCE4F-video-index0"
     },
     "logitech_c920_046d:????_1280_720": {
       "camera_type": "c920",
@@ -530,7 +530,7 @@
       "resolution": [1280, 720],
       "intrinsics": {"fx": 925.85, "fy": 927.24, "cx": 641.54, "cy": 350.24},
       "distortions": [0.12230188, -0.23959588, -0.00127158, -0.00126347, 0.10090911],
-      "arducam_path": "/dev/v4l/by-id/usb-046d_C922_Pro_Stream_Webcam_112F5FDF-video-index0"
+      "path": "/dev/v4l/by-id/usb-046d_C922_Pro_Stream_Webcam_112F5FDF-video-index0"
     },
     "dummy": {
       "camera_type": "arducam",

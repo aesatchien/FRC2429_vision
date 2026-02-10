@@ -3,6 +3,7 @@
 
 # Wait for network to settle
 echo "Waiting for IP address..."
+sleep 3
 
 # With Static IP, this should be instant. We loop just in case interface is down.
 while [ -z "$(hostname -I | grep 10.)" ]; do
@@ -18,6 +19,19 @@ export PYTHONUNBUFFERED=1
 # Using "." is POSIX compliant (same as source)
 . $HOME/robo2025/bin/activate
 
+# Get hostname (short name)
+HOST=$(hostname -s)
+echo "Detected Hostname: $HOST"
+
+# Construct FRC JSON path based on hostname
+FRC_JSON="wpilib_frcjsons/${HOST}.json"
+
+if [ ! -f "$FRC_JSON" ]; then
+    echo "ERROR: Configuration file $FRC_JSON not found!"
+    echo "Ensure the device hostname matches a file in wpilib_frcjsons/"
+    exit 1
+fi
+
 # Run the Multi-Process Supervisor
 # This script will spawn the individual camera nodes
-python3 main_single_processor.py --autorestart --vision config/vision.json --frc /boot/frc.json
+python3 main_multi_processor.py --autorestart --vision config/vision.json --frc "$FRC_JSON"

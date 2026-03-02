@@ -22,3 +22,8 @@ Maintained by CJH
 **2020**: Switched to python, break it into modules for 1) different targets and 2) posting to networktables.  Still uses stock GRIP pipeline
 
 **2022**: Python working with GRIP pipeline, will add: PIXY support, red/blue cv pipeline options and socket connections for vision results transfer
+
+**2023**: Python
+**2024**: Python
+**2025**: Python
+**2026**: Python

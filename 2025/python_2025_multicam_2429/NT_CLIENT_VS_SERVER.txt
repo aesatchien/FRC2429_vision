@@ -1,0 +1,3 @@
+in the frc/json, 
+DO NOT PUT SERVER IN NTMODE UNLESS YOU ARE TESTING AT HOME!
+    "ntmode": "client",

@@ -95,6 +95,46 @@
         "c920": 40
       }
     },
+    "frc-pi4-single-arducam": {
+      "role": "practicebot pi4 single arducam green",
+      "cameras": [
+        {
+          "name": "arducam",
+          "camera_id": "arducam_green_1280_720",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "ArducamRight",
+            "table_name": "Cameras/ArducamRight",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "decimate": 1.5,
+            "min_cluster_pixels": 25,
+            "threads": 2,
+            "sigma": 0.0,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.5,
+            "undistort_image": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": 0, "ty": -0.05, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
 
     "frc-orangepi-dual-logitech": {
       "role": "practicebot orangepi dual logitech",

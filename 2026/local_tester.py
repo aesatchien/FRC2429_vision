@@ -277,7 +277,7 @@ def main():
         # --- Detection ---
         tag_results = tag_detector.detect(frame, cam_orientation=orientation, max_distance=max_dist)
         tag_results = tag_manager.process(tag_results, averaging_enabled=averaging_mode)
-        if not tag_results and mock_ctx.success_counter % 150 == 0:
+        if not any(k.startswith('tag') for k in tag_results) and mock_ctx.success_counter % 150 == 0:
             print("No tags detected...", end="\r", flush=True)
         mt_log.dump(tag_results, label="Local")
         

@@ -92,8 +92,8 @@ def update_cam_entries(ctx, tags, colors, ntinst):
             ctx.nt["targets"][key]["strafe"].set(0)
 
     # Update Tags Summary
-    # Filter out metadata like 'raw_detections' from the standard targets logic
-    target_tags = [t for k, t in tags.items() if k != 'raw_detections']
+    # Count only actual physical tags (ignore 'raw_detections' and 'multi_tag')
+    target_tags = [t for k, t in tags.items() if k.startswith('tag')]
     tag_count = len(target_tags)
     ctx.nt["targets"]["tags"]["targets"].set(tag_count)
 

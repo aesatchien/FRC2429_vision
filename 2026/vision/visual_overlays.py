@@ -200,7 +200,8 @@ def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=
             cnt = color_results[color_name].get('targets', 0)
             target_count_msg += f"{color_name[0].upper()}:{cnt} "
     
-    tag_cnt = len(tag_results)
+    # Strictly count only physical tags (ignore 'raw_detections' and 'multi_tag')
+    tag_cnt = len([k for k in tag_results if k.startswith('tag')])
     target_count_msg += f"T:{tag_cnt}"
     
     cv2.putText(image, target_count_msg, (int(0.7 * w_res), int(16*scale)), font, fs_base, target_text_color, th)

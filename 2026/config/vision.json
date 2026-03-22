@@ -495,7 +495,7 @@
             "min_cluster_pixels": 20,
             "min_white_black_diff": 20,
             "threads": 2,
-            "sigma": 0.0,
+            "sigma": 0.4,
             "allow_multi_tag": true,
             "max_tag_distance": 4.5,
             "undistort_image": false

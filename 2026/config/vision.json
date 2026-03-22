@@ -357,7 +357,6 @@
         "arducam": 30
       }
     },
-
     "frc-orangepi-dual-arducam": {
       "role": "practicebot orangepi dual arducams",
       "cameras": [
@@ -458,6 +457,47 @@
             "sigma": 0,
             "allow_multi_tag": true,
             "max_tag_distance": 4.95,
+            "undistort_image": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
+    "local-arducam": {
+      "role": "laptop single arducam",
+      "cameras": [
+        {
+          "name": "arducam",
+          "camera_id": "arducam_blue_1280_720",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "ArducamRight",
+            "table_name": "Cameras/ArducamRight",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "decimate": 1.0,
+            "min_cluster_pixels": 20,
+            "min_white_black_diff": 20,
+            "threads": 2,
+            "sigma": 0.0,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.5,
             "undistort_image": false
           },
           "camera_properties": {

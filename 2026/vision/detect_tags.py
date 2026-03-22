@@ -55,6 +55,7 @@ class TagDetector:
 
         qt = self.detector.getQuadThresholdParameters()
         qt.minClusterPixels = config.get("min_cluster_pixels", 25)
+        qt.minWhiteBlackDiff = config.get("min_white_black_diff", 5)
         self.detector.setQuadThresholdParameters(qt)
 
         cfg = self.detector.getConfig()
@@ -110,7 +111,8 @@ class TagDetector:
         log.info(f"Initialized TagDetector for {self.cam.width}x{self.cam.height}")
         log.info(f"  Config: {config}")
         log.info(f"  Intrinsics: fx={self.cam.fx:.1f} fy={self.cam.fy:.1f} cx={self.cam.cx:.1f} cy={self.cam.cy:.1f}")
-        log.info(f"  Distortions: {self.cam.dist_coeffs if any(self.cam.dist_coeffs) else 'None'} (Used in PnP: {not self.undistort_image})")
+        has_dist = self.cam.dist_coeffs is not None and len(self.cam.dist_coeffs) > 0
+        log.info(f"  Distortions: {self.cam.dist_coeffs if has_dist else 'None'} (Used in PnP: {not self.undistort_image})")
 
     def detect(self, image, cam_orientation=None, max_distance=None, robot_pose=None):
         """
@@ -134,7 +136,13 @@ class TagDetector:
         if max_distance is None: max_distance = self.default_max_dist
         results = {}
         processed_tags = []
+        
+        # Store all raw detections for visualization (green crosses)
+        raw_list = []
         for tag in valid_tags:
+            c = tag.getCenter()
+            raw_list.append({'id': tag.getId(), 'cx': c.x, 'cy': c.y})
+
             # 1. Single Tag (New Solver)
             res = self._process_single_tag_new(tag, cam_orientation, max_distance)
 
@@ -151,6 +159,8 @@ class TagDetector:
             multi_res = self._process_multi_tag_dual(valid_tags, processed_tags, cam_orientation)
             if multi_res:
                 results['multi_tag'] = multi_res
+
+        results['raw_detections'] = {'is_raw_list': True, 'tags': raw_list}
 
         return results
 

@@ -85,6 +85,7 @@ Fine-tune the AprilTag algorithm performance vs. accuracy.
 | `sigma` | `0.6` | Gaussian blur sigma. `0.0` = Sharp/Noisy, `0.6-0.8` = Smooths sensor noise. |
 | `threads` | `1` | Number of threads for the detector core. |
 | `min_cluster_pixels` | `25` | Reject blobs smaller than this (removes speckle noise). |
+| `min_white_black_diff` | `5` | Min intensity difference to form an edge. Increase (e.g. 30) to require starker contrast. |
 | `decision_margin` | `35` | Minimum confidence margin to accept a tag. |
 | `hamming` | `1` | Maximum corrected bit errors allowed (0 or 1). |
 | `refine_edges` | `True` | Enable sub-pixel edge refinement (slower, more accurate). |

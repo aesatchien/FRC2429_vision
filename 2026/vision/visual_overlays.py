@@ -113,6 +113,19 @@ def draw_overlays(image, tag_results, color_results, ctx, training=False, debug=
 
         # Pass 2: Draw Individual Tags (Foreground)
         for t_id, t_data in tag_results.items():
+            # Draw raw detection centers (green crosses) for debugging rejected tags
+            if t_data.get('is_raw_list'):
+                for rt in t_data.get('tags', []):
+                    # Skip if this tag was successfully processed and kept
+                    if f"tag{int(rt['id']):02d}" in tag_results:
+                        continue
+                        
+                    cx, cy = int(rt['cx']), int(rt['cy'])
+                    csz = max(4, int(8 * scale)) # Dynamic cross size
+                    cv2.line(image, (cx - csz, cy), (cx + csz, cy), (0, 255, 0), th)
+                    cv2.line(image, (cx, cy - csz), (cx, cy + csz), (0, 255, 0), th)
+                continue
+
             # Parse tag ID safely
             try:
                 tag_num = int(str(t_id).replace('tag', ''))

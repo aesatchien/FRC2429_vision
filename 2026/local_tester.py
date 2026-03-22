@@ -105,9 +105,14 @@ def main():
     print(f"cap.set resolution took {(time.time()-t0)*1000:.0f} ms")
 
     # Manual Exposure & Gain (Tune these values!)
+    current_exposure = -8
+    current_gain = 0
+    current_gamma = 100
+
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1) # 1=Manual, 3=Auto (Linux V4L2)
-    cap.set(cv2.CAP_PROP_EXPOSURE, -8)     # Linux: 20 (~2ms). Windows: Try -6 or -7.
-    cap.set(cv2.CAP_PROP_GAIN, 0)        # Increase to brighten image (0-255)
+    cap.set(cv2.CAP_PROP_EXPOSURE, current_exposure)     # Linux: 20 (~2ms). Windows: Try -6 or -7.
+    cap.set(cv2.CAP_PROP_GAIN, current_gain)        # Increase to brighten image (0-255)
+    cap.set(cv2.CAP_PROP_GAMMA, current_gamma)
     cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)     # Disable autofocus
 
     t0 = time.time()
@@ -183,6 +188,9 @@ def main():
     print("  'v' - Toggle Tag Averaging")
     print("  'w/a/s/e' - Move Training Box")
     print("  'c' - Cycle Target Color")
+    print("  '-/=' - Decrease/Increase Exposure")
+    print("  '[/]' - Decrease/Increase Gain")
+    print("  ',/.' - Decrease/Increase Gamma")
     print("  'space' - Pause/Resume")
     print("  'n' - Next Frame (when paused)")
     print("  'q' - Quit")
@@ -217,6 +225,30 @@ def main():
         elif key == ord(' '): # spacebar
             paused = not paused
             print(f"Paused: {paused}")
+        elif key == ord('-'):
+            current_exposure -= 1
+            cap.set(cv2.CAP_PROP_EXPOSURE, current_exposure)
+            print(f"Exposure set to: {current_exposure}")
+        elif key == ord('='): # Unshifted '+' key
+            current_exposure += 1
+            cap.set(cv2.CAP_PROP_EXPOSURE, current_exposure)
+            print(f"Exposure set to: {current_exposure}")
+        elif key == ord('['):
+            current_gain = max(0, current_gain - 5)
+            cap.set(cv2.CAP_PROP_GAIN, current_gain)
+            print(f"Gain set to: {current_gain}")
+        elif key == ord(']'):
+            current_gain += 5
+            cap.set(cv2.CAP_PROP_GAIN, current_gain)
+            print(f"Gain set to: {current_gain}")
+        elif key == ord(','):
+            current_gamma = max(0, current_gamma - 5)
+            cap.set(cv2.CAP_PROP_GAMMA, current_gamma)
+            print(f"Gamma set to: {current_gamma}")
+        elif key == ord('.'):
+            current_gamma += 5
+            cap.set(cv2.CAP_PROP_GAMMA, current_gamma)
+            print(f"Gamma set to: {current_gamma}")
         elif key == ord('n') and paused:
             should_grab_frame = True
 

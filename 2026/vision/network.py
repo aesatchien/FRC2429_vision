@@ -92,11 +92,13 @@ def update_cam_entries(ctx, tags, colors, ntinst):
             ctx.nt["targets"][key]["strafe"].set(0)
 
     # Update Tags Summary
-    tag_count = len(tags)
+    # Filter out metadata like 'raw_detections' from the standard targets logic
+    target_tags = [t for k, t in tags.items() if k != 'raw_detections']
+    tag_count = len(target_tags)
     ctx.nt["targets"]["tags"]["targets"].set(tag_count)
 
     if tag_count > 0:
-        best_tag = min(tags.values(), key=lambda x: x['dist'])
+        best_tag = min(target_tags, key=lambda x: x.get('dist', 1e9))
         ctx.nt["targets"]["tags"]["id"].set(best_tag['id'])
         ctx.nt["targets"]["tags"]["distance"].set(best_tag['dist'])
         ctx.nt["targets"]["tags"]["rotation"].set(best_tag.get('rotation', 0))

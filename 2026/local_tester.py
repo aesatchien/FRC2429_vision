@@ -82,6 +82,7 @@ def main():
     parser.add_argument("--ip", default="127.0.0.1", help="NetworkTables server IP (default: localhost)")
     parser.add_argument("--config", default="config/vision.json", help="Path to vision.json")
     parser.add_argument("--profile", default="local", help="Host profile to load from vision.json")
+    parser.add_argument("--raw", action="store_true", help="Force YUYV uncompressed mode at 640x360 to test ISP artifacts")
     args = parser.parse_args()
 
     # --- Initialization ---
@@ -91,8 +92,18 @@ def main():
     cap = cv2.VideoCapture(args.camera, backend)
     print(f"cv2.VideoCapture took {(time.time()-t0)*1000:.0f} ms")
     
+    if args.raw:
+        print("RAW MODE: Forcing YUYV uncompressed at 640x360")
+        # Uncompressed mode bypasses MJPEG breathing artifacts
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'))
+        #cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        #cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+        cap.set(cv2.CAP_PROP_AUTO_WB, 0) # Kill Auto White Balance
+    else:
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+
     # FORCE MJPEG FIRST (Critical for 720p on USB 2.0)
-    # Setting this before resolution prevents the driver from trying to negotiate 
+    # Setting this before resolution prevents the driver from trying to negotiate
     # a high-bandwidth YUYV format for 720p, which causes delays.
     t0 = time.time()
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
@@ -192,6 +203,7 @@ def main():
     print("  '[/]' - Decrease/Increase Gain")
     print("  ',/.' - Decrease/Increase Gamma")
     print("  'space' - Pause/Resume")
+    print("  'p' - Open Native Camera Properties (Windows)")
     print("  'n' - Next Frame (when paused)")
     print("  'q' - Quit")
     print("--------------------------\n")
@@ -249,6 +261,9 @@ def main():
             current_gamma += 5
             cap.set(cv2.CAP_PROP_GAMMA, current_gamma)
             print(f"Gamma set to: {current_gamma}")
+        elif key == ord('p'):
+            print("Opening native camera properties dialog...")
+            cap.set(cv2.CAP_PROP_SETTINGS, 1)
         elif key == ord('n') and paused:
             should_grab_frame = True
 

@@ -318,7 +318,7 @@
       }
     },
     "frc-pi5-single-arducam": {
-      "role": "practicebot pi5 single arducam",
+      "role": "comp pi5 single arducam",
       "cameras": [
         {
           "name": "arducam",
@@ -348,7 +348,7 @@
             "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": 0.17, "ty": -0.31, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
+            "orientation": { "tx": -0.17, "ty": -0.31, "tz": 0, "rx": 0, "ry": 20, "rz": 0 }
           }
         }
       ],
@@ -430,16 +430,16 @@
       }
     },
     "frc-orangepi-single-arducam": {
-      "role": "practicebot orangepi single arducam",
+      "role": "comp bot orangepi single arducam",
       "cameras": [
         {
           "name": "arducam",
-          "camera_id": "arducam_red_1280_720",
+          "camera_id": "arducam_green_1280_720",
           "labeling": {
             "raw_port": 1181,
             "processed_port": 1186,
-            "stream_label": "ArducamLeft",
-            "table_name": "Cameras/ArducamLeft",
+            "stream_label": "ArducamRight",
+            "table_name": "Cameras/ArducamRight",
             "stream_max_width": 640,
             "stream_fps": 16
           },
@@ -451,8 +451,9 @@
             "colors": ["orange"]
           },
           "tag_config": {
-            "decimate": 1.5,
+            "decimate": 1.0,
             "min_cluster_pixels": 25,
+            "min_white_black_diff": 20,
             "threads": 4,
             "sigma": 0,
             "allow_multi_tag": true,
@@ -460,7 +461,7 @@
             "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }
+            "orientation": { "tx": -0.17, "ty": -0.31, "tz": 0, "rx": 0, "ry": 20, "rz": 0 }
           }
         }
       ],
@@ -495,10 +496,11 @@
             "min_cluster_pixels": 20,
             "min_white_black_diff": 20,
             "threads": 2,
-            "sigma": 0.4,
+            "sigma": 1.5,
             "allow_multi_tag": true,
-            "max_tag_distance": 4.5,
-            "undistort_image": false
+            "max_tag_distance": 5.5,
+            "undistort_image": false,
+            "refine_edges": false
           },
           "camera_properties": {
             "orientation": { "tx": 0, "ty": 0, "tz": 0, "rx": 0, "ry": 0, "rz": 0 }

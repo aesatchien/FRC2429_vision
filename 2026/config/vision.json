@@ -322,12 +322,12 @@
       "cameras": [
         {
           "name": "arducam",
-          "camera_id": "arducam_red_1280_720",
+          "camera_id": "arducam_green_1280_720",
           "labeling": {
             "raw_port": 1181,
             "processed_port": 1186,
-            "stream_label": "ArducamRight",
-            "table_name": "Cameras/ArducamRight",
+            "stream_label": "ArducamBack",
+            "table_name": "Cameras/ArducamBack",
             "stream_max_width": 640,
             "stream_fps": 16
           },
@@ -348,7 +348,7 @@
             "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": -0.17, "ty": -0.31, "tz": 0, "rx": 0, "ry": 20, "rz": 0 }
+            "orientation": { "tx": -0.17, "ty": 0, "tz": 0, "rx": 0, "ry": 20, "rz": 180 }
           }
         }
       ],
@@ -434,7 +434,7 @@
       "cameras": [
         {
           "name": "arducam",
-          "camera_id": "arducam_green_1280_720",
+          "camera_id": "arducam_red_1280_720",
           "labeling": {
             "raw_port": 1181,
             "processed_port": 1186,

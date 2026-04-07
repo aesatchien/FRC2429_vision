@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import sys, time, logging, argparse
+import sys, os, time, logging, argparse
+from pathlib import Path
 from ntcore import NetworkTableInstance
 
 from vision.wpi_config import load_vision_cfg, select_profile
@@ -11,6 +12,11 @@ from vision.pipeline_setup import deploy_camera_pipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 log = logging.getLogger("vision")
+
+# Persistent restart counter — survives process restarts, reset after healthy uptime
+FATAL_RESTART_COUNT_FILE = Path("/tmp/vision_fatal_count")
+MAX_FATAL_RESTARTS = 2
+HEALTHY_UPTIME_S = 60.0  # seconds of clean running before the restart streak is forgiven
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -64,14 +70,37 @@ if __name__ == "__main__":
         contexts.append(ctx)
 
     # Run workers
+    pipelines = []
     for ctx in contexts:
         log.info(f"Starting threaded pipeline for {ctx.name}")
         pipeline = ThreadedVisionPipeline(ctx, ntinst, nt_global, push_frame)
         pipeline.start()
+        pipelines.append(pipeline)
 
-    # Tiny stats loop
+    start_time = time.time()
+
+    # Stats + health loop
     while True:
         time.sleep(2.0)
+
+        # After running cleanly long enough, forgive any prior restart streak
+        if time.time() - start_time > HEALTHY_UPTIME_S:
+            FATAL_RESTART_COUNT_FILE.unlink(missing_ok=True)
+
+        # Check for fatal acquisition failures
+        failed = [p for p in pipelines if p.fatal.is_set()]
+        if failed:
+            names = [p.ctx.name for p in failed]
+            count = int(FATAL_RESTART_COUNT_FILE.read_text()) if FATAL_RESTART_COUNT_FILE.exists() else 0
+            count += 1
+            FATAL_RESTART_COUNT_FILE.write_text(str(count))
+            if count >= MAX_FATAL_RESTARTS:
+                log.error(f"Camera(s) {names} fatal — restart count {count} >= {MAX_FATAL_RESTARTS}, rebooting")
+                os.system("sudo reboot")
+            else:
+                log.error(f"Camera(s) {names} fatal — restart count {count}, exiting for restart")
+                sys.exit(2)
+
         parts = []
         for ctx in contexts:
             tf = getattr(ctx, "thread_fps", {})
@@ -79,4 +108,3 @@ if __name__ == "__main__":
             stats = " ".join([f"{k}:{v:0.0f}/{tt.get(k,0):0.1f}ms" for k,v in tf.items()])
             parts.append(f"{ctx.name}:{ctx.fps:0.1f}fps [{stats}]")
         print("  ".join(parts), end="\r", flush=True)
-        # print(msg, end="\r", flush=True)

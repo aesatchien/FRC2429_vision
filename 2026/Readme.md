@@ -65,6 +65,24 @@ python3 main_multi_processor.py --autorestart --vision config/vision.json [--frc
 - Optional CPU pinning via `vision.json`: set `reserve_cores` at host level and per‑camera `cpu`.
 
 ---
+## Automatic Restart and Reboot on Camera Failure
+
+If a camera stops delivering frames, the acquisition thread detects it after `MAX_CONSECUTIVE_ACQUISITION_FAILURES` consecutive failures (~5 seconds) and signals a fatal error. The process then exits with code `2`.
+
+- **Multi-process mode** (`main_multi_processor.py --autorestart`): the supervisor sees `rc=2`, increments a per-camera restart counter, and relaunches the worker. After **2 consecutive fatal restarts** it calls `sudo reboot`.
+- **Single-process mode** (`main_single_processor.py`): the restart count is stored in `/tmp/vision_fatal_count` so it survives process restarts. After **2 consecutive fatal restarts** it calls `sudo reboot`. The counter resets automatically after 60 seconds of healthy operation.
+
+### Pi setup — passwordless sudo for reboot
+
+The vision process does not need to run as root. Grant only the reboot permission by adding one line via `sudo visudo`:
+
+```
+pi ALL=(ALL) NOPASSWD: /sbin/reboot
+```
+
+Replace `pi` with the user that runs the vision process. If vision runs as a **systemd service**, you can use `systemctl reboot` instead (no sudoers change needed in most configurations) — change the `os.system(...)` call in the relevant `main_*.py` accordingly.
+
+---
 ## Notes
 - Launcher prefers NT `_fps` if available; otherwise falls back to parsing each worker’s stdout line.
 - If streams are up but FPS shows `0.0`, tail `./logs/camera-<name>.log` to confirm the worker prints the stats line.

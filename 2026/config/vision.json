@@ -136,7 +136,7 @@
       }
     },
 
-    "frc-orangepi-dual-logitech": {
+    "frc-orange5-dual-c920": {
       "role": "practicebot orangepi dual logitech",
       "cameras": [
         {
@@ -206,7 +206,7 @@
         "c920": 40
       }
     },
-    "frc-orangepi-single-logitech": {
+    "frc-orange5-single-c920": {
       "role": "practicebot orangepi single logitech",
       "cameras": [
         {
@@ -357,7 +357,7 @@
         "arducam": 30
       }
     },
-    "frc-orangepi-dual-arducam": {
+    "frc-orange5-dual-arducam": {
       "role": "practicebot orangepi dual arducams",
       "cameras": [
         {
@@ -462,6 +462,47 @@
           },
           "camera_properties": {
             "orientation": { "tx": -0.17, "ty": -0.31, "tz": 0, "rx": 0, "ry": 20, "rz": 0 }
+          }
+        }
+      ],
+      "brightness_overrides": {
+        "c920": 40,
+        "arducam": 30
+      }
+    },
+    "frc-orange5-single-arducam-back": {
+      "role": "comp bot orangepi single arducam",
+      "cameras": [
+        {
+          "name": "arducam",
+          "camera_id": "arducam_blue_1280_720",
+          "labeling": {
+            "raw_port": 1181,
+            "processed_port": 1186,
+            "stream_label": "ArducamBack",
+            "table_name": "Cameras/ArducamBack",
+            "stream_max_width": 640,
+            "stream_fps": 16
+          },
+          "activities": {
+            "enabled": true,
+            "greyscale": true,
+            "find_tags": true,
+            "find_colors": false,
+            "colors": ["orange"]
+          },
+          "tag_config": {
+            "decimate": 1.0,
+            "min_cluster_pixels": 25,
+            "min_white_black_diff": 20,
+            "threads": 4,
+            "sigma": 0,
+            "allow_multi_tag": true,
+            "max_tag_distance": 4.95,
+            "undistort_image": false
+          },
+          "camera_properties": {
+            "orientation": { "tx": -0.17, "ty": 0, "tz": 0, "rx": 0, "ry": 20, "rz": 0 }
           }
         }
       ],

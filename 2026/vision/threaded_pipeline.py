@@ -21,7 +21,7 @@ log = logging.getLogger("pipeline")
 
 # Number of consecutive acquisition failures before signaling a fatal restart.
 # At ~5ms sleep per failure this is roughly 5 seconds of a dead camera.
-MAX_CONSECUTIVE_ACQUISITION_FAILURES = 1000
+MAX_CONSECUTIVE_ACQUISITION_FAILURES = 200
 
 class ThreadedVisionPipeline:
     def __init__(self, ctx, ntinst, nt_global, push_frame_fn):

@@ -70,7 +70,7 @@ def main():
     while True:
         if pipeline.fatal.wait(timeout=2.0):
             log.error(f"Camera '{args.cam}' pipeline signaled fatal error — exiting for autorestart")
-            sys.exit(1)
+            sys.exit(2)  # exit code 2 = acquisition failure; tells supervisor to track restart count
         tf = getattr(ctx, "thread_fps", {})
         tt = getattr(ctx, "thread_time_ms", {})
         stats = " ".join([f"{k}:{v:0.0f}/{tt.get(k,0):0.1f}ms" for k,v in tf.items()])

@@ -167,13 +167,20 @@ def main():
             log.warning(f"{key} exited rc={rc}")
             ch["log"].flush(); ch["log"].close()
             if args.autorestart and not stopping["flag"]:
+                if rc == 2:  # acquisition fatal — track consecutive restarts
+                    ch["restart_count"] += 1
+                    if ch["restart_count"] >= 2:
+                        log.error(f"{key} has fatal-restarted {ch['restart_count']} times in a row — rebooting")
+                        os.system("sudo reboot")
+                else:
+                    ch["restart_count"] = 0  # clean exit or config error; reset streak
                 time.sleep(0.5)
                 new = spawn(ch["cmd"], ch["log_path"])
+                new["restart_count"] = ch["restart_count"]  # carry the count forward
                 children[key] = new
-                # restart reader
                 name = key.split("cam:",1)[1]
                 start_reader(name, new, stats)
-                log.info(f"restarted {key}")
+                log.info(f"restarted {key} (restart_count={new['restart_count']})")
             else:
                 del children[key]
 

@@ -23,6 +23,11 @@ log = logging.getLogger("pipeline")
 # At ~5ms sleep per failure this is roughly 5 seconds of a dead camera.
 MAX_CONSECUTIVE_ACQUISITION_FAILURES = 200
 
+# Wall-clock seconds without a successful frame before the watchdog signals fatal.
+# Catches grabFrame blocking indefinitely or WPILib reconnect flaps that keep
+# resetting _consecutive_failures before it reaches the threshold above.
+DEAD_CAMERA_WATCHDOG_S = 12
+
 class ThreadedVisionPipeline:
     def __init__(self, ctx, ntinst, nt_global, push_frame_fn):
         self.ctx = ctx
@@ -32,6 +37,7 @@ class ThreadedVisionPipeline:
         self.running = False
         self.fatal = threading.Event()
         self._consecutive_failures = 0
+        self._last_good_frame_time = time.time()  # updated by acquisition; watched by watchdog
 
         # --- Shared Data & Synchronization ---
         
@@ -65,6 +71,7 @@ class ThreadedVisionPipeline:
             threading.Thread(target=self._thread_detect_hsv, name="HSV", daemon=True),
             threading.Thread(target=self._thread_nt_update, name="NT", daemon=True),
             threading.Thread(target=self._thread_stream, name="Stream", daemon=True),
+            threading.Thread(target=self._thread_watchdog, name="Watch", daemon=True),
         ]
 
         # --- Performance Stats ---
@@ -123,6 +130,7 @@ class ThreadedVisionPipeline:
                 ts, img = self.ctx.sink.grabFrame(img_buf)
                 if ts > 0:
                     self._consecutive_failures = 0
+                    self._last_good_frame_time = time.time()
                     t0 = time.time()
                     with self.frame_lock:
                         # We copy here so processing threads don't read while we write next frame
@@ -145,6 +153,29 @@ class ThreadedVisionPipeline:
             except Exception as e:
                 log.error(f"Acquisition error: {traceback.format_exc()}")
                 time.sleep(0.1)
+
+    # ---------------------------------------------------------
+    # 1b. Watchdog Thread
+    # ---------------------------------------------------------
+    def _thread_watchdog(self):
+        """Independent health watchdog: signals fatal if no good frame arrives within
+        DEAD_CAMERA_WATCHDOG_S seconds.  Catches two failure modes that defeat the
+        consecutive-failure counter:
+          - grabFrame blocking indefinitely while WPILib is in a 'reconnecting' state
+          - WPILib briefly delivering frames during reconnect attempts, resetting
+            _consecutive_failures before it reaches the threshold
+        """
+        # Give the camera time to start up before we begin watching.
+        time.sleep(DEAD_CAMERA_WATCHDOG_S)
+        while self.running and not self.fatal.is_set():
+            time.sleep(5.0)
+            age = time.time() - self._last_good_frame_time
+            if age > DEAD_CAMERA_WATCHDOG_S:
+                log.error(
+                    f"Camera '{self.ctx.name}' watchdog: no good frame for {age:.0f}s — signaling restart"
+                )
+                self.fatal.set()
+                return
 
     # ---------------------------------------------------------
     # 2. Tag Detection Thread

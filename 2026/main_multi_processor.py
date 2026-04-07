@@ -11,6 +11,12 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent if HERE.name == "bin" else HERE
 CAM_WORKER_MODULE = "vision.camera_node"
 
+# Supervisor-side FPS watchdog: if a worker has produced zero FPS for this many
+# seconds while still running, the supervisor force-kills it for a restart.
+# This is the belt-and-suspenders backstop for when the worker's internal watchdog
+# cannot fire (e.g. the process is alive but permanently stuck).
+SUPERVISOR_FPS_TIMEOUT_S = 30
+
 def cpu_map_for_profile(profile, reserve_cores):
     mapping = {}
     for cam in profile.get("cameras", []):
@@ -145,6 +151,9 @@ def main():
         log.info(f"started {name} cpu={cpu} -> {log_path}")
         time.sleep(1.0) # Stagger startup to prevent USB bandwidth race conditions
 
+    # Per-camera time of last nonzero FPS reading (initialized to now for startup grace).
+    last_nonzero_fps = {name: time.time() for name in cam_names}
+
     # signals
     stopping = {"flag": False}
     def _stop(sig, frm):
@@ -167,7 +176,9 @@ def main():
             log.warning(f"{key} exited rc={rc}")
             ch["log"].flush(); ch["log"].close()
             if args.autorestart and not stopping["flag"]:
-                if rc == 2:  # acquisition fatal — track consecutive restarts
+                # rc==2: worker's own fatal signal; supervisor_killed: we force-killed
+                # it because FPS was dead.  Both count as acquisition failures.
+                if rc == 2 or ch.get("supervisor_killed"):
                     ch["restart_count"] += 1
                     if ch["restart_count"] >= 2:
                         log.error(f"{key} has fatal-restarted {ch['restart_count']} times in a row — rebooting")
@@ -178,8 +189,9 @@ def main():
                 new = spawn(ch["cmd"], ch["log_path"])
                 new["restart_count"] = ch["restart_count"]  # carry the count forward
                 children[key] = new
-                name = key.split("cam:",1)[1]
-                start_reader(name, new, stats)
+                cam_name = key.split("cam:", 1)[1]
+                start_reader(cam_name, new, stats)
+                last_nonzero_fps[cam_name] = time.time()  # reset watchdog timer for fresh start
                 log.info(f"restarted {key} (restart_count={new['restart_count']})")
             else:
                 del children[key]
@@ -197,6 +209,24 @@ def main():
                 S = stats.get(name, {}).get("S", 0)
                 F = stats.get(name, {}).get("F", 0)
                 parts.append(f"{name}:{fps_val:0.1f}fps S:{S} F:{F}")
+
+                # Supervisor FPS watchdog: force-kill a running worker that has
+                # produced no output for too long (worker's internal watchdog may be
+                # stuck if grabFrame blocks inside WPILib's reconnect loop).
+                key = f"cam:{name}"
+                if fps_val > 0.0:
+                    last_nonzero_fps[name] = now
+                elif args.autorestart and not stopping["flag"]:
+                    ch = children.get(key)
+                    if ch and ch["p"].poll() is None:  # still running but silent
+                        dead_secs = now - last_nonzero_fps[name]
+                        if dead_secs > SUPERVISOR_FPS_TIMEOUT_S:
+                            log.warning(
+                                f"{key} zero FPS for {dead_secs:.0f}s — supervisor forcing restart"
+                            )
+                            ch["supervisor_killed"] = True
+                            terminate(ch)
+
             print("  ".join(parts), end="\r", flush=True)
             last_print = now
 

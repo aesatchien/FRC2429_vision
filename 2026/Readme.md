@@ -72,6 +72,27 @@ If a camera stops delivering frames, the acquisition thread detects it after `MA
 - **Multi-process mode** (`main_multi_processor.py --autorestart`): the supervisor sees `rc=2`, increments a per-camera restart counter, and relaunches the worker. After **2 consecutive fatal restarts** it calls `sudo reboot`.
 - **Single-process mode** (`main_single_processor.py`): the restart count is stored in `/tmp/vision_fatal_count` so it survives process restarts. After **2 consecutive fatal restarts** it calls `sudo reboot`. The counter resets automatically after 60 seconds of healthy operation.
 
+### Why the consecutive-failure counter alone is insufficient
+
+The `MAX_CONSECUTIVE_ACQUISITION_FAILURES` counter works well the first time a camera dies mid-run: `grabFrame` returns `ts=0` rapidly, the counter reaches 200, and the process exits cleanly with `rc=2`.
+
+After the **first restart**, however, WPILib's cscore camera manager enters a persistent reconnection loop that defeats this mechanism in two ways:
+
+1. **`grabFrame` blocks indefinitely.** While cscore is actively attempting to re-open the USB device it spams connection-attempt messages and may never return from `grabFrame`, so the acquisition thread never reaches the failure-counting code at all.
+2. **Reconnection flaps reset the counter.** Even if `grabFrame` does return, cscore occasionally delivers a frame (`ts > 0`) during a brief reconnection window before the camera drops again. Each such frame resets `_consecutive_failures` to zero, preventing the counter from ever reaching the threshold.
+
+In both cases the process stays alive indefinitely — streaming nothing — and the second restart (which would trigger the reboot) never happens.
+
+### Two-layer watchdog (current fix)
+
+**Layer 1 — internal watchdog thread** (`threaded_pipeline.py`):  
+A dedicated `Watch` daemon thread stamps `_last_good_frame_time` on every successful `grabFrame`. It then polls independently every 5 seconds. If no good frame has arrived within `DEAD_CAMERA_WATCHDOG_S` (20 s) it calls `self.fatal.set()` directly — bypassing `grabFrame` entirely so it cannot be blocked or fooled by reconnect flaps.
+
+**Layer 2 — supervisor FPS watchdog** (`main_multi_processor.py`, multi-process mode only):  
+The supervisor already reads each worker's output FPS every 2 seconds. If a worker process is still running but has reported zero FPS for `SUPERVISOR_FPS_TIMEOUT_S` (30 s), the supervisor force-kills it (`supervisor_killed = True`). That flag is treated the same as `rc=2` when computing the restart counter, so the reboot path fires after two such events.
+
+Layer 2 is a belt-and-suspenders backstop for any scenario where the worker process is alive but the watchdog thread itself cannot fire. Single-process mode does not need it because the `Watch` thread and the main health loop are in the same process.
+
 ### Pi setup — passwordless sudo for reboot
 
 The vision process does not need to run as root. Grant only the reboot permission by adding one line via `sudo visudo`:

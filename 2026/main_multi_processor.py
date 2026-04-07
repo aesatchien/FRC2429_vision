@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+1#!/usr/bin/env python3
 import sys, os, time, signal, subprocess, argparse, logging, threading, re
 from pathlib import Path
 from ntcore import NetworkTableInstance

@@ -66,11 +66,11 @@ def main():
     pipeline = ThreadedVisionPipeline(ctx, ntinst, nt_global, push_frame)
     pipeline.start()
 
-    # Main thread just monitors or sleeps
-    last_print = 0.0
+    # Main thread monitors health and prints stats
     while True:
-        time.sleep(2.0)
-        # Format thread stats
+        if pipeline.fatal.wait(timeout=2.0):
+            log.error(f"Camera '{args.cam}' pipeline signaled fatal error — exiting for autorestart")
+            sys.exit(1)
         tf = getattr(ctx, "thread_fps", {})
         tt = getattr(ctx, "thread_time_ms", {})
         stats = " ".join([f"{k}:{v:0.0f}/{tt.get(k,0):0.1f}ms" for k,v in tf.items()])

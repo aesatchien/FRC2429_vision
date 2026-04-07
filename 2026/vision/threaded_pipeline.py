@@ -19,6 +19,10 @@ from vision.tagmanager import TagManager
 from vision.network import update_cam_entries
 log = logging.getLogger("pipeline")
 
+# Number of consecutive acquisition failures before signaling a fatal restart.
+# At ~5ms sleep per failure this is roughly 5 seconds of a dead camera.
+MAX_CONSECUTIVE_ACQUISITION_FAILURES = 1000
+
 class ThreadedVisionPipeline:
     def __init__(self, ctx, ntinst, nt_global, push_frame_fn):
         self.ctx = ctx
@@ -26,7 +30,8 @@ class ThreadedVisionPipeline:
         self.nt_global = nt_global
         self.push_frame_fn = push_frame_fn
         self.running = False
-
+        self.fatal = threading.Event()
+        self._consecutive_failures = 0
 
         # --- Shared Data & Synchronization ---
         
@@ -117,6 +122,7 @@ class ThreadedVisionPipeline:
             try:
                 ts, img = self.ctx.sink.grabFrame(img_buf)
                 if ts > 0:
+                    self._consecutive_failures = 0
                     t0 = time.time()
                     with self.frame_lock:
                         # We copy here so processing threads don't read while we write next frame
@@ -127,12 +133,14 @@ class ThreadedVisionPipeline:
                         self.frame_cv.notify_all() # Wake up detectors
                     self._update_stats("Acq", time.time() - t0)
                 else:
+                    self._consecutive_failures += 1
                     self.ctx.failure_counter += 1
-                    # If we fail too many times, maybe we should try to restart the camera?
-                    # For now, just log occasionally or update status
-                    if self.ctx.failure_counter % 100 == 0:
-                         log.warning(f"Camera acquisition failing... count={self.ctx.failure_counter}")
-                         # Optionally update NT status here if desired
+                    if self._consecutive_failures >= MAX_CONSECUTIVE_ACQUISITION_FAILURES:
+                        log.error(f"Camera '{self.ctx.name}' acquisition failed {self._consecutive_failures} consecutive times — signaling restart")
+                        self.fatal.set()
+                        return
+                    if self._consecutive_failures % 100 == 0:
+                        log.warning(f"Camera '{self.ctx.name}' acquisition failing... consecutive={self._consecutive_failures}")
                     time.sleep(0.005)
             except Exception as e:
                 log.error(f"Acquisition error: {traceback.format_exc()}")

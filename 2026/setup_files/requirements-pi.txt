@@ -1,0 +1,16 @@
+# Python packages for the vision coprocessor. setup.sh installs these into the venv.
+# Pinned so every board gets the same versions. Once a board works well, you can replace
+# this file with its exact list:   pip freeze > setup_files/requirements-pi.txt
+
+# RobotPy 2025's 64-bit Pi wheels are on WPILib's server, not PyPI.
+# To move to RobotPy 2026 (on PyPI): change the four versions to 2026.2.2 and delete this line.
+--extra-index-url https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-2025/simple
+
+pyntcore==2025.2.1.1
+robotpy-cscore==2025.2.1.1
+robotpy-apriltag==2025.2.1.1
+robotpy-wpimath==2025.2.1.1
+
+# Headless build: no GUI, so no libGL system package needed.
+# Held below 5 because OpenCV 5.0 (July 2026) hasn't been tested with this code.
+opencv-python-headless<5

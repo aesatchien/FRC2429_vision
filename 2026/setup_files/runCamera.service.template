@@ -1,0 +1,21 @@
+# Template for /etc/systemd/system/runCamera.service.
+# setup.sh replaces @USER@ and @REPO@ with this board's values, so one file works on every board.
+# Output goes to the system journal (auto-rotated). Watch it with:  journalctl -u runCamera -f
+
+[Unit]
+Description=FRC Vision Camera Service
+# Start after the network is configured (network.target only means "network stack loaded").
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@REPO@
+# Run the tracked script through sh: works even if git lost the executable bit,
+# and a git pull updates it (no stale copy).
+ExecStart=/bin/sh @REPO@/setup_files/runCamera
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

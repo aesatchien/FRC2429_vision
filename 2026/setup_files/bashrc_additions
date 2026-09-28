@@ -1,26 +1,36 @@
-# FRC 2429 Environment
+# FRC 2429 vision shortcuts - one file for every board.
+# setup.sh adds a line to ~/.bashrc that loads this file, so a git pull updates the aliases.
 
-# Activate Virtual Environment automatically
-if [ -f "$HOME/robo2025/bin/activate" ]; then
-    source "$HOME/robo2025/bin/activate"
+# Folder this file lives in, then the 2026 folder above it.
+VISION_SETUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VISION_DIR="$(dirname "$VISION_SETUP_DIR")"
+
+# pyenv (only on boards where setup.sh had to build Python, e.g. Ubuntu 22.04)
+if [ -d "$HOME/.pyenv" ]; then
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
 fi
 
-# Aliases
+# Activate the vision venv
+if [ -f "$HOME/robo2025/bin/activate" ]; then
+    . "$HOME/robo2025/bin/activate"
+fi
+
+# Navigation
+alias gopy="cd $VISION_DIR"
 alias ll='ls -l'
-alias caminfo='ls -lR /dev/v4l/*'
-alias camsettings='v4l2-ctl -d /dev/video0 --list-ctrls-menus'
-alias gopy='cd ~/git/FRC2429_vision/2026'
+
+# Camera service
 alias startcams='sudo systemctl start runCamera.service'
 alias stopcams='sudo systemctl stop runCamera.service'
 alias restartcams='sudo systemctl restart runCamera.service'
-alias logcams='tail -f ~/logs/runCamera.log'
+alias logcams='journalctl -u runCamera -f'
 
-# raspberry
-# WiFi Control (useful for competition to ensure only Ethernet is active)
-alias stopwlan='sudo bash -c "echo \"blacklist brcmfmac\" > /etc/modprobe.d/disable-wifi.conf && reboot"'
-alias startwlan='sudo rm /etc/modprobe.d/disable-wifi.conf && sudo reboot'
+# Camera hardware
+alias caminfo='ls -lR /dev/v4l/*'
+alias camsettings='v4l2-ctl -d /dev/video0 --list-ctrls-menus'
 
-
-# orange
-alias stopwlan='sudo bash -c "echo \"blacklist bcmdhd\" > /etc/modprobe.d/disable-wifi.conf && reboot"'
-alias startwlan='sudo rm /etc/modprobe.d/disable-wifi.conf && sudo reboot'
+# Wi-Fi on/off for competition (works on Pi and Orange Pi; reboots)
+alias stopwlan="bash $VISION_SETUP_DIR/wifi_power.sh off"
+alias startwlan="bash $VISION_SETUP_DIR/wifi_power.sh on"

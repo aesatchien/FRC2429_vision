@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, os, time, logging, argparse
+import sys, os, time, logging, argparse, subprocess
 from pathlib import Path
 from ntcore import NetworkTableInstance
 
@@ -96,7 +96,10 @@ if __name__ == "__main__":
             FATAL_RESTART_COUNT_FILE.write_text(str(count))
             if count >= MAX_FATAL_RESTARTS:
                 log.error(f"Camera(s) {names} fatal — restart count {count} >= {MAX_FATAL_RESTARTS}, rebooting")
-                os.system("sudo reboot")
+                # -n: fail at once instead of waiting for a password (setup.sh installs the sudo rule)
+                result = subprocess.run(["sudo", "-n", "reboot"], capture_output=True, text=True)
+                if result.returncode != 0:
+                    log.error(f"reboot FAILED (rc={result.returncode}): {result.stderr.strip()} — run setup_files/setup.sh")
             else:
                 log.error(f"Camera(s) {names} fatal — restart count {count}, exiting for restart")
                 sys.exit(2)

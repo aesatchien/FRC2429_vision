@@ -1,0 +1,3 @@
+# Shell scripts must keep Linux (LF) line endings, even when committed from Windows.
+# A Windows CRLF ending breaks them on the Pi with "\r: command not found".
+* text eol=lf

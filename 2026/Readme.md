@@ -30,9 +30,11 @@ Now featuring a threaded pipeline (Acquisition, Tags, HSV, NT, Stream) for highe
 │  ├─ wpi_config.py              # Config loading and profile selection
 │  ├─ wpi_rio.py                 # WPILib/cscore hardware interaction
 │  └─ wpi_stream.py              # MJPEG streaming logic
-├─ setup_files/                  # Scripts and configs for Pi setup
-│  ├─ runCamera                  # Startup script
-│  ├─ runCamera.service          # Systemd service file
+├─ setup_files/                  # Pi / Orange Pi setup - see setup_files/README.txt
+│  ├─ setup.sh                   # One-shot board setup (safe to re-run)
+│  ├─ set_identity.sh            # Hostname + static IP
+│  ├─ runCamera                  # Startup script run by the service
+│  ├─ runCamera.service.template # Systemd service file
 │  └─ ...
 ├─ tests/                        # Diagnostic scripts
 │  ├─ debug_apriltag.py
@@ -95,13 +97,13 @@ Layer 2 is a belt-and-suspenders backstop for any scenario where the worker proc
 
 ### Pi setup — passwordless sudo for reboot
 
-The vision process does not need to run as root. Grant only the reboot permission by adding one line via `sudo visudo`:
+The vision process does not run as root, so it needs permission to reboot. `setup_files/setup.sh` installs this rule in `/etc/sudoers.d/010-vision-reboot` (reboot only, nothing else):
 
 ```
-pi ALL=(ALL) NOPASSWD: /sbin/reboot
+<user> ALL=(root) NOPASSWD: /usr/sbin/reboot, /sbin/reboot
 ```
 
-Replace `pi` with the user that runs the vision process. If vision runs as a **systemd service**, you can use `systemctl reboot` instead (no sudoers change needed in most configurations) — change the `os.system(...)` call in the relevant `main_*.py` accordingly.
+This is required on Raspberry Pi OS images from 2026-04-13 on, which no longer give the default user passwordless sudo. The code calls `sudo -n reboot` and logs an error if the reboot is refused, so a missing rule shows up in `journalctl -u runCamera`.
 
 ---
 ## Notes

@@ -1,7 +1,7 @@
 {
   "hosts": {
 
-    "frc-pi4-dual-logitech": {
+    "frc-pi4-dual-c920": {
       "role": "practicebot pi4 dual logitech",
       "cameras": [
         {
@@ -61,7 +61,7 @@
         "c920": 40
       }
     },
-    "frc-pi4-single-logitech": {
+    "frc-pi4-single-c920": {
       "role": "practicebot pi4 single logitech",
       "cameras": [
         {
@@ -429,7 +429,7 @@
         "arducam": 30
       }
     },
-    "frc-orangepi-single-arducam": {
+    "frc-orange5-single-arducam": {
       "role": "comp bot orangepi single arducam",
       "cameras": [
         {

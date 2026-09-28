@@ -1,37 +1,33 @@
 #!/bin/sh
-### TYPE: upload-python
+# Starts the vision supervisor. Run by runCamera.service (working directory = the 2026 folder).
+# Output goes to the system journal:  journalctl -u runCamera -f
 
-# Wait for network to settle
-echo "Waiting for IP address..."
-sleep 3
+VENV_DIR="$HOME/robo2025"     # must match VENV_DIR in setup.sh
 
-# With Static IP, this should be instant. We loop just in case interface is down.
-while [ -z "$(hostname -I | grep 10.)" ]; do
+# Wait up to 30 s for the robot-network address. Not strictly needed (NetworkTables
+# reconnects on its own), but it keeps the startup log readable. Never waits forever.
+WAITED=0
+while [ "$WAITED" -lt 30 ]; do
+    if ip -4 -o addr show | grep -q "inet 10\.24\.29\."; then
+        break
+    fi
     sleep 1
+    WAITED=$((WAITED + 1))
 done
-echo "Network up: $(hostname -I)"
-sleep 0.5
+echo "IP addresses: $(hostname -I)"
 
 export PYTHONUNBUFFERED=1
+. "$VENV_DIR/bin/activate"
 
-# Activate the virtual environment
-# Note: The setup script ensures this path exists.
-# Using "." is POSIX compliant (same as source)
-. $HOME/robo2025/bin/activate
-
-# Get hostname (short name)
-HOST=$(hostname -s)
-echo "Detected Hostname: $HOST"
-
-# Construct FRC JSON path based on hostname
+# The hostname picks this board's camera list.
+HOST="$(hostname -s)"
 FRC_JSON="wpilib_frcjsons/${HOST}.json"
+echo "Hostname: $HOST"
 
 if [ ! -f "$FRC_JSON" ]; then
-    echo "ERROR: Configuration file $FRC_JSON not found!"
-    echo "Ensure the device hostname matches a file in wpilib_frcjsons/"
+    echo "ERROR: $FRC_JSON not found. Set the hostname with setup_files/set_identity.sh"
     exit 1
 fi
 
-# Run the Multi-Process Supervisor
-# This script will spawn the individual camera nodes
-python3 main_multi_processor.py --autorestart --vision config/vision.json --frc "$FRC_JSON"
+# exec: Python replaces this shell, so systemd's stop signal goes straight to Python.
+exec python3 main_multi_processor.py --autorestart --vision config/vision.json --frc "$FRC_JSON"

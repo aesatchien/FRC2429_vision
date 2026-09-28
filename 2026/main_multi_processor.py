@@ -182,7 +182,10 @@ def main():
                     ch["restart_count"] += 1
                     if ch["restart_count"] >= 2:
                         log.error(f"{key} has fatal-restarted {ch['restart_count']} times in a row — rebooting")
-                        os.system("sudo reboot")
+                        # -n: fail at once instead of waiting for a password (setup.sh installs the sudo rule)
+                        result = subprocess.run(["sudo", "-n", "reboot"], capture_output=True, text=True)
+                        if result.returncode != 0:
+                            log.error(f"reboot FAILED (rc={result.returncode}): {result.stderr.strip()} — run setup_files/setup.sh")
                 else:
                     ch["restart_count"] = 0  # clean exit or config error; reset streak
                 time.sleep(0.5)

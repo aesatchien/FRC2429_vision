@@ -348,7 +348,7 @@
             "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": -0.17, "ty": 0, "tz": 0, "rx": 0, "ry": 20, "rz": 180 }
+            "orientation": { "tx": -0.33, "ty": 0, "tz": 0, "rx": 0, "ry": 20, "rz": 180 }
           }
         }
       ],
@@ -461,7 +461,7 @@
             "undistort_image": false
           },
           "camera_properties": {
-            "orientation": { "tx": -0.17, "ty": -0.31, "tz": 0, "rx": 0, "ry": 20, "rz": 0 }
+            "orientation": { "tx": -0.17, "ty": -0.30, "tz": 0, "rx": 0, "ry": 20, "rz": 0 }
           }
         }
       ],
